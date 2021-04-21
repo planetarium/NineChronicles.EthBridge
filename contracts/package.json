@@ -1,0 +1,28 @@
+{
+  "name": "bridge-contracts",
+  "version": "1.0.0",
+  "description": "Contracts of ethereum nine-chronicles bridge",
+  "main": "index.js",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.0.0"
+  },
+  "devDependencies": {
+    "@truffle/hdwallet-provider": "^1.2.6",
+    "dotenv": "^8.2.0",
+    "ganache-cli": "^6.12.2",
+    "truffle": "^5.3.2"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/planetarium/NineChronicles.EthBridge.git"
+  },
+  "author": "Planetarium",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/planetarium/NineChronicles.EthBridge/issues"
+  },
+  "homepage": "https://github.com/planetarium/NineChronicles.EthBridge#readme"
+}
