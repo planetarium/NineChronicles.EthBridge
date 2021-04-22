@@ -20,10 +20,10 @@ export class Monitor {
     private readonly _contract: Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _callbacks: Map<Symbol, Callback>;
-    
+
     private running: boolean;
     private latestBlockNumber: BlockNumber;
-    
+
     constructor(web3: Web3, contractDescription: ContractDescription, latestBlockNumber: BlockNumber) {
         this._web3 = web3;
         this._contract = new this._web3.eth.Contract(contractDescription.abi, contractDescription.address);
