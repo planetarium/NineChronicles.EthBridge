@@ -1,4 +1,4 @@
-import { ContractDescription } from "./types/contract-description";
+import { ContractDescription } from "./interfaces/contract-description";
 
 export const wNCGToken: ContractDescription = {
     abi: [

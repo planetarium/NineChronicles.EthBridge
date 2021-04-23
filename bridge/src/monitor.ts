@@ -1,7 +1,7 @@
 import Web3 from "web3";
 import { EventLog, BlockNumber } from 'web3-core';
 import { Contract } from 'web3-eth-contract';
-import { ContractDescription } from "./types/contract-description";
+import { ContractDescription } from "./interfaces/contract-description";
 
 const BURN_EVENT_NAME = "Burn";
 
