@@ -1,11 +1,10 @@
 import Web3 from "web3";
-import { EventLog, BlockNumber } from 'web3-core';
-import { Contract } from 'web3-eth-contract';
+import { Contract, EventData } from 'web3-eth-contract';
 import { ContractDescription } from "./interfaces/contract-description";
 
 const BURN_EVENT_NAME = "Burn";
 
-type Callback = (eventLog: EventLog) => void;
+type Callback = (eventLog: EventData) => void;
 type CallbackRemover = () => void;
 
 function delay(ms: number): Promise<void> {
@@ -71,7 +70,7 @@ export class Monitor {
         }
     }
 
-    private async getBurnPastEvents(from: number, to: number): Promise<EventLog[]> {
+    private async getBurnPastEvents(from: number, to: number): Promise<EventData[]> {
         // 0xc3599666213715dfabdf658c56a97b9adfad2cd9689690c70c79b20bc61940c9
         const BURN_EVENT_HASH = Web3.utils.sha3("Burn(address,bytes32,uint256)");
         return this._contract
