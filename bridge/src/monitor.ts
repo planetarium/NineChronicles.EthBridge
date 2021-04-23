@@ -1,3 +1,4 @@
+import { config } from "dotenv/types";
 import Web3 from "web3";
 import { Contract, EventData } from 'web3-eth-contract';
 import { ContractDescription } from "./interfaces/contract-description";
@@ -57,15 +58,20 @@ export class Monitor {
             const networkLatestBlockNumber = await this._web3.eth.getBlockNumber();
             const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - this._confirmations, beforeLatestBlockNumber);
 
-            console.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
-            const eventLogs = await this.getBurnPastEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
-            for (const eventLog of eventLogs) {
-                for (const callback of this._callbacks.values()) {
-                    callback(eventLog);
+            if (beforeLatestBlockNumber < confrimedLatestBlockNumber) {
+                console.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
+                const eventLogs = await this.getBurnPastEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
+                for (const eventLog of eventLogs) {
+                    for (const callback of this._callbacks.values()) {
+                        callback(eventLog);
+                    }
                 }
+
+                this.latestBlockNumber = confrimedLatestBlockNumber + 1;
+            } else {
+                console.debug("Skipped...");
             }
 
-            this.latestBlockNumber = confrimedLatestBlockNumber;
             await delay(15 * 1000);
         }
     }
