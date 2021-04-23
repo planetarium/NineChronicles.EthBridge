@@ -22,9 +22,9 @@ export class Monitor {
     private readonly _callbacks: Map<Symbol, Callback>;
 
     private running: boolean;
-    private latestBlockNumber: BlockNumber;
+    private latestBlockNumber: number;
 
-    constructor(web3: Web3, contractDescription: ContractDescription, latestBlockNumber: BlockNumber) {
+    constructor(web3: Web3, contractDescription: ContractDescription, latestBlockNumber: number) {
         this._web3 = web3;
         this._contract = new this._web3.eth.Contract(contractDescription.abi, contractDescription.address);
         this._contractDescription = contractDescription;
@@ -53,27 +53,29 @@ export class Monitor {
 
     private async startMonitoring(): Promise<void> {
         while (this.running) {
-            const eventLogs = await this.getBurnPastEvents(CONFIRMATIONS);
-            let maxBlockNumber = -1;
+            const beforeLatestBlockNumber = this.latestBlockNumber;
+            const networkLatestBlockNumber = await this._web3.eth.getBlockNumber();
+            const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - CONFIRMATIONS, beforeLatestBlockNumber);
+
+            console.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
+            const eventLogs = await this.getBurnPastEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
             for (const eventLog of eventLogs) {
                 for (const callback of this._callbacks.values()) {
                     callback(eventLog);
                 }
-
-                maxBlockNumber = Math.max(maxBlockNumber, eventLog.blockNumber);
             }
 
-            this.latestBlockNumber = maxBlockNumber;
+            this.latestBlockNumber = confrimedLatestBlockNumber;
             await delay(15 * 1000);
         }
     }
 
-    private async getBurnPastEvents(confirmations: number): Promise<EventLog[]> {
+    private async getBurnPastEvents(from: number, to: number): Promise<EventLog[]> {
         return this._contract
             .getPastEvents(BURN_EVENT_NAME, {
                 address: this._contractDescription.address,
-                fromBlock: this.latestBlockNumber,
-                toBlock: await this._web3.eth.getBlockNumber() - confirmations
+                fromBlock: from,
+                toBlock: to,
             });
     }
 }
