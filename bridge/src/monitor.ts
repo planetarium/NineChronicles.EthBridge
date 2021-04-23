@@ -35,7 +35,7 @@ export class Monitor {
         this._callbacks = new Map();
     }
 
-    public watch(callback: Callback): CallbackRemover {
+    public subscribe(callback: Callback): CallbackRemover {
         const symbol = Symbol();
         this._callbacks.set(symbol, callback);
         return () => {

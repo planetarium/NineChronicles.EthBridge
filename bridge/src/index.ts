@@ -17,7 +17,7 @@ if (WEB_SOCKET_PROVIDER_URI === undefined) {
 
     const web3 = new Web3(new Web3.providers.WebsocketProvider(WEB_SOCKET_PROVIDER_URI));
     const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
-    const callbackRemover = monitor.watch(eventLog => {
+    const unsubscribe = monitor.subscribe(eventLog => {
         console.log(eventLog);
     });
     monitor.run();
