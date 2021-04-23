@@ -13,8 +13,10 @@ if (WEB_SOCKET_PROVIDER_URI === undefined) {
 }
 
 (async () => {
+    const CONFIRMATIONS = 10;
+
     const web3 = new Web3(new Web3.providers.WebsocketProvider(WEB_SOCKET_PROVIDER_URI));
-    const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber());
+    const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
     const callbackRemover = monitor.watch(eventLog => {
         console.log(eventLog);
     });

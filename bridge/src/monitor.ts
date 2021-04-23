@@ -4,7 +4,6 @@ import { Contract } from 'web3-eth-contract';
 import { ContractDescription } from "./types/contract-description";
 
 const BURN_EVENT_NAME = "Burn";
-const CONFIRMATIONS = 10;
 
 type Callback = (eventLog: EventLog) => void;
 type CallbackRemover = () => void;
@@ -20,14 +19,16 @@ export class Monitor {
     private readonly _contract: Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _callbacks: Map<Symbol, Callback>;
+    private readonly _confirmations: number;
 
     private running: boolean;
     private latestBlockNumber: number;
 
-    constructor(web3: Web3, contractDescription: ContractDescription, latestBlockNumber: number) {
+    constructor(web3: Web3, contractDescription: ContractDescription, latestBlockNumber: number, confirmations: number) {
         this._web3 = web3;
         this._contract = new this._web3.eth.Contract(contractDescription.abi, contractDescription.address);
         this._contractDescription = contractDescription;
+        this._confirmations = confirmations;
         this.latestBlockNumber = latestBlockNumber;
 
         this.running = false;
@@ -55,7 +56,7 @@ export class Monitor {
         while (this.running) {
             const beforeLatestBlockNumber = this.latestBlockNumber;
             const networkLatestBlockNumber = await this._web3.eth.getBlockNumber();
-            const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - CONFIRMATIONS, beforeLatestBlockNumber);
+            const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - this._confirmations, beforeLatestBlockNumber);
 
             console.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
             const eventLogs = await this.getBurnPastEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
