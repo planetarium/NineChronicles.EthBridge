@@ -1,5 +1,5 @@
-const WrappedNCGToken = artifacts.require("WrappedNCGToken");
+const WrappedNCG = artifacts.require("WrappedNCG");
 
 module.exports = function(deployer) {
-  deployer.deploy(WrappedNCGToken);
+  deployer.deploy(WrappedNCG);
 };
