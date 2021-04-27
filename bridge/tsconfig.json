@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "strictNullChecks": true,
+        "esModuleInterop": true,
+        "target": "es2020",
+        "module": "commonjs",
+        "lib": ["es2020"],
+        "allowSyntheticDefaultImports": true,
+        "moduleResolution": "node",
+        "outDir": "dist",
+        "rootDir": "src"
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}
