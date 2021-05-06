@@ -1,0 +1,23 @@
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    - run: npm install
+      working-directory: ./bridge
+    - run: npx tsc
+      working-directory: ./bridge
+  build-solidity:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: npm i @openzeppelin/contracts solc
+    - run: npx solc --bin --base-path node_modules contracts/contracts/*.sol
