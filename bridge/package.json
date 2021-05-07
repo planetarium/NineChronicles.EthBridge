@@ -30,6 +30,8 @@
   },
   "homepage": "https://github.com/planetarium/NineChronicles.EthBridge#readme",
   "devDependencies": {
+    "@types/ethereum-protocol": "^1.0.1",
+    "@types/web3-provider-engine": "^14.0.0",
     "@typescript-eslint/eslint-plugin": "^4.22.0",
     "@typescript-eslint/parser": "^4.22.0",
     "eslint": "^7.24.0",
