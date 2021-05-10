@@ -2,10 +2,13 @@ import { config } from "dotenv";
 
 import Web3 from "web3";
 import { BurnEventResult } from "./interfaces/burn-event-result";
+import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { Monitor } from "./monitor";
 import { NCGTransfer } from "./ncg-transfer";
+import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
+import HDWalletProvider from "@truffle/hdwallet-provider";
 
 config();
 
@@ -27,16 +30,85 @@ if (BRIDGE_9C_ADDRESS === undefined) {
     process.exit(-1);
 }
 
+const CHAIN_ID_STRING: string | undefined = process.env.CHAIN_ID;
+if (CHAIN_ID_STRING === undefined) {
+    console.error("Please set 'CHAIN_ID' at .env");
+    process.exit(-1);
+}
+
+const CHAIN_ID = parseInt(CHAIN_ID_STRING);
+if (CHAIN_ID === NaN) {
+    console.error("Please set 'CHAIN_ID' with valid format at .env");
+    process.exit(-1);
+}
+
+const HD_WALLET_PROVIDER_URL: string | undefined = process.env.HD_WALLET_PROVIDER_URL;
+if (HD_WALLET_PROVIDER_URL === undefined) {
+    console.error("Please set 'HD_WALLET_PROVIDER_URL' at .env");
+    process.exit(-1);
+}
+
+const HD_WALLET_MNEMONIC: string | undefined = process.env.HD_WALLET_MNEMONIC;
+if (HD_WALLET_MNEMONIC === undefined) {
+    console.error("Please set 'HD_WALLET_MNEMONIC' at .env");
+    process.exit(-1);
+}
+
+const HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING: string | undefined = process.env.HD_WALLET_MNEMONIC_ADDRESS_NUMBER;
+if (HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING === undefined) {
+    console.error("Please set 'HD_WALLET_MNEMONIC_ADDRESS_NUMBER' at .env");
+    process.exit(-1);
+}
+
+const HD_WALLET_MNEMONIC_ADDRESS_NUMBER = parseInt(HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING);
+if (HD_WALLET_MNEMONIC_ADDRESS_NUMBER === NaN) {
+    console.error("Please set 'HD_WALLET_MNEMONIC_ADDRESS_NUMBER' with valid format at .env");
+    process.exit(-1);
+}
+
+const DEBUG: string | undefined = process.env.DEBUG;
+if (DEBUG !== undefined && DEBUG !== 'TRUE') {
+    console.error("Please set 'DEBUG' as 'TRUE' or remove 'DEBUG' at .env.");
+    process.exit(-1);
+}
+
 (async () => {
     const CONFIRMATIONS = 10;
 
     const ncgTransfer: INCGTransfer = new NCGTransfer(GRAPHQL_API_ENDPOINT, BRIDGE_9C_ADDRESS);
-    const web3 = new Web3(new Web3.providers.WebsocketProvider(WEB_SOCKET_PROVIDER_URI));
+    const hdWalletProvider = new HDWalletProvider({
+        mnemonic: HD_WALLET_MNEMONIC,
+        addressIndex: HD_WALLET_MNEMONIC_ADDRESS_NUMBER,
+        providerOrUrl: HD_WALLET_PROVIDER_URL,
+        numberOfAddresses: HD_WALLET_MNEMONIC_ADDRESS_NUMBER + 1,
+        chainId: CHAIN_ID,
+    });
+    const web3 = new Web3(hdWalletProvider);
+
     const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, BigInt(burnEventResult.amount));
         console.log("Transferred", txId);
     });
+
+    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
+    // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
+    // It should be not able to run in mainnet because it is for test.
+    if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
+        const mintEvent = {
+            address: "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
+            amount: 10000,
+        };
+        const mintInterval = 5000;
+        const clearInterval = setInterval(async () => {
+            try {
+                console.log("Receipt", await minter.mint(mintEvent.address, mintEvent.amount));
+            } catch (error) {
+                console.error(error);
+            }
+        }, mintInterval);
+    }
+
     monitor.run();
 })();
