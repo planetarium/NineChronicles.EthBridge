@@ -4,7 +4,7 @@ import Web3 from "web3";
 import { BurnEventResult } from "./interfaces/burn-event-result";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
-import { Monitor } from "./monitor";
+import { EthereumBurnEventMonitor } from "./ethereum-burn-event-monitor";
 import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
@@ -85,7 +85,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     });
     const web3 = new Web3(hdWalletProvider);
 
-    const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
+    const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, BigInt(burnEventResult.amount));

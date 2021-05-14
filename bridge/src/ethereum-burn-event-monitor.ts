@@ -14,7 +14,7 @@ function delay(ms: number): Promise<void> {
     })
 }
 
-export class Monitor {
+export class EthereumBurnEventMonitor {
     private readonly _web3: Web3;
     private readonly _contract: Contract;
     private readonly _contractDescription: ContractDescription;
