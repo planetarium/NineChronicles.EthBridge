@@ -1,5 +1,7 @@
 import axios, { AxiosResponse } from "axios";
 import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
+import { INCGTransferEvent } from "./interfaces/ncg-transfer-event";
+import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
 interface GraphQLRequestBody {
@@ -13,6 +15,56 @@ export class HeadlessGraphQLCLient implements IHeadlessGraphQLClient {
 
     constructor(apiEndpoint: string) {
         this._apiEndpoint = apiEndpoint;
+    }
+
+    async getTipIndex(): Promise<number> {
+        const query = `query
+        { chainQuery { blockQuery { blocks(desc: true, limit: 1) { index } } } }`;
+        const { data } = await axios.post(this._apiEndpoint, {
+            operation: null,
+            query,
+            variables: {},
+        }, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        return data.data.chainQuery.blockQuery.blocks[0].index;
+    }
+
+    async getBlockHash(index: number): Promise<BlockHash> {
+        const query = `query GetBlockHash($index: ID!)
+        { chainQuery { blockQuery { block(index: $index) { hash } } } }`;
+        const { data } = await axios.post(this._apiEndpoint, {
+            operation: "GetBlockHash",
+            query,
+            variables: {
+                index,
+            },
+        }, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        return data.data.chainQuery.blockQuery.block.hash;
+    }
+
+    async getNCGTransferEvents(blockHash: string, recipient: string | null = null): Promise<INCGTransferEvent[]> {
+        const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
+        { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { sender recipient amount } }`;
+        const { data } = await axios.post(this._apiEndpoint, {
+            operation: "GetNCGTransferEvents",
+            query,
+            variables: { blockHash, recipient },
+        }, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        return data.data.transferNCGHistories;
     }
 
     async transfer(recipient: string, amount: string, txNonce: number): Promise<TxId> {
