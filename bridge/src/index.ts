@@ -9,6 +9,7 @@ import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
+import { HeadlessGraphQLCLient } from "./headless-graphql-client";
 
 config();
 
@@ -75,7 +76,8 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
 (async () => {
     const CONFIRMATIONS = 10;
 
-    const ncgTransfer: INCGTransfer = new NCGTransfer(GRAPHQL_API_ENDPOINT, BRIDGE_9C_ADDRESS);
+    const headlessGraphQLCLient = new HeadlessGraphQLCLient(GRAPHQL_API_ENDPOINT);
+    const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     const hdWalletProvider = new HDWalletProvider({
         mnemonic: HD_WALLET_MNEMONIC,
         addressIndex: HD_WALLET_MNEMONIC_ADDRESS_NUMBER,
