@@ -10,6 +10,7 @@ import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
 import { HeadlessGraphQLCLient } from "./headless-graphql-client";
+import { NineChroniclesTransferEventMonitor } from "./nine-chronicles-transfer-event-monitor";
 
 config();
 
@@ -95,22 +96,21 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     });
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
+    const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
+    const nineChroniclesBridgeAddress = "0x0000000000000000000000000000000000000000";  // TODO: determine bridge address.
+    const nineChroniclesMonitor = new NineChroniclesTransferEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, nineChroniclesBridgeAddress);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
-        const mintEvent = {
-            address: "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
-            amount: 10000,
-        };
-        const mintInterval = 5000;
-        const clearInterval = setInterval(async () => {
+        nineChroniclesMonitor.subscribe(async event => {
             try {
-                console.log("Receipt", await minter.mint(mintEvent.address, mintEvent.amount));
+                console.log("Receipt", await minter.mint(event.sender, parseFloat(event.amount)));
             } catch (error) {
                 console.error(error);
             }
-        }, mintInterval);
+        });
     }
 
     monitor.run();
+    nineChroniclesMonitor.run();
 })();
