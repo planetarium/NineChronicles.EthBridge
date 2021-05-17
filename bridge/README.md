@@ -7,3 +7,9 @@ This application relays between `wNCG` on [Ethereum] and `NCG` on Nine Chronicle
 ```
 npm run start
 ```
+
+## Build (Docker)
+
+```
+docker build .
+```
