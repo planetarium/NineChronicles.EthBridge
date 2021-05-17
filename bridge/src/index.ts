@@ -10,7 +10,7 @@ import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
 import { HeadlessGraphQLCLient } from "./headless-graphql-client";
-import { NineChroniclesTransferEventMonitor } from "./nine-chronicles-transfer-event-monitor";
+import { NineChroniclesTransferredEventMonitor } from "./nine-chronicles-transferred-event-monitor";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
@@ -101,7 +101,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
     let latestMintedBlockHash: BlockHash, latestMintedTxId: TxId;
     const nineChroniclesBridgeAddress = "0x0000000000000000000000000000000000000000";  // TODO: determine bridge address.
-    const nineChroniclesMonitor = new NineChroniclesTransferEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, nineChroniclesBridgeAddress);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, nineChroniclesBridgeAddress);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {

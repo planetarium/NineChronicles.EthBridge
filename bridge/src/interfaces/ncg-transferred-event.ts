@@ -1,7 +1,7 @@
 import { BlockHash } from "../types/block-hash";
 import { TxId } from "../types/txid";
 
-export interface INCGTransferEvent {
+export interface INCGTransferredEvent {
     blockHash: BlockHash,
     txId: TxId,
     sender: string,

@@ -1,9 +1,9 @@
 import axios from "axios";
 import { ConfirmationMonitor } from "./confirmation-monitor";
 import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
-import { INCGTransferEvent } from "./interfaces/ncg-transfer-event";
+import { INCGTransferredEvent } from "./interfaces/ncg-transferred-event";
 
-export class NineChroniclesTransferEventMonitor extends ConfirmationMonitor<INCGTransferEvent> {
+export class NineChroniclesTransferredEventMonitor extends ConfirmationMonitor<INCGTransferredEvent> {
     private readonly _headlessGraphQLClient: IHeadlessGraphQLClient;
     private readonly _address: string;
 
@@ -18,11 +18,11 @@ export class NineChroniclesTransferEventMonitor extends ConfirmationMonitor<INCG
         return this._headlessGraphQLClient.getTipIndex();
     }
 
-    protected async getEvents(from: number, to: number): Promise<INCGTransferEvent[]> {
+    protected async getEvents(from: number, to: number): Promise<INCGTransferredEvent[]> {
         const events = [];
         for (let i = from; i <= to; ++i) {
             const blockHash = await this._headlessGraphQLClient.getBlockHash(i);
-            events.push(...(await this._headlessGraphQLClient.getNCGTransferEvents(blockHash, this._address)));
+            events.push(...(await this._headlessGraphQLClient.getNCGTransferredEvents(blockHash, this._address)));
         }
 
         return events;
