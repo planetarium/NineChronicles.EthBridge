@@ -1,4 +1,3 @@
-import axios from "axios";
 import { ConfirmationMonitor } from "./confirmation-monitor";
 import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
 import { INCGTransferredEvent } from "./interfaces/ncg-transferred-event";
