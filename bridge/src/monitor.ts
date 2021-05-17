@@ -1,4 +1,4 @@
-type Callback<TEvent> = (data: TEvent) => void;
+type Callback<TEvent> = (data: TEvent) => Promise<void>;
 type CallbackRemover = () => void;
 
 export abstract class Monitor<TEvent> {
@@ -34,7 +34,7 @@ export abstract class Monitor<TEvent> {
         while (this.running) {
             const { value }  = await loop.next();
             for (const callback of this._callbacks.values()) {
-                callback(value);
+                await callback(value);
             }
         }
     }
