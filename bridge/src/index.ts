@@ -100,8 +100,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
     const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
     let latestMintedBlockHash: BlockHash, latestMintedTxId: TxId;
-    const nineChroniclesBridgeAddress = "0x0000000000000000000000000000000000000000";  // TODO: determine bridge address.
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, nineChroniclesBridgeAddress);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
