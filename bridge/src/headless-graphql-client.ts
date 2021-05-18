@@ -10,7 +10,7 @@ interface GraphQLRequestBody {
     variables: Object;
 }
 
-export class HeadlessGraphQLCLient implements IHeadlessGraphQLClient {
+export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     private readonly _apiEndpoint: string;
 
     constructor(apiEndpoint: string) {

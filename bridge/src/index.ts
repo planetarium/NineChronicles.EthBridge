@@ -9,7 +9,7 @@ import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
-import { HeadlessGraphQLCLient } from "./headless-graphql-client";
+import { HeadlessGraphQLClient } from "./headless-graphql-client";
 import { NineChroniclesTransferredEventMonitor } from "./nine-chronicles-transferred-event-monitor";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
@@ -79,7 +79,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
 (async () => {
     const CONFIRMATIONS = 10;
 
-    const headlessGraphQLCLient = new HeadlessGraphQLCLient(GRAPHQL_API_ENDPOINT);
+    const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
     const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     const hdWalletProvider = new HDWalletProvider({
         mnemonic: HD_WALLET_MNEMONIC,
