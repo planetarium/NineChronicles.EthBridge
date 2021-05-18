@@ -4,11 +4,15 @@ import Web3 from "web3";
 import { BurnEventResult } from "./interfaces/burn-event-result";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
-import { Monitor } from "./monitor";
+import { EthereumBurnEventMonitor } from "./ethereum-burn-event-monitor";
 import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
+import { HeadlessGraphQLCLient } from "./headless-graphql-client";
+import { NineChroniclesTransferredEventMonitor } from "./nine-chronicles-transferred-event-monitor";
+import { BlockHash } from "./types/block-hash";
+import { TxId } from "./types/txid";
 
 config();
 
@@ -75,7 +79,8 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
 (async () => {
     const CONFIRMATIONS = 10;
 
-    const ncgTransfer: INCGTransfer = new NCGTransfer(GRAPHQL_API_ENDPOINT, BRIDGE_9C_ADDRESS);
+    const headlessGraphQLCLient = new HeadlessGraphQLCLient(GRAPHQL_API_ENDPOINT);
+    const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     const hdWalletProvider = new HDWalletProvider({
         mnemonic: HD_WALLET_MNEMONIC,
         addressIndex: HD_WALLET_MNEMONIC_ADDRESS_NUMBER,
@@ -85,7 +90,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     });
     const web3 = new Web3(hdWalletProvider);
 
-    const monitor = new Monitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
+    const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, BigInt(burnEventResult.amount));
@@ -93,22 +98,19 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     });
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
+    const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
+    let latestMintedBlockHash: BlockHash, latestMintedTxId: TxId;
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
-        const mintEvent = {
-            address: "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
-            amount: 10000,
-        };
-        const mintInterval = 5000;
-        const clearInterval = setInterval(async () => {
-            try {
-                console.log("Receipt", await minter.mint(mintEvent.address, mintEvent.amount));
-            } catch (error) {
-                console.error(error);
-            }
-        }, mintInterval);
+        nineChroniclesMonitor.subscribe(async event => {
+            console.log("Receipt", await minter.mint(event.sender, parseFloat(event.amount)));
+            latestMintedBlockHash = event.blockHash;
+            latestMintedTxId = event.txId;
+        });
     }
 
     monitor.run();
+    nineChroniclesMonitor.run();
 })();
