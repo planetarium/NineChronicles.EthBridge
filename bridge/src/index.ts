@@ -9,10 +9,12 @@ import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGToken } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
-import { HeadlessGraphQLCLient } from "./headless-graphql-client";
+import { HeadlessGraphQLClient } from "./headless-graphql-client";
 import { NineChroniclesTransferredEventMonitor } from "./nine-chronicles-transferred-event-monitor";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
+import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
+import { HeadlessHTTPClient } from "./headless-http-client";
 
 config();
 
@@ -28,9 +30,21 @@ if (GRAPHQL_API_ENDPOINT === undefined) {
     process.exit(-1);
 }
 
+const HTTP_ROOT_API_ENDPOINT: string | undefined = process.env.HTTP_ROOT_API_ENDPOINT;
+if (HTTP_ROOT_API_ENDPOINT === undefined) {
+    console.error("Please set 'HTTP_ROOT_API_ENDPOINT' at .env");
+    process.exit(-1);
+}
+
 const BRIDGE_9C_ADDRESS: string | undefined = process.env.BRIDGE_9C_ADDRESS;
 if (BRIDGE_9C_ADDRESS === undefined) {
     console.error("Please set 'BRIDGE_9C_ADDRESS' at .env");
+    process.exit(-1);
+}
+
+const BRIDGE_9C_PRIVATE_KEY: string | undefined = process.env.BRIDGE_9C_PRIVATE_KEY;
+if (BRIDGE_9C_PRIVATE_KEY === undefined) {
+    console.error("Please set 'BRIDGE_9C_PRIVATE_KEY' at .env");
     process.exit(-1);
 }
 
@@ -79,7 +93,7 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
 (async () => {
     const CONFIRMATIONS = 10;
 
-    const headlessGraphQLCLient = new HeadlessGraphQLCLient(GRAPHQL_API_ENDPOINT);
+    const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
     const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     const hdWalletProvider = new HDWalletProvider({
         mnemonic: HD_WALLET_MNEMONIC,
@@ -96,6 +110,9 @@ if (DEBUG !== undefined && DEBUG !== 'TRUE') {
         const txId = await ncgTransfer.transfer(burnEventResult._sender, BigInt(burnEventResult.amount));
         console.log("Transferred", txId);
     });
+
+    const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
+    await headlessHttpClient.setPrivateKey(BRIDGE_9C_PRIVATE_KEY);
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
     const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
