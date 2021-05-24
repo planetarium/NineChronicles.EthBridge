@@ -28,7 +28,7 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
             const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - this._confirmations, beforeLatestBlockNumber);
 
             if (beforeLatestBlockNumber < confrimedLatestBlockNumber) {
-                console.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
+                this.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
                 const eventLogs = await this.getEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
                 for (const eventLog of eventLogs) {
                     yield eventLog;
@@ -36,11 +36,15 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
 
                 this.latestBlockNumber = confrimedLatestBlockNumber + 1;
             } else {
-                console.debug("Skipped...");
+                this.debug("Skipped...");
             }
 
             await delay(this._delayMilliseconds);
         }
+    }
+
+    private debug(message?: any, ...optionalParams: any[]): void {
+        console.debug(`[${this.constructor.name}]`, message, ...optionalParams);
     }
 
     protected abstract getTipIndex(): Promise<number>;
