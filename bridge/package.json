@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "ts-node ./src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha -r ts-node/register test/*.spec.ts",
     "lint": "eslint src --ext .ts",
     "build": "tsc"
   },
@@ -30,13 +30,17 @@
   },
   "homepage": "https://github.com/planetarium/NineChronicles.EthBridge#readme",
   "devDependencies": {
+    "@types/chai": "^4.2.18",
     "@types/ethereum-protocol": "^1.0.1",
+    "@types/mocha": "^8.2.2",
     "@types/web3-provider-engine": "^14.0.0",
     "@typescript-eslint/eslint-plugin": "^4.22.0",
     "@typescript-eslint/parser": "^4.22.0",
+    "chai": "^4.3.4",
     "eslint": "^7.24.0",
     "husky": "^6.0.0",
     "lint-staged": "^10.5.4",
+    "mocha": "^8.4.0",
     "prettier": "^2.2.1",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.4"
