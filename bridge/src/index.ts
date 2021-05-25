@@ -1,6 +1,8 @@
 import { config } from "dotenv";
 
 import Web3 from "web3";
+import { init } from "@sentry/node";
+
 import { BurnEventResult } from "./interfaces/burn-event-result";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
@@ -88,6 +90,13 @@ const DEBUG: string | undefined = process.env.DEBUG;
 if (DEBUG !== undefined && DEBUG !== 'TRUE') {
     console.error("Please set 'DEBUG' as 'TRUE' or remove 'DEBUG' at .env.");
     process.exit(-1);
+}
+
+const SENTRY_DSN: string | undefined = process.env.SENTRY_DSN;
+if (SENTRY_DSN !== undefined) {
+    init({
+        dsn: SENTRY_DSN,
+    });
 }
 
 (async () => {
