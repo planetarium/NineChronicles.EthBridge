@@ -7,4 +7,5 @@ export interface INCGTransferredEvent {
     sender: string,
     recipient: string,
     amount: string,
+    memo: string | null,
 }

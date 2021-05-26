@@ -53,7 +53,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
 
     async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<INCGTransferredEvent[]> {
         const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
-        { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount } }`;
+        { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount memo } }`;
         const { data } = await axios.post(this._apiEndpoint, {
             operation: "GetNCGTransferEvents",
             query,

@@ -131,7 +131,8 @@ if (SENTRY_DSN !== undefined) {
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
         nineChroniclesMonitor.subscribe(async event => {
-            console.log("Receipt", await minter.mint(event.sender, parseFloat(event.amount)));
+            const recipient = event.memo !== null ? event.memo : event.sender;
+            console.log("Receipt", await minter.mint(recipient, parseFloat(event.amount)));
             latestMintedBlockHash = event.blockHash;
             latestMintedTxId = event.txId;
         });
