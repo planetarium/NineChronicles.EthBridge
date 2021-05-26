@@ -15,8 +15,8 @@ export class NCGTransfer implements INCGTransfer {
         this._address = address;
     }
 
-    async transfer(address: string, amount: BigInt): Promise<TxId> {
+    async transfer(address: string, amount: string, memo: string | null): Promise<TxId> {
         const nextTxNonce = await this._headlessGraphQLCLient.getNextTxNonce(this._address);
-        return await this._headlessGraphQLCLient.transfer(address, amount.toString(), nextTxNonce);
+        return await this._headlessGraphQLCLient.transfer(address, amount.toString(), nextTxNonce, memo);
     }
 }

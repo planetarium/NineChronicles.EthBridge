@@ -67,9 +67,9 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return data.data.transferNCGHistories;
     }
 
-    async transfer(recipient: string, amount: string, txNonce: number): Promise<TxId> {
-        const query = `mutation TransferGold($recipient: Address!, $amount: String!, $txNonce: Long!)
-        { transfer(recipient: $recipient, amount: $amount, txNonce: $txNonce) }`;
+    async transfer(recipient: string, amount: string, txNonce: number, memo: string | null): Promise<TxId> {
+        const query = `mutation TransferGold($recipient: Address!, $amount: String!, $txNonce: Long!, $memo: String)
+        { transfer(recipient: $recipient, amount: $amount, txNonce: $txNonce, memo: $memo) }`;
         const response = await this.graphqlRequest({
             operationName: "TransferGold",
             query,
@@ -77,6 +77,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
                 recipient,
                 amount,
                 txNonce,
+                memo,
             }});
 
         return response.data.data.transfer;

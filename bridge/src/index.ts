@@ -116,7 +116,7 @@ if (SENTRY_DSN !== undefined) {
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
-        const txId = await ncgTransfer.transfer(burnEventResult._sender, BigInt(burnEventResult.amount));
+        const txId = await ncgTransfer.transfer(burnEventResult._sender, burnEventResult.amount, null);
         console.log("Transferred", txId);
     });
 
@@ -131,8 +131,13 @@ if (SENTRY_DSN !== undefined) {
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
         nineChroniclesMonitor.subscribe(async event => {
-            const recipient = event.memo !== null ? event.memo : event.sender;
-            console.log("Receipt", await minter.mint(recipient, parseFloat(event.amount)));
+            if (event.memo === null || !web3.utils.isAddress(event.memo)) {
+                const txId = await ncgTransfer.transfer(event.sender, event.amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
+                console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", txId);
+                return;
+            }
+
+            console.log("Receipt", await minter.mint(event.memo, parseFloat(event.amount)));
             latestMintedBlockHash = event.blockHash;
             latestMintedTxId = event.txId;
         });
