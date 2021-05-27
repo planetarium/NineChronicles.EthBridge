@@ -3,7 +3,7 @@ FROM node:12.22 AS build-env
 COPY . /build
 WORKDIR /build
 RUN npm install -D
-RUN npx tsc
+RUN npx tsc --project tsconfig.production.json
 
 FROM node:12-alpine
 
