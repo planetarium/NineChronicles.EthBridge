@@ -1,15 +1,11 @@
 import { Monitor } from "./monitor";
 import { captureException } from "@sentry/node";
+import { TransactionLocation } from "./types/transaction-location";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => {
         setTimeout(() => { resolve() }, ms);
     })
-}
-
-export interface TransactionLocation {
-    blockHash: string;
-    txId: string;
 }
 
 export type CommonBlock = { blockIndex: number; } & TransactionLocation;

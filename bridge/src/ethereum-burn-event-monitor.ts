@@ -1,7 +1,8 @@
 import Web3 from "web3";
 import { Contract, EventData } from 'web3-eth-contract';
-import { ConfirmationMonitor, TransactionLocation } from "./confirmation-monitor";
+import { ConfirmationMonitor } from "./confirmation-monitor";
 import { ContractDescription } from "./interfaces/contract-description";
+import { TransactionLocation } from "./types/transaction-location";
 
 const BURN_EVENT_NAME = "Burn";
 
