@@ -1,5 +1,6 @@
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Database } from "sqlite3";
+import { TransactionLocation } from "./types/transaction-location";
 
 export class Sqlite3MonitorStateStore implements IMonitorStateStore {
     private readonly _database: Database;
@@ -33,13 +34,13 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
         });
     }
 
-    store(network: string, blockHash: string, txId: string): Promise<void> {
+    store(network: string, transactionLocation: TransactionLocation): Promise<void> {
         this.checkClosed();
 
         return new Promise((resolve, reject) => {
             this._database.run(
                 "INSERT OR REPLACE INTO monitor_states(network, block_hash, tx_id) VALUES (?, ?, ?)",
-                [network, blockHash, txId],
+                [network, transactionLocation.blockHash, transactionLocation.txId],
                 error => {
                     if (error !== null) {
                         reject(error);
@@ -51,7 +52,7 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
         });
     }
 
-    load(network: string): Promise<{ blockHash: string, txId: string }> {
+    load(network: string): Promise<TransactionLocation | null> {
         this.checkClosed();
 
         return new Promise((resolve, reject) => {
@@ -59,7 +60,11 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
                 if (error !== null) {
                     reject(error);
                 } else {
-                    resolve({ blockHash: row.block_hash, txId: row.tx_id });
+                    if (row === undefined) {
+                        resolve(null);
+                    } else {
+                        resolve({ blockHash: row.block_hash, txId: row.tx_id });
+                    }
                 }
             })
         });

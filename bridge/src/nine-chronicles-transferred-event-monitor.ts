@@ -7,7 +7,7 @@ export class NineChroniclesTransferredEventMonitor extends ConfirmationMonitor<I
     private readonly _headlessGraphQLClient: IHeadlessGraphQLClient;
     private readonly _address: string;
 
-    constructor(latestTransactionLocation: TransactionLocation, confirmations: number, headlessGraphQLClient: IHeadlessGraphQLClient, address: string) {
+    constructor(latestTransactionLocation: TransactionLocation | null, confirmations: number, headlessGraphQLClient: IHeadlessGraphQLClient, address: string) {
         super(latestTransactionLocation, confirmations);
 
         this._headlessGraphQLClient = headlessGraphQLClient;

@@ -1,4 +1,6 @@
+import { TransactionLocation } from "../types/transaction-location";
+
 export interface IMonitorStateStore {
-    store(network: string, blockHash: string, txId: string): Promise<void>;
-    load(network: string): Promise<{ blockHash: string, txId: string }>;
+    store(network: string, transactionLocation: TransactionLocation): Promise<void>;
+    load(network: string): Promise<TransactionLocation | null>;
 }

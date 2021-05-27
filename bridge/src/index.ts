@@ -20,6 +20,7 @@ import { HeadlessHTTPClient } from "./headless-http-client";
 import { ContractDescription } from "./interfaces/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
+import { TransactionLocation } from "./types/transaction-location";
 
 config();
 
@@ -143,7 +144,7 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, burnEventResult.amount, null);
         console.log("Transferred", txId);
-        await monitorStateStore.store(monitorStateStoreKeys.ethereum, eventLog.blockHash, eventLog.transactionHash);
+        await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash: eventLog.blockHash, txId: eventLog.transactionHash });
     });
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
@@ -162,7 +163,7 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
             }
 
             console.log("Receipt", await minter.mint(event.memo, parseFloat(event.amount)));
-            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, event.blockHash, event.txId);
+            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash: event.blockHash, txId: event.txId });
         });
     }
 

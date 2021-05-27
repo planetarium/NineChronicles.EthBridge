@@ -12,7 +12,7 @@ export class EthereumBurnEventMonitor extends ConfirmationMonitor<EventData> {
     private readonly _contract: Contract;
     private readonly _contractDescription: ContractDescription;
 
-    constructor(web3: Web3, contractDescription: ContractDescription, latestTransactionLocation: TransactionLocation, confirmations: number) {
+    constructor(web3: Web3, contractDescription: ContractDescription, latestTransactionLocation: TransactionLocation | null, confirmations: number) {
         super(latestTransactionLocation, confirmations);
 
         this._web3 = web3;
