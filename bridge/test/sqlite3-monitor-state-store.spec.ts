@@ -8,7 +8,7 @@ describe("Sqlite3MonitorStateStore", () => {
     let stateStore: Sqlite3MonitorStateStore;
     beforeEach(async () => {
         const path = await promises.mkdtemp(join(tmpdir(), "sqlite3-"));
-        stateStore = new Sqlite3MonitorStateStore(join(path, "db"));
+        stateStore = await Sqlite3MonitorStateStore.open(join(path, "db"));
     });
 
     afterEach(() => {

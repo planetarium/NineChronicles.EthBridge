@@ -5,19 +5,32 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
     private readonly _database: Database;
     private closed: boolean;
 
-    constructor(path: string) {
-        this._database = new Database(path);
-        Sqlite3MonitorStateStore.initialize(this._database);
+    private constructor(database: Database) {
+        this._database = database;
         this.closed = false;
     }
 
-    private static initialize(database: Database) {
+    static async open(path: string): Promise<Sqlite3MonitorStateStore> {
+        const database = new Database(path);
+        await this.initialize(database);
+        return new Sqlite3MonitorStateStore(database);
+    }
+
+    private static async initialize(database: Database): Promise<void> {
         const CREATE_TABLE_QUERY = `CREATE TABLE IF NOT EXISTS monitor_states (
             network TEXT PRIMARY KEY,
             block_hash TEXT NOT NULL,
             tx_id TEXT NOT NULL
         )`;
-        database.run(CREATE_TABLE_QUERY);
+        return new Promise((resolve, error) => {
+            database.run(CREATE_TABLE_QUERY, e => {
+                if (e) {
+                    error();
+                } else {
+                    resolve();
+                }
+            });
+        });
     }
 
     store(network: string, blockHash: string, txId: string): Promise<void> {
