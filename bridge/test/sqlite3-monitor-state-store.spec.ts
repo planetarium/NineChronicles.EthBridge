@@ -36,6 +36,10 @@ describe("Sqlite3MonitorStateStore", () => {
         assert.deepEqual(await stateStore.load("9c-main"), { blockHash: otherBlockHash, txId: otherTxId, });
     });
 
+    it("should return null if there is no transaction location.", async () => {
+        assert.isNull(await stateStore.load("key"));
+    });
+
     it("should throw error.", () => {
         assert.doesNotThrow(() => stateStore.close());
         assert.throws(() => stateStore.close());
