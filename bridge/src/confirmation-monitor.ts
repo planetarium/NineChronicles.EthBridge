@@ -13,11 +13,11 @@ export type CommonBlock = { blockIndex: number; } & TransactionLocation;
 export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData & TransactionLocation> {
     private latestBlockNumber: number | undefined;
 
-    private readonly _latestTransactionLocation: TransactionLocation;
+    private readonly _latestTransactionLocation: TransactionLocation | null;
     private readonly _confirmations: number;
     private readonly _delayMilliseconds: number;
 
-    constructor(latestTransactionLocation: TransactionLocation, confirmations: number, delayMilliseconds: number = 15 * 1000) {
+    constructor(latestTransactionLocation: TransactionLocation | null, confirmations: number, delayMilliseconds: number = 15 * 1000) {
         super();
 
         this._latestTransactionLocation = latestTransactionLocation;
@@ -26,18 +26,22 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
     }
 
     async * loop(): AsyncIterableIterator<TEventData & TransactionLocation> {
-        this.latestBlockNumber = await this.getBlockIndex(this._latestTransactionLocation.blockHash);
-        const events = await this.getEvents(this.latestBlockNumber, this.latestBlockNumber);
-        let skip: boolean = true;
-        for (const event of events) {
-            if (skip) {
-                if (event.txId === this._latestTransactionLocation.txId) {
-                    skip = false;
+        if (this._latestTransactionLocation !== null) {
+            this.latestBlockNumber = await this.getBlockIndex(this._latestTransactionLocation.blockHash);
+            const events = await this.getEvents(this.latestBlockNumber, this.latestBlockNumber);
+            let skip: boolean = true;
+            for (const event of events) {
+                if (skip) {
+                    if (event.txId === this._latestTransactionLocation.txId) {
+                        skip = false;
+                    }
+                    continue;
+                } else {
+                    yield event;
                 }
-                continue;
-            } else {
-                yield event;
             }
+        } else {
+            this.latestBlockNumber = await this.getTipIndex();
         }
 
         while(true) {
