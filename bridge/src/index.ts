@@ -9,7 +9,7 @@ import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { EthereumBurnEventMonitor } from "./ethereum-burn-event-monitor";
 import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
-import { wNCGToken } from "./wrapped-ncg-token";
+import { wNCGTokenAbi } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
 import { HeadlessGraphQLClient } from "./headless-graphql-client";
 import { NineChroniclesTransferredEventMonitor } from "./nine-chronicles-transferred-event-monitor";
@@ -17,6 +17,7 @@ import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
 import { HeadlessHTTPClient } from "./headless-http-client";
+import { ContractDescription } from "./interfaces/contract-description";
 
 config();
 
@@ -111,6 +112,10 @@ if (SENTRY_DSN !== undefined) {
         numberOfAddresses: HD_WALLET_MNEMONIC_ADDRESS_NUMBER + 1,
         chainId: CHAIN_ID,
     });
+    const wNCGToken: ContractDescription = {
+        abi: wNCGTokenAbi,
+        address: hdWalletProvider.getAddress(),
+    };
     const web3 = new Web3(hdWalletProvider);
 
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
