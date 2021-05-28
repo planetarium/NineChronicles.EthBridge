@@ -100,6 +100,12 @@ if (SENTRY_DSN !== undefined) {
     });
 }
 
+const WNCG_CONTRACT_ADDRESS: string | undefined = process.env.WNCG_CONTRACT_ADDRESS;
+if (WNCG_CONTRACT_ADDRESS === undefined) {
+    console.error("Please set 'WNCG_CONTRACT_ADDRESS' at .env");
+    process.exit(-1);
+}
+
 (async () => {
     const CONFIRMATIONS = 10;
 
@@ -114,7 +120,7 @@ if (SENTRY_DSN !== undefined) {
     });
     const wNCGToken: ContractDescription = {
         abi: wNCGTokenAbi,
-        address: hdWalletProvider.getAddress(),
+        address: WNCG_CONTRACT_ADDRESS,
     };
     const web3 = new Web3(hdWalletProvider);
 
