@@ -221,8 +221,8 @@ function combineUrl(url: string, additionalPath: string): string {
                 return;
             }
 
-            const mintTxId = await minter.mint(event.memo, parseFloat(event.amount));
-            console.log("Receipt", mintTxId);
+            const mintTxReceipt = await minter.mint(event.memo, parseFloat(event.amount));
+            console.log("Receipt", mintTxReceipt.transactionHash);
             await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash: event.blockHash, txId: event.txId });
             await slackWebClient.chat.postMessage({
                 channel: "#nine-chronicles-bridge-bot",
@@ -238,7 +238,7 @@ function combineUrl(url: string, additionalPath: string): string {
                             },
                             {
                                 title: "Ethereum network transaction",
-                                value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${mintTxId}`),
+                                value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${mintTxReceipt.transactionHash}`),
                             },
                             {
                                 title: "sender (NineChronicles)",
