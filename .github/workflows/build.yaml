@@ -19,7 +19,7 @@ jobs:
       working-directory: ./bridge
     - run: |
         npm install codecov
-        npx codecov
+        npx codecov --disable=gcov
       name: codecov
       working-directory: ./bridge
       env:
