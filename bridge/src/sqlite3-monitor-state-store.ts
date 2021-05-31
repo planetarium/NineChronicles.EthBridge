@@ -1,6 +1,7 @@
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Database } from "sqlite3";
 import { TransactionLocation } from "./types/transaction-location";
+import { promisify } from "util";
 
 export class Sqlite3MonitorStateStore implements IMonitorStateStore {
     private readonly _database: Database;
@@ -37,37 +38,22 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
     store(network: string, transactionLocation: TransactionLocation): Promise<void> {
         this.checkClosed();
 
-        return new Promise((resolve, reject) => {
-            this._database.run(
-                "INSERT OR REPLACE INTO monitor_states(network, block_hash, tx_id) VALUES (?, ?, ?)",
-                [network, transactionLocation.blockHash, transactionLocation.txId],
-                error => {
-                    if (error !== null) {
-                        reject(error);
-                    } else {
-                        resolve();
-                    }
-                }
-            );
-        });
+        const run: (sql: string, params: any[]) => Promise<void> = promisify(this._database.run.bind(this._database));
+        return run(
+            "INSERT OR REPLACE INTO monitor_states(network, block_hash, tx_id) VALUES (?, ?, ?)",
+            [network, transactionLocation.blockHash, transactionLocation.txId]);
     }
 
-    load(network: string): Promise<TransactionLocation | null> {
+    async load(network: string): Promise<TransactionLocation | null> {
         this.checkClosed();
+        const get: (sql: string, params: any[]) => Promise<{ block_hash: string, tx_id: string } | undefined > = promisify(this._database.get.bind(this._database));
+        const row = await get("SELECT block_hash, tx_id FROM monitor_states WHERE network = ?", [network]);
 
-        return new Promise((resolve, reject) => {
-            this._database.get("SELECT block_hash, tx_id FROM monitor_states WHERE network = ?", [network], (error, row) => {
-                if (error !== null) {
-                    reject(error);
-                } else {
-                    if (row === undefined) {
-                        resolve(null);
-                    } else {
-                        resolve({ blockHash: row.block_hash, txId: row.tx_id });
-                    }
-                }
-            })
-        });
+        if (row === undefined) {
+            return null;
+        }
+
+        return { blockHash: row.block_hash, txId: row.tx_id };
     }
 
     close(): void {

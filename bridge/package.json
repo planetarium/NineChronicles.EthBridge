@@ -33,6 +33,7 @@
     "@types/chai": "^4.2.18",
     "@types/ethereum-protocol": "^1.0.1",
     "@types/mocha": "^8.2.2",
+    "@types/node": "^15.6.1",
     "@types/web3-provider-engine": "^14.0.0",
     "@typescript-eslint/eslint-plugin": "^4.22.0",
     "@typescript-eslint/parser": "^4.22.0",
