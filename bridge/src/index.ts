@@ -21,6 +21,8 @@ import { ContractDescription } from "./interfaces/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { TransactionLocation } from "./types/transaction-location";
+import { WebClient } from "@slack/web-api"
+import { URL } from "url";
 
 config();
 
@@ -115,6 +117,28 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
     process.exit(-1);
 }
 
+const SLACK_WEB_TOKEN: string | undefined = process.env.SLACK_WEB_TOKEN;
+if (SLACK_WEB_TOKEN === undefined) {
+    console.error("Please set 'SLACK_WEB_TOKEN' at .env");
+    process.exit(-1);
+}
+
+const EXPLORER_ROOT_URL: string | undefined = process.env.EXPLORER_ROOT_URL;
+if (EXPLORER_ROOT_URL === undefined) {
+    console.error("Please set 'EXPLORER_ROOT_URL' at .env");
+    process.exit(-1);
+}
+
+const ETHERSCAN_ROOT_URL: string | undefined = process.env.ETHERSCAN_ROOT_URL;
+if (ETHERSCAN_ROOT_URL === undefined) {
+    console.error("Please set 'ETHERSCAN_ROOT_URL' at .env");
+    process.exit(-1);
+}
+
+function combineUrl(url: string, additionalPath: string): string {
+    return new URL(additionalPath, url).toString();
+}
+
 (async () => {
     const CONFIRMATIONS = 10;
 
@@ -123,6 +147,8 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
         ethereum: `ethereum_${CHAIN_ID}`,
         nineChronicles: "9c",
     };
+
+    const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
     const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
@@ -143,8 +169,41 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, burnEventResult.amount, null);
-        console.log("Transferred", txId);
         await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash: eventLog.blockHash, txId: eventLog.transactionHash });
+        await slackWebClient.chat.postMessage({
+            channel: "#nine-chronicles-bridge-bot",
+            text: "wNCG → NCG event occurred.",
+            attachments: [
+                {
+                    author_name: 'Bridge Event',
+                    color: "#42f5aa",
+                    fields: [
+                        {
+                            title: "9c network transaction",
+                            value: combineUrl(EXPLORER_ROOT_URL, `/transaction/?${txId}`),
+                        },
+                        {
+                            title: "Ethereum network transaction",
+                            value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${eventLog.transactionHash}`),
+                        },
+                        {
+                            title: "sender (Ethereum)",
+                            value: burnEventResult._sender,
+                        },
+                        {
+                            title: "recipient (NineChronicles)",
+                            value: burnEventResult._to,
+                        },
+                        {
+                            title: "amount",
+                            value: burnEventResult.amount
+                        }
+                    ],
+                    fallback: `wNCG ${burnEventResult._sender} → NCG ${burnEventResult._to}`
+                }
+            ]
+        });
+        console.log("Transferred", txId);
     });
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
@@ -162,8 +221,42 @@ if (MONITOR_STATE_STORE_PATH === undefined) {
                 return;
             }
 
-            console.log("Receipt", await minter.mint(event.memo, parseFloat(event.amount)));
+            const mintTxId = await minter.mint(event.memo, parseFloat(event.amount));
+            console.log("Receipt", mintTxId);
             await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash: event.blockHash, txId: event.txId });
+            await slackWebClient.chat.postMessage({
+                channel: "#nine-chronicles-bridge-bot",
+                text: "NCG → wNCG event occurred.",
+                attachments: [
+                    {
+                        author_name: 'Bridge Event',
+                        color: "#42f5aa",
+                        fields: [
+                            {
+                                title: "9c network transaction",
+                                value: combineUrl(EXPLORER_ROOT_URL, `/transaction/?${event.txId}`),
+                            },
+                            {
+                                title: "Ethereum network transaction",
+                                value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${mintTxId}`),
+                            },
+                            {
+                                title: "sender (NineChronicles)",
+                                value: event.sender,
+                            },
+                            {
+                                title: "recipient (Ethereum)",
+                                value: event.memo,
+                            },
+                            {
+                                title: "amount",
+                                value: event.amount
+                            }
+                        ],
+                        fallback: `NCG ${event.sender} → wNCG ${event.memo}`
+                    }
+                ]
+            });
         });
     }
 
