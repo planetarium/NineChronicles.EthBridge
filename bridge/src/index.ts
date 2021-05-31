@@ -18,6 +18,9 @@ import { TxId } from "./types/txid";
 import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
 import { HeadlessHTTPClient } from "./headless-http-client";
 import { ContractDescription } from "./interfaces/contract-description";
+import { IMonitorStateStore } from "./interfaces/monitor-state-store";
+import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
+import { TransactionLocation } from "./types/transaction-location";
 
 config();
 
@@ -106,8 +109,20 @@ if (WNCG_CONTRACT_ADDRESS === undefined) {
     process.exit(-1);
 }
 
+const MONITOR_STATE_STORE_PATH: string | undefined = process.env.MONITOR_STATE_STORE_PATH;
+if (MONITOR_STATE_STORE_PATH === undefined) {
+    console.error("Please set 'MONITOR_STATE_STORE_PATH' at .env");
+    process.exit(-1);
+}
+
 (async () => {
     const CONFIRMATIONS = 10;
+
+    const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
+    const monitorStateStoreKeys = {
+        ethereum: `ethereum_${CHAIN_ID}`,
+        nineChronicles: "9c",
+    };
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
     const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
@@ -124,20 +139,19 @@ if (WNCG_CONTRACT_ADDRESS === undefined) {
     };
     const web3 = new Web3(hdWalletProvider);
 
-    const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await web3.eth.getBlockNumber(), CONFIRMATIONS);
+    const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
         const txId = await ncgTransfer.transfer(burnEventResult._sender, burnEventResult.amount, null);
         console.log("Transferred", txId);
+        await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash: eventLog.blockHash, txId: eventLog.transactionHash });
     });
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
     await headlessHttpClient.setPrivateKey(BRIDGE_9C_PRIVATE_KEY);
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
-    const latestBlockNumber = await headlessGraphQLCLient.getTipIndex();  // TODO: load from persistent storage.
-    let latestMintedBlockHash: BlockHash, latestMintedTxId: TxId;
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(latestBlockNumber, 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load(monitorStateStoreKeys.nineChronicles), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
@@ -149,8 +163,7 @@ if (WNCG_CONTRACT_ADDRESS === undefined) {
             }
 
             console.log("Receipt", await minter.mint(event.memo, parseFloat(event.amount)));
-            latestMintedBlockHash = event.blockHash;
-            latestMintedTxId = event.txId;
+            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash: event.blockHash, txId: event.txId });
         });
     }
 

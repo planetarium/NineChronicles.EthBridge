@@ -1,7 +1,7 @@
-name: Build
+name: build and test
 on: [push, pull_request]
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -14,6 +14,8 @@ jobs:
     - run: npm install
       working-directory: ./bridge
     - run: npx tsc
+      working-directory: ./bridge
+    - run: npm test
       working-directory: ./bridge
   build-solidity:
     runs-on: ubuntu-latest
