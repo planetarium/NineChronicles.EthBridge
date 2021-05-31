@@ -17,9 +17,7 @@ jobs:
       working-directory: ./bridge
     - run: npm run coverage
       working-directory: ./bridge
-    - run: |
-        npm install codecov
-        npx codecov --disable=gcov
+    - run: bash <(curl -s https://codecov.io/bash)
       name: codecov
       working-directory: ./bridge
       env:
