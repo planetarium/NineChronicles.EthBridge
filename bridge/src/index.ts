@@ -23,6 +23,7 @@ import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { TransactionLocation } from "./types/transaction-location";
 import { WebClient } from "@slack/web-api"
 import { URL } from "url";
+import { join } from "path";
 
 config();
 
@@ -135,8 +136,10 @@ if (ETHERSCAN_ROOT_URL === undefined) {
     process.exit(-1);
 }
 
-function combineUrl(url: string, additionalPath: string): string {
-    return new URL(additionalPath, url).toString();
+function combineUrl(base: string, additionalPath: string): string {
+    const url = new URL(base);
+    url.pathname = join(url.pathname, additionalPath);
+    return url.toString();
 }
 
 (async () => {
@@ -164,7 +167,6 @@ function combineUrl(url: string, additionalPath: string): string {
         address: WNCG_CONTRACT_ADDRESS,
     };
     const web3 = new Web3(hdWalletProvider);
-
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
