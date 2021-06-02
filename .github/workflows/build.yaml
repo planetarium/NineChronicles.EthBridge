@@ -40,8 +40,13 @@ jobs:
           ${{ runner.os }}-node-
     - run: yarn
       working-directory: ./bridge-www
-    - run: yarn build
+    - run: |
+        cp package.json /tmp/package.json
+        jq --arg repository "$REPOSITORY" '.homepage = ($repository | split("/") | "https://\(.[0]).github.io/\(.[1])")' < /tmp/package.json > package.json
+        yarn build
       working-directory: ./bridge-www
+      env:
+        REPOSITORY: ${{ github.repository }}
     - name: Deploy gh-pages
       uses: peaceiris/actions-gh-pages@v3
       if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
