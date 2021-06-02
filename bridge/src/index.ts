@@ -1,5 +1,3 @@
-import { config } from "dotenv";
-
 import Web3 from "web3";
 import { init } from "@sentry/node";
 
@@ -23,123 +21,35 @@ import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { TransactionLocation } from "./types/transaction-location";
 import { WebClient } from "@slack/web-api"
 import { URL } from "url";
-
-config();
-
-const WEB_SOCKET_PROVIDER_URI: string | undefined = process.env.WEB_SOCKET_PROVIDER_URI;
-if (WEB_SOCKET_PROVIDER_URI === undefined) {
-    console.error("Please set 'WEB_SOCKET_PROVIDER_URI' at .env");
-    process.exit(-1);
-}
-
-const GRAPHQL_API_ENDPOINT: string | undefined = process.env.GRAPHQL_API_ENDPOINT;
-if (GRAPHQL_API_ENDPOINT === undefined) {
-    console.error("Please set 'GRAPHQL_API_ENDPOINT' at .env");
-    process.exit(-1);
-}
-
-const HTTP_ROOT_API_ENDPOINT: string | undefined = process.env.HTTP_ROOT_API_ENDPOINT;
-if (HTTP_ROOT_API_ENDPOINT === undefined) {
-    console.error("Please set 'HTTP_ROOT_API_ENDPOINT' at .env");
-    process.exit(-1);
-}
-
-const BRIDGE_9C_ADDRESS: string | undefined = process.env.BRIDGE_9C_ADDRESS;
-if (BRIDGE_9C_ADDRESS === undefined) {
-    console.error("Please set 'BRIDGE_9C_ADDRESS' at .env");
-    process.exit(-1);
-}
-
-const BRIDGE_9C_PRIVATE_KEY: string | undefined = process.env.BRIDGE_9C_PRIVATE_KEY;
-if (BRIDGE_9C_PRIVATE_KEY === undefined) {
-    console.error("Please set 'BRIDGE_9C_PRIVATE_KEY' at .env");
-    process.exit(-1);
-}
-
-const CHAIN_ID_STRING: string | undefined = process.env.CHAIN_ID;
-if (CHAIN_ID_STRING === undefined) {
-    console.error("Please set 'CHAIN_ID' at .env");
-    process.exit(-1);
-}
-
-const CHAIN_ID = parseInt(CHAIN_ID_STRING);
-if (CHAIN_ID === NaN) {
-    console.error("Please set 'CHAIN_ID' with valid format at .env");
-    process.exit(-1);
-}
-
-const HD_WALLET_PROVIDER_URL: string | undefined = process.env.HD_WALLET_PROVIDER_URL;
-if (HD_WALLET_PROVIDER_URL === undefined) {
-    console.error("Please set 'HD_WALLET_PROVIDER_URL' at .env");
-    process.exit(-1);
-}
-
-const HD_WALLET_MNEMONIC: string | undefined = process.env.HD_WALLET_MNEMONIC;
-if (HD_WALLET_MNEMONIC === undefined) {
-    console.error("Please set 'HD_WALLET_MNEMONIC' at .env");
-    process.exit(-1);
-}
-
-const HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING: string | undefined = process.env.HD_WALLET_MNEMONIC_ADDRESS_NUMBER;
-if (HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING === undefined) {
-    console.error("Please set 'HD_WALLET_MNEMONIC_ADDRESS_NUMBER' at .env");
-    process.exit(-1);
-}
-
-const HD_WALLET_MNEMONIC_ADDRESS_NUMBER = parseInt(HD_WALLET_MNEMONIC_ADDRESS_NUMBER_STRING);
-if (HD_WALLET_MNEMONIC_ADDRESS_NUMBER === NaN) {
-    console.error("Please set 'HD_WALLET_MNEMONIC_ADDRESS_NUMBER' with valid format at .env");
-    process.exit(-1);
-}
-
-const DEBUG: string | undefined = process.env.DEBUG;
-if (DEBUG !== undefined && DEBUG !== 'TRUE') {
-    console.error("Please set 'DEBUG' as 'TRUE' or remove 'DEBUG' at .env.");
-    process.exit(-1);
-}
-
-const SENTRY_DSN: string | undefined = process.env.SENTRY_DSN;
-if (SENTRY_DSN !== undefined) {
-    init({
-        dsn: SENTRY_DSN,
-    });
-}
-
-const WNCG_CONTRACT_ADDRESS: string | undefined = process.env.WNCG_CONTRACT_ADDRESS;
-if (WNCG_CONTRACT_ADDRESS === undefined) {
-    console.error("Please set 'WNCG_CONTRACT_ADDRESS' at .env");
-    process.exit(-1);
-}
-
-const MONITOR_STATE_STORE_PATH: string | undefined = process.env.MONITOR_STATE_STORE_PATH;
-if (MONITOR_STATE_STORE_PATH === undefined) {
-    console.error("Please set 'MONITOR_STATE_STORE_PATH' at .env");
-    process.exit(-1);
-}
-
-const SLACK_WEB_TOKEN: string | undefined = process.env.SLACK_WEB_TOKEN;
-if (SLACK_WEB_TOKEN === undefined) {
-    console.error("Please set 'SLACK_WEB_TOKEN' at .env");
-    process.exit(-1);
-}
-
-const EXPLORER_ROOT_URL: string | undefined = process.env.EXPLORER_ROOT_URL;
-if (EXPLORER_ROOT_URL === undefined) {
-    console.error("Please set 'EXPLORER_ROOT_URL' at .env");
-    process.exit(-1);
-}
-
-const ETHERSCAN_ROOT_URL: string | undefined = process.env.ETHERSCAN_ROOT_URL;
-if (ETHERSCAN_ROOT_URL === undefined) {
-    console.error("Please set 'ETHERSCAN_ROOT_URL' at .env");
-    process.exit(-1);
-}
+import { Configuration } from "./configuration";
 
 function combineUrl(url: string, additionalPath: string): string {
     return new URL(additionalPath, url).toString();
 }
 
 (async () => {
+    const WEB_SOCKET_PROVIDER_URI: string = Configuration.get("WEB_SOCKET_PROVIDER_URI");
+    const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
+    const HTTP_ROOT_API_ENDPOINT: string = Configuration.get("HTTP_ROOT_API_ENDPOINT");
+    const BRIDGE_9C_ADDRESS: string = Configuration.get("BRIDGE_9C_ADDRESS");
+    const BRIDGE_9C_PRIVATE_KEY: string = Configuration.get("BRIDGE_9C_PRIVATE_KEY");
+    const CHAIN_ID: number = Configuration.get("CHAIN_ID", true, "integer");
+    const HD_WALLET_PROVIDER_URL: string = Configuration.get("HD_WALLET_PROVIDER_URL");
+    const HD_WALLET_MNEMONIC: string = Configuration.get("HD_WALLET_MNEMONIC");
+    const HD_WALLET_MNEMONIC_ADDRESS_NUMBER: number = Configuration.get("HD_WALLET_MNEMONIC_ADDRESS_NUMBER", true, "integer");
+    const WNCG_CONTRACT_ADDRESS: string = Configuration.get("WNCG_CONTRACT_ADDRESS");
+    const MONITOR_STATE_STORE_PATH: string = Configuration.get("MONITOR_STATE_STORE_PATH");
+    const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
+    const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
+    const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
+    const DEBUG: boolean = Configuration.get("DEBUG", false, "boolean");
+    const SENTRY_DSN: string | undefined = Configuration.get("SENTRY_DSN", false);
+    if (SENTRY_DSN !== undefined) {
+        init({
+            dsn: SENTRY_DSN,
+        });
+    }
+
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
@@ -213,7 +123,7 @@ function combineUrl(url: string, additionalPath: string): string {
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load(monitorStateStoreKeys.nineChronicles), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
-    if (DEBUG === 'TRUE' && CHAIN_ID !== 1) {
+    if (DEBUG && CHAIN_ID !== 1) {
         nineChroniclesMonitor.subscribe(async event => {
             if (event.memo === null || !web3.utils.isAddress(event.memo)) {
                 const txId = await ncgTransfer.transfer(event.sender, event.amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
@@ -262,4 +172,7 @@ function combineUrl(url: string, additionalPath: string): string {
 
     monitor.run();
     nineChroniclesMonitor.run();
-})();
+})().catch(error => {
+    console.error(error);
+    process.exit(-1);
+});
