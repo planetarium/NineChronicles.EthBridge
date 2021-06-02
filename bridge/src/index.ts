@@ -168,7 +168,7 @@ function combineUrl(url: string, additionalPath: string): string {
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
     const unsubscribe = monitor.subscribe(async eventLog => {
         const burnEventResult = eventLog.returnValues as BurnEventResult;
-        const txId = await ncgTransfer.transfer(burnEventResult._sender, burnEventResult.amount, null);
+        const txId = await ncgTransfer.transfer(burnEventResult._to, burnEventResult.amount, null);
         await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash: eventLog.blockHash, txId: eventLog.transactionHash });
         await slackWebClient.chat.postMessage({
             channel: "#nine-chronicles-bridge-bot",
