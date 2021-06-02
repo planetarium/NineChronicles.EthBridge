@@ -73,7 +73,7 @@ function App() {
       <hr/>
       Amount : <input type="text" value={amount} onChange={event => { setAmount(event.target.value) }}/>
       {
-        contract === null || account === null || amount === null || parseInt(amount) === NaN
+        contract === null || account === null || amount === null || isNaN(parseInt(amount))
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
