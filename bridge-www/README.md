@@ -1,4 +1,31 @@
-# Getting Started with Create React App
+# bridge-www
+
+The web application to show and burn the address' wNCG with [MetaMask].
+
+## How to use
+
+1. Install [MetaMask] if it isn't installed yet.
+1. Connect [Metamask].  
+  ![image](https://user-images.githubusercontent.com/26626194/120439494-8c005780-c3bd-11eb-9a0f-b7fa2497fa71.png)
+1. Insert the wNCG contract address. (default is `0x2395900038eEf1814161A76621912B3599D7d242`)
+1. Choose Address. (default is the first address) 
+1. Insert wNCG amount to burn.  
+![image](https://user-images.githubusercontent.com/26626194/120439773-df72a580-c3bd-11eb-82ea-94e2f4184c26.png)
+1. Click `Burn` button.
+1. Sign transaction with [MetaMask].  
+![image](https://user-images.githubusercontent.com/26626194/120439979-1648bb80-c3be-11eb-8d59-313daa4ae127.png)
+1. Wait until transaction broadcasted. If you turned on [MetaMask] notification, it will notice you.  
+![image](https://user-images.githubusercontent.com/26626194/120440706-c9191980-c3be-11eb-9301-212737845174.png)
+1. Check transaction with [Etherscan] of the network you used.  
+![image](https://user-images.githubusercontent.com/26626194/120440454-86574180-c3be-11eb-9edb-bf33b009089c.png)
+1. Reload site by pressing `F5` or `CTRL + R`.  
+![image](https://user-images.githubusercontent.com/26626194/120440516-97a04e00-c3be-11eb-8883-020a3e3765fa.png)
+
+
+[MetaMask]: https://metamask.io/
+[Etherscan]: https://etherscan.io/
+
+---
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
