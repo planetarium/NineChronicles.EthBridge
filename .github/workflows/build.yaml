@@ -19,7 +19,7 @@ jobs:
       working-directory: ./bridge
     - run: bash <(curl -s https://codecov.io/bash)
       name: codecov
-      working-directory: ./bridge
+      working-directory: ./bridge/test
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   build-solidity:
