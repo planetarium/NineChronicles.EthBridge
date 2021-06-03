@@ -73,15 +73,21 @@ import { UnwrappedEvent } from "./messages/unwrapped-event";
     const web3 = new Web3(hdWalletProvider);
 
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
-    const unsubscribe = monitor.subscribe(async ({ returnValues,  txId, blockHash }) => {
-        const { _sender: sender, _to: recipient, amount } = returnValues as BurnEventResult;
-        const nineChroniclesTxId = await ncgTransfer.transfer(recipient, amount, null);
-        await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId });
-        await slackWebClient.chat.postMessage({
-            channel: "#nine-chronicles-bridge-bot",
-            ...new WrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, nineChroniclesTxId, "").render()
-        });
-        console.log("Transferred", txId);
+    const unsubscribe = monitor.subscribe(async ({ blockHash, events }) => {
+        if (events.length === 0) {
+            await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId: null });
+        }
+
+        for (const { returnValues, txId, blockHash } of events) {
+            const { _sender: sender, _to: recipient, amount } = returnValues as BurnEventResult;
+            const nineChroniclesTxId = await ncgTransfer.transfer(recipient, amount, null);
+            await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId });
+            await slackWebClient.chat.postMessage({
+                channel: "#nine-chronicles-bridge-bot",
+                ...new WrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, nineChroniclesTxId, "").render()
+            });
+            console.log("Transferred", txId);
+        }
     });
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
@@ -92,20 +98,26 @@ import { UnwrappedEvent } from "./messages/unwrapped-event";
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG && CHAIN_ID !== 1) {
-        nineChroniclesMonitor.subscribe(async ({ blockHash, txId, sender, amount, memo: recipient, }) => {
-            if (recipient === null || !web3.utils.isAddress(recipient)) {
-                const nineChroniclesTxId = await ncgTransfer.transfer(sender, amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
-                console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
-                return;
+        nineChroniclesMonitor.subscribe(async ({ blockHash, events }) => {
+            if (events.length === 0) {
+                await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId: null });
             }
 
-            const { transactionHash } = await minter.mint(recipient, parseFloat(amount));
-            console.log("Receipt", transactionHash);
-            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId });
-            await slackWebClient.chat.postMessage({
-                channel: "#nine-chronicles-bridge-bot",
-                ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, txId, transactionHash)
-            });
+            for (const { blockHash, txId, sender, amount, memo: recipient, } of events) {
+                if (recipient === null || !web3.utils.isAddress(recipient)) {
+                    const nineChroniclesTxId = await ncgTransfer.transfer(sender, amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
+                    console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
+                    return;
+                }
+
+                const { transactionHash } = await minter.mint(recipient, parseFloat(amount));
+                console.log("Receipt", transactionHash);
+                await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId });
+                await slackWebClient.chat.postMessage({
+                    channel: "#nine-chronicles-bridge-bot",
+                    ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, txId, transactionHash)
+                });
+            }
         });
     }
 

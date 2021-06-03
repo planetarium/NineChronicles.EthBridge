@@ -3,5 +3,5 @@ import { TxId } from "./txid";
 
 export interface TransactionLocation {
     blockHash: BlockHash;
-    txId: TxId;
+    txId: TxId | null;
 }

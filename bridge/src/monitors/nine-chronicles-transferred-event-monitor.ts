@@ -22,13 +22,12 @@ export class NineChroniclesTransferredEventMonitor extends ConfirmationMonitor<N
         return this._headlessGraphQLClient.getTipIndex();
     }
 
-    protected async getEvents(from: number, to: number) {
-        const events = [];
-        for (let i = from; i <= to; ++i) {
-            const blockHash = await this._headlessGraphQLClient.getBlockHash(i);
-            events.push(...(await (await this._headlessGraphQLClient.getNCGTransferredEvents(blockHash, this._address))));
-        }
+    protected getBlockHash(blockIndex: number) {
+        return this._headlessGraphQLClient.getBlockHash(blockIndex);
+    }
 
-        return events;
+    protected async getEvents(blockIndex: number): Promise<(NCGTransferredEvent & TransactionLocation)[]> {
+        const blockHash = await this._headlessGraphQLClient.getBlockHash(blockIndex);
+        return await this._headlessGraphQLClient.getNCGTransferredEvents(blockHash, this._address);
     }
 }

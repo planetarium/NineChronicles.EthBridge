@@ -25,6 +25,13 @@ describe("Sqlite3MonitorStateStore", () => {
         expect(await stateStore.load("9c-main")).toEqual({ blockHash, txId, });
     });
 
+    it("should store null txid.", async () => {
+        const blockHash = "46f1d8bbbafe28a5b7df63445b2eed41cc6620924b406a08487eeb356c7ebaad",
+            txId = null;
+        await stateStore.store("9c-main", { blockHash, txId });
+        expect(await stateStore.load("9c-main")).toEqual({ blockHash, txId, });
+    });
+
     it("should overwrite if the network existed.", async () => {
         const blockHash = "46f1d8bbbafe28a5b7df63445b2eed41cc6620924b406a08487eeb356c7ebaad",
             txId = "cd72b717c746883390c330103d7c319294dfe6db9cbc85853dd8fdfc9355f281";

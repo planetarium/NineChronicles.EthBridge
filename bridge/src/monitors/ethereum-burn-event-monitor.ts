@@ -29,15 +29,20 @@ export class EthereumBurnEventMonitor extends ConfirmationMonitor<EventData> {
         return this._web3.eth.getBlockNumber();
     }
 
-    protected async getEvents(from: number, to: number) {
+    protected async getBlockHash(blockIndex: number): Promise<string> {
+        const block = await this._web3.eth.getBlock(blockIndex);
+        return block.hash;
+    }
+
+    protected async getEvents(blockIndex: number) {
         // 0xc3599666213715dfabdf658c56a97b9adfad2cd9689690c70c79b20bc61940c9
         const BURN_EVENT_HASH = Web3.utils.sha3("Burn(address,bytes32,uint256)");
         const pastEvents = await this._contract
             .getPastEvents(BURN_EVENT_NAME, {
                 address: this._contractDescription.address,
                 topics: [BURN_EVENT_HASH],
-                fromBlock: from,
-                toBlock: to,
+                fromBlock: blockIndex,
+                toBlock: blockIndex,
             });
         return pastEvents.map(x => {
             return {

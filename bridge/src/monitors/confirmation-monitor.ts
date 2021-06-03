@@ -1,6 +1,7 @@
 import { Monitor } from ".";
 import { captureException } from "@sentry/node";
 import { TransactionLocation } from "../types/transaction-location";
+import { BlockHash } from "../types/block-hash";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => {
@@ -25,10 +26,11 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
         this._delayMilliseconds = delayMilliseconds;
     }
 
-    async * loop(): AsyncIterableIterator<TEventData & TransactionLocation> {
+    async * loop(): AsyncIterableIterator<{ blockHash: BlockHash, events: (TEventData & TransactionLocation)[] }> {
         if (this._latestTransactionLocation !== null) {
             this.latestBlockNumber = await this.getBlockIndex(this._latestTransactionLocation.blockHash);
-            const events = await this.getEvents(this.latestBlockNumber, this.latestBlockNumber);
+            const events = await this.getEvents(this.latestBlockNumber);
+            const returnEvents = [];
             let skip: boolean = true;
             for (const event of events) {
                 if (skip) {
@@ -37,9 +39,12 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
                     }
                     continue;
                 } else {
-                    yield event;
+                    returnEvents.push(event);
                 }
             }
+
+            yield { blockHash: this._latestTransactionLocation.blockHash, events: returnEvents };
+            this.latestBlockNumber += 1;
         } else {
             this.latestBlockNumber = await this.getTipIndex();
         }
@@ -52,9 +57,9 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
 
                 if (beforeLatestBlockNumber < confirmedLatestBlockNumber) {
                     this.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confirmedLatestBlockNumber}`);
-                    const eventLogs = await this.getEvents(beforeLatestBlockNumber, confirmedLatestBlockNumber);
-                    for (const eventLog of eventLogs) {
-                        yield eventLog;
+                    for (let i = beforeLatestBlockNumber; i <= confirmedLatestBlockNumber; ++i) {
+                        const events = await this.getEvents(i);
+                        yield { blockHash: await this.getBlockHash(i), events }
                     }
 
                     this.latestBlockNumber = confirmedLatestBlockNumber + 1;
@@ -80,7 +85,9 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
 
     protected abstract getBlockIndex(blockHash: string): Promise<number>;
 
+    protected abstract getBlockHash(blockIndex: number): Promise<string>;
+
     protected abstract getTipIndex(): Promise<number>;
 
-    protected abstract getEvents(from: number, to: number): Promise<(TEventData & TransactionLocation)[]>;
+    protected abstract getEvents(blockIndex: number): Promise<(TEventData & TransactionLocation)[]>;
 }
