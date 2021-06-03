@@ -20,6 +20,7 @@ function App() {
   const [account, setAccount] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<string[] | null>(null);
   const [contractAddress, setContractAddress] = useState<string>("0x2395900038eEf1814161A76621912B3599D7d242");
+  const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
@@ -72,12 +73,15 @@ function App() {
       }
       <hr/>
       Amount : <input type="text" value={amount} onChange={event => { setAmount(event.target.value) }}/>
+      <br/>
+      To : <input type="text" value={ncAddress} onChange={event => { setNcAddress(event.target.value) }}/>
+      <br/>
       {
-        contract === null || account === null || amount === null || isNaN(parseInt(amount))
+        contract === null || account === null || amount === null || isNaN(parseInt(amount)) || !isAddress(ncAddress)
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
-            contract.methods.burn(amount, contractAddress).send({ from: account }).then(console.debug)
+            contract.methods.burn(amount, ncAddress).send({ from: account }).then(console.debug)
           }}>Burn</button>
       }
     </div>
