@@ -31,7 +31,10 @@
   },
   "homepage": "https://github.com/planetarium/NineChronicles.EthBridge#readme",
   "jest": {
-    "rootDir": "test",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
     "coverageDirectory": "coverage",
     "coverageReporters": ["lcov"]
   },
