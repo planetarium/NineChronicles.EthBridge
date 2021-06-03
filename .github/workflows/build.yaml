@@ -1,7 +1,7 @@
 name: build and test
 on: [push, pull_request]
 jobs:
-  build-and-test:
+  build-bridge:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -28,3 +28,28 @@ jobs:
     - uses: actions/checkout@v2
     - run: npm i @openzeppelin/contracts solc
     - run: npx solc --bin --base-path node_modules contracts/contracts/*.sol
+  build-bridge-www:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    - run: yarn
+      working-directory: ./bridge-www
+    - run: |
+        cp package.json /tmp/package.json
+        jq --arg repository "$REPOSITORY" '.homepage = ($repository | split("/") | "https://\(.[0]).github.io/\(.[1])")' < /tmp/package.json > package.json
+        yarn build
+      working-directory: ./bridge-www
+      env:
+        REPOSITORY: ${{ github.repository }}
+    - name: Deploy gh-pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./bridge-www/build
