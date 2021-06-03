@@ -26,7 +26,6 @@ import { WrappedEvent } from "./messages/wrapped-event";
 import { UnwrappedEvent } from "./messages/unwrapped-event";
 
 (async () => {
-    const WEB_SOCKET_PROVIDER_URI: string = Configuration.get("WEB_SOCKET_PROVIDER_URI");
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
     const HTTP_ROOT_API_ENDPOINT: string = Configuration.get("HTTP_ROOT_API_ENDPOINT");
     const BRIDGE_9C_ADDRESS: string = Configuration.get("BRIDGE_9C_ADDRESS");
