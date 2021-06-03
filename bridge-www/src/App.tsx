@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import './App.css';
 import { MetaMaskInpageProvider } from "@metamask/providers";
 import { WrappedNcgBalance } from "./components/WrappedNcgBalance";
 import { AbiItem, isAddress } from 'web3-utils';
