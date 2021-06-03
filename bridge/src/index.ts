@@ -22,10 +22,8 @@ import { TransactionLocation } from "./types/transaction-location";
 import { WebClient } from "@slack/web-api"
 import { URL } from "url";
 import { Configuration } from "./configuration";
-
-function combineUrl(url: string, additionalPath: string): string {
-    return new URL(additionalPath, url).toString();
-}
+import { WrappedEvent } from "./messages/wrapped-event";
+import { UnwrappedEvent } from "./messages/unwrapped-event";
 
 (async () => {
     const WEB_SOCKET_PROVIDER_URI: string = Configuration.get("WEB_SOCKET_PROVIDER_URI");
@@ -76,42 +74,13 @@ function combineUrl(url: string, additionalPath: string): string {
     const web3 = new Web3(hdWalletProvider);
 
     const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
-    const unsubscribe = monitor.subscribe(async eventLog => {
-        const burnEventResult = eventLog.returnValues as BurnEventResult;
-        const txId = await ncgTransfer.transfer(burnEventResult._to, burnEventResult.amount, null);
-        await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash: eventLog.blockHash, txId: eventLog.transactionHash });
+    const unsubscribe = monitor.subscribe(async ({ returnValues,  txId, blockHash }) => {
+        const { _sender: sender, _to: recipient, amount } = returnValues as BurnEventResult;
+        const nineChroniclesTxId = await ncgTransfer.transfer(recipient, amount, null);
+        await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId });
         await slackWebClient.chat.postMessage({
             channel: "#nine-chronicles-bridge-bot",
-            text: "wNCG → NCG event occurred.",
-            attachments: [
-                {
-                    author_name: 'Bridge Event',
-                    color: "#42f5aa",
-                    fields: [
-                        {
-                            title: "9c network transaction",
-                            value: combineUrl(EXPLORER_ROOT_URL, `/transaction/?${txId}`),
-                        },
-                        {
-                            title: "Ethereum network transaction",
-                            value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${eventLog.transactionHash}`),
-                        },
-                        {
-                            title: "sender (Ethereum)",
-                            value: burnEventResult._sender,
-                        },
-                        {
-                            title: "recipient (NineChronicles)",
-                            value: burnEventResult._to,
-                        },
-                        {
-                            title: "amount",
-                            value: burnEventResult.amount
-                        }
-                    ],
-                    fallback: `wNCG ${burnEventResult._sender} → NCG ${burnEventResult._to}`
-                }
-            ]
+            ...new WrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, nineChroniclesTxId, "").render()
         });
         console.log("Transferred", txId);
     });
@@ -124,48 +93,19 @@ function combineUrl(url: string, additionalPath: string): string {
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG && CHAIN_ID !== 1) {
-        nineChroniclesMonitor.subscribe(async event => {
-            if (event.memo === null || !web3.utils.isAddress(event.memo)) {
-                const txId = await ncgTransfer.transfer(event.sender, event.amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
-                console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", txId);
+        nineChroniclesMonitor.subscribe(async ({ blockHash, txId, sender, amount, memo: recipient, }) => {
+            if (recipient === null || !web3.utils.isAddress(recipient)) {
+                const nineChroniclesTxId = await ncgTransfer.transfer(sender, amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
+                console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                 return;
             }
 
-            const mintTxReceipt = await minter.mint(event.memo, parseFloat(event.amount));
-            console.log("Receipt", mintTxReceipt.transactionHash);
-            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash: event.blockHash, txId: event.txId });
+            const { transactionHash } = await minter.mint(recipient, parseFloat(amount));
+            console.log("Receipt", transactionHash);
+            await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId });
             await slackWebClient.chat.postMessage({
                 channel: "#nine-chronicles-bridge-bot",
-                text: "NCG → wNCG event occurred.",
-                attachments: [
-                    {
-                        author_name: 'Bridge Event',
-                        color: "#42f5aa",
-                        fields: [
-                            {
-                                title: "9c network transaction",
-                                value: combineUrl(EXPLORER_ROOT_URL, `/transaction/?${event.txId}`),
-                            },
-                            {
-                                title: "Ethereum network transaction",
-                                value: combineUrl(ETHERSCAN_ROOT_URL, `/tx/${mintTxReceipt.transactionHash}`),
-                            },
-                            {
-                                title: "sender (NineChronicles)",
-                                value: event.sender,
-                            },
-                            {
-                                title: "recipient (Ethereum)",
-                                value: event.memo,
-                            },
-                            {
-                                title: "amount",
-                                value: event.amount
-                            }
-                        ],
-                        fallback: `NCG ${event.sender} → wNCG ${event.memo}`
-                    }
-                ]
+                ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, txId, transactionHash)
             });
         });
     }
