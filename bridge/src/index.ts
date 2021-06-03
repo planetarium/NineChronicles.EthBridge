@@ -1,7 +1,7 @@
 import Web3 from "web3";
 import { init } from "@sentry/node";
 
-import { BurnEventResult } from "./interfaces/burn-event-result";
+import { BurnEventResult } from "./types/burn-event-result";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { EthereumBurnEventMonitor } from "./ethereum-burn-event-monitor";
@@ -15,7 +15,7 @@ import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
 import { HeadlessHTTPClient } from "./headless-http-client";
-import { ContractDescription } from "./interfaces/contract-description";
+import { ContractDescription } from "./types/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { TransactionLocation } from "./types/transaction-location";
