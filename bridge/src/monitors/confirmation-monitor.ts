@@ -1,6 +1,6 @@
-import { Monitor } from "./monitor";
+import { Monitor } from ".";
 import { captureException } from "@sentry/node";
-import { TransactionLocation } from "./types/transaction-location";
+import { TransactionLocation } from "../types/transaction-location";
 
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => {
@@ -48,16 +48,16 @@ export abstract class ConfirmationMonitor<TEventData> extends Monitor<TEventData
             try {
                 const beforeLatestBlockNumber = this.latestBlockNumber;
                 const networkLatestBlockNumber = await this.getTipIndex();
-                const confrimedLatestBlockNumber = Math.max(networkLatestBlockNumber - this._confirmations, beforeLatestBlockNumber);
+                const confirmedLatestBlockNumber = Math.max(networkLatestBlockNumber - this._confirmations, beforeLatestBlockNumber);
 
-                if (beforeLatestBlockNumber < confrimedLatestBlockNumber) {
-                    this.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confrimedLatestBlockNumber}`);
-                    const eventLogs = await this.getEvents(beforeLatestBlockNumber, confrimedLatestBlockNumber);
+                if (beforeLatestBlockNumber < confirmedLatestBlockNumber) {
+                    this.debug(`Trying to look up from ${beforeLatestBlockNumber} to ${confirmedLatestBlockNumber}`);
+                    const eventLogs = await this.getEvents(beforeLatestBlockNumber, confirmedLatestBlockNumber);
                     for (const eventLog of eventLogs) {
                         yield eventLog;
                     }
 
-                    this.latestBlockNumber = confrimedLatestBlockNumber + 1;
+                    this.latestBlockNumber = confirmedLatestBlockNumber + 1;
                 } else {
                     this.debug("Skipped...");
                 }

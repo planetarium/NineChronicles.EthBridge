@@ -1,7 +1,7 @@
 import { ConfirmationMonitor } from "./confirmation-monitor";
-import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
-import { NCGTransferredEvent } from "./types/ncg-transferred-event";
-import { TransactionLocation } from "./types/transaction-location";
+import { IHeadlessGraphQLClient } from "../interfaces/headless-graphql-client";
+import { NCGTransferredEvent } from "../types/ncg-transferred-event";
+import { TransactionLocation } from "../types/transaction-location";
 
 export class NineChroniclesTransferredEventMonitor extends ConfirmationMonitor<NCGTransferredEvent> {
     private readonly _headlessGraphQLClient: IHeadlessGraphQLClient;
