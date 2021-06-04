@@ -30,6 +30,8 @@ jobs:
       working-directory: contracts
     - run: npm run build
       working-directory: contracts
+    - run: npm run lint
+      working-directory: contracts
   build-bridge-www:
     runs-on: ubuntu-latest
     steps:
