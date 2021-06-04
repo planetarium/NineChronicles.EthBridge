@@ -103,19 +103,20 @@ import { UnwrappedEvent } from "./messages/unwrapped-event";
                 await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId: null });
             }
 
-            for (const { blockHash, txId, sender, amount, memo: recipient, } of events) {
-                if (recipient === null || !web3.utils.isAddress(recipient)) {
-                    const nineChroniclesTxId = await ncgTransfer.transfer(sender, amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
+            for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
+                const amount = parseFloat(amountString) * 100;
+                if (recipient === null || !web3.utils.isAddress(recipient) || !Number.isSafeInteger(Number)) {
+                    const nineChroniclesTxId = await ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     return;
                 }
 
-                const { transactionHash } = await minter.mint(recipient, parseFloat(amount));
+                const { transactionHash } = await minter.mint(recipient, amount);
                 console.log("Receipt", transactionHash);
                 await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId });
                 await slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
-                    ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, txId, transactionHash)
+                    ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amountString, txId, transactionHash)
                 });
             }
         });
