@@ -26,8 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - run: npm i @openzeppelin/contracts solc
-    - run: npx solc --bin --base-path node_modules contracts/contracts/*.sol
+    - run: npm install
+      working-directory: contracts
+    - run: npm run build
+      working-directory: contracts
   build-bridge-www:
     runs-on: ubuntu-latest
     steps:
