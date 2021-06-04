@@ -10,10 +10,12 @@
     "@truffle/hdwallet-provider": "^1.2.6",
     "dotenv": "^8.2.0",
     "ganache-cli": "^6.12.2",
+    "solc": "^0.8.4",
     "solhint": "^3.3.6",
     "truffle": "^5.3.2"
   },
   "scripts": {
+    "build": "npx solc --bin --base-path node_modules contracts/*.sol",
     "test": "mocha",
     "lint": "solhint ./contracts/*.sol"
   },
