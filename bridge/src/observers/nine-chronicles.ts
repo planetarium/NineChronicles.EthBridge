@@ -35,7 +35,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             const amount = parseFloat(amountString) * 100;
-            if (recipient === null || !isAddress(recipient) || !Number.isSafeInteger(Number)) {
+            if (recipient === null || !isAddress(recipient) || !Number.isSafeInteger(amount)) {
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
                 console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                 return;
