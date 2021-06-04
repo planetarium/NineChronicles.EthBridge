@@ -46,7 +46,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
             await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
             await this._slackWebClient.chat.postMessage({
                 channel: "#nine-chronicles-bridge-bot",
-                ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, txId, transactionHash)
+                ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, txId, transactionHash).render()
             });
         }
     }
