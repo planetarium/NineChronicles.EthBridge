@@ -29,15 +29,15 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
             await this._monitorStateStore.store("ethereum", { blockHash, txId: null });
         }
 
-        for (const { returnValues, txId, blockHash } of events) {
+        for (const { returnValues, transactionHash, blockHash } of events) {
             const { _sender: sender, _to: recipient, amount } = returnValues as BurnEventResult;
             const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amount, null);
-            await this._monitorStateStore.store("ethereum", { blockHash, txId });
+            await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
             await this._slackWebClient.chat.postMessage({
                 channel: "#nine-chronicles-bridge-bot",
-                ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amount, nineChroniclesTxId, "").render()
+                ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amount, nineChroniclesTxId, transactionHash).render()
             });
-            console.log("Transferred", txId);
+            console.log("Transferred", transactionHash);
         }
     }
 }
