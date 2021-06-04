@@ -1,22 +1,23 @@
 import { BlockHash } from "../types/block-hash";
+import { IObserver } from "../observers";
 
-type Callback<TEvent> = (data: { blockHash: BlockHash, events: TEvent[] }) => Promise<void>;
-type CallbackRemover = () => void;
+type IMonitorObserver<TEvent> = IObserver<{ blockHash: BlockHash, events: TEvent[] }>;
+type ObserverRemover = () => void;
 
 export abstract class Monitor<TEvent> {
-    private readonly _callbacks: Map<Symbol, Callback<TEvent>>;
+    private readonly _observers: Map<Symbol, IMonitorObserver<TEvent>>;
     private running: boolean;
 
     protected constructor() {
         this.running = false;
-        this._callbacks = new Map();
+        this._observers = new Map();
     }
 
-    public subscribe(callback: Callback<TEvent>): CallbackRemover {
+    public attach(observer: IMonitorObserver<TEvent>): ObserverRemover {
         const symbol = Symbol();
-        this._callbacks.set(symbol, callback);
+        this._observers.set(symbol, observer);
         return () => {
-            this._callbacks.delete(symbol);
+            this._observers.delete(symbol);
         };
     }
 
@@ -35,8 +36,8 @@ export abstract class Monitor<TEvent> {
         const loop = this.loop();
         while (this.running) {
             const { value }  = await loop.next();
-            for (const callback of this._callbacks.values()) {
-                await callback(value);
+            for (const observer of this._observers.values()) {
+                await observer.notify(value);
             }
         }
     }
