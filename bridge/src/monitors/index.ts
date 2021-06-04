@@ -1,4 +1,6 @@
-type Callback<TEvent> = (data: TEvent) => Promise<void>;
+import { BlockHash } from "../types/block-hash";
+
+type Callback<TEvent> = (data: { blockHash: BlockHash, events: TEvent[] }) => Promise<void>;
 type CallbackRemover = () => void;
 
 export abstract class Monitor<TEvent> {
@@ -27,7 +29,7 @@ export abstract class Monitor<TEvent> {
         this.running = false;
     }
 
-    abstract loop(): AsyncIterableIterator<TEvent>;
+    abstract loop(): AsyncIterableIterator<{ blockHash: string, events: TEvent[] }>;
 
     private async startMonitoring(): Promise<void> {
         const loop = this.loop();

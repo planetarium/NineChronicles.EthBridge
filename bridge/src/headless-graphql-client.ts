@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from "axios";
 import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
-import { INCGTransferredEvent } from "./interfaces/ncg-transferred-event";
+import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
@@ -69,7 +69,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return data.data.chainQuery.blockQuery.block.hash;
     }
 
-    async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<INCGTransferredEvent[]> {
+    async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<NCGTransferredEvent[]> {
         const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
         { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount memo } }`;
         const { data } = await axios.post(this._apiEndpoint, {

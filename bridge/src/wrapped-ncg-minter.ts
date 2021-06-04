@@ -2,7 +2,7 @@ import Web3 from "web3";
 import { TransactionReceipt, TransactionConfig } from "web3-core";
 import { Contract } from "web3-eth-contract";
 
-import { ContractDescription } from "./interfaces/contract-description";
+import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 
 export class WrappedNCGMinter implements IWrappedNCGMinter {

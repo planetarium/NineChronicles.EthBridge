@@ -22,7 +22,7 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
         const CREATE_TABLE_QUERY = `CREATE TABLE IF NOT EXISTS monitor_states (
             network TEXT PRIMARY KEY,
             block_hash TEXT NOT NULL,
-            tx_id TEXT NOT NULL
+            tx_id TEXT
         )`;
         return new Promise((resolve, error) => {
             database.run(CREATE_TABLE_QUERY, e => {
