@@ -46,11 +46,6 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
-    const monitorStateStoreKeys = {
-        ethereum: `ethereum_${CHAIN_ID}`,
-        nineChronicles: "9c",
-    };
-
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
@@ -69,7 +64,7 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
     const web3 = new Web3(hdWalletProvider);
 
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
-    const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
+    const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
@@ -77,7 +72,7 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load(monitorStateStoreKeys.nineChronicles), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG && CHAIN_ID !== 1) {
