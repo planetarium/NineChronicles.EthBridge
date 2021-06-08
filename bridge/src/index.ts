@@ -1,7 +1,6 @@
 import Web3 from "web3";
 import { init } from "@sentry/node";
 
-import { BurnEventResult } from "./types/burn-event-result";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { EthereumBurnEventMonitor } from "./monitors/ethereum-burn-event-monitor";
@@ -11,19 +10,16 @@ import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGTokenAbi } from "./wrapped-ncg-token";
 import HDWalletProvider from "@truffle/hdwallet-provider";
 import { HeadlessGraphQLClient } from "./headless-graphql-client";
-import { BlockHash } from "./types/block-hash";
-import { TxId } from "./types/txid";
 import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
 import { HeadlessHTTPClient } from "./headless-http-client";
 import { ContractDescription } from "./types/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
-import { TransactionLocation } from "./types/transaction-location";
 import { WebClient } from "@slack/web-api"
 import { URL } from "url";
 import { Configuration } from "./configuration";
-import { WrappedEvent } from "./messages/wrapped-event";
-import { UnwrappedEvent } from "./messages/unwrapped-event";
+import { NCGTransferredEventObserver } from "./observers/nine-chronicles"
+import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
 
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
@@ -50,11 +46,6 @@ import { UnwrappedEvent } from "./messages/unwrapped-event";
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
-    const monitorStateStoreKeys = {
-        ethereum: `ethereum_${CHAIN_ID}`,
-        nineChronicles: "9c",
-    };
-
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
@@ -72,56 +63,23 @@ import { UnwrappedEvent } from "./messages/unwrapped-event";
     };
     const web3 = new Web3(hdWalletProvider);
 
-    const monitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load(monitorStateStoreKeys.ethereum), CONFIRMATIONS);
-    const unsubscribe = monitor.subscribe(async ({ blockHash, events }) => {
-        if (events.length === 0) {
-            await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId: null });
-        }
-
-        for (const { returnValues, txId, blockHash } of events) {
-            const { _sender: sender, _to: recipient, amount } = returnValues as BurnEventResult;
-            const nineChroniclesTxId = await ncgTransfer.transfer(recipient, amount, null);
-            await monitorStateStore.store(monitorStateStoreKeys.ethereum, { blockHash, txId });
-            await slackWebClient.chat.postMessage({
-                channel: "#nine-chronicles-bridge-bot",
-                ...new WrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, nineChroniclesTxId, "").render()
-            });
-            console.log("Transferred", txId);
-        }
-    });
+    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
+    const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
+    ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
     await headlessHttpClient.setPrivateKey(BRIDGE_9C_PRIVATE_KEY);
 
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load(monitorStateStoreKeys.nineChronicles), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
     // It should be not able to run in mainnet because it is for test.
     if (DEBUG && CHAIN_ID !== 1) {
-        nineChroniclesMonitor.subscribe(async ({ blockHash, events }) => {
-            if (events.length === 0) {
-                await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId: null });
-            }
-
-            for (const { blockHash, txId, sender, amount, memo: recipient, } of events) {
-                if (recipient === null || !web3.utils.isAddress(recipient)) {
-                    const nineChroniclesTxId = await ncgTransfer.transfer(sender, amount, "I'm bridge and you should transfer with memo having ethereum address to receive.");
-                    console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
-                    return;
-                }
-
-                const { transactionHash } = await minter.mint(recipient, parseFloat(amount));
-                console.log("Receipt", transactionHash);
-                await monitorStateStore.store(monitorStateStoreKeys.nineChronicles, { blockHash, txId });
-                await slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new UnwrappedEvent(EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, sender, recipient, amount, txId, transactionHash)
-                });
-            }
-        });
+        nineChroniclesMonitor.attach(ncgTransferredEventObserver);
     }
 
-    monitor.run();
+    ethereumBurnEventMonitor.run();
     nineChroniclesMonitor.run();
 })().catch(error => {
     console.error(error);

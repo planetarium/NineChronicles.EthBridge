@@ -1,6 +1,9 @@
 import { IHeadlessGraphQLClient } from "../../src/interfaces/headless-graphql-client";
 import { NineChroniclesTransferredEventMonitor } from "../../src/monitors/nine-chronicles-transferred-event-monitor";
+import { IObserver } from "../../src/observers";
+import { BlockHash } from "../../src/types/block-hash";
 import { NCGTransferredEvent } from "../../src/types/ncg-transferred-event";
+import { TransactionLocation } from "../../src/types/transaction-location";
 
 jest.useFakeTimers();
 
@@ -12,6 +15,10 @@ describe("NineChroniclesTransferredEventMonitor", () => {
         getNCGTransferredEvents: jest.fn().mockResolvedValue(Promise.resolve([])),
         getNextTxNonce: jest.fn(),
         transfer: jest.fn(),
+    };
+
+    const mockObserver: jest.Mocked<IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }>> = {
+        notify: jest.fn()
     };
 
     describe("loop", () => {
@@ -26,8 +33,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0);
                 console.log(mockHeadlessGraphQLClient.getBlockHash(0))
 
-                const callback = jest.fn();
-                monitor.subscribe(callback);
+                monitor.attach(mockObserver);
                 monitor.run();
 
                 for (let i = 1; i <= confirmations; ++i) {
@@ -36,14 +42,14 @@ describe("NineChroniclesTransferredEventMonitor", () => {
 
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(confirmations + 1);
 
-                while (callback.mock.calls.length < 1) {
+                while (mockObserver.notify.mock.calls.length < 1) {
                     jest.runAllTimers();
                     await Promise.resolve();
                 }
 
-                expect(callback).toHaveBeenCalled();
-                expect(callback.mock.calls.length).toEqual(1);
-                expect(callback.mock.calls[0][0]).toEqual({
+                expect(mockObserver.notify).toHaveBeenCalled();
+                expect(mockObserver.notify.mock.calls.length).toEqual(1);
+                expect(mockObserver.notify.mock.calls[0][0]).toEqual({
                     blockHash: expect.any(String),
                     events: expect.any(Array),
                 });
@@ -73,18 +79,17 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1).mockResolvedValueOnce(2);
 
                 const monitor = new NineChroniclesTransferredEventMonitor({ blockHash: "0", txId: latestTxId }, 0, mockHeadlessGraphQLClient, "");
-                const callback = jest.fn();
-                monitor.subscribe(callback);
+                monitor.attach(mockObserver);
                 monitor.run();
 
-                while (callback.mock.calls.length < 1) {
+                while (mockObserver.notify.mock.calls.length < 1) {
                     jest.runAllTimers();
                     await Promise.resolve();
                 }
 
-                expect(callback).toHaveBeenCalled();
-                expect(callback.mock.calls.length).toEqual(1);
-                expect(callback.mock.calls[0][0]).toEqual({
+                expect(mockObserver.notify).toHaveBeenCalled();
+                expect(mockObserver.notify.mock.calls.length).toEqual(1);
+                expect(mockObserver.notify.mock.calls[0][0]).toEqual({
                     blockHash: expect.any(String),
                     events: expectedTxIds.map(x => {
                         return {

@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`NCGTransferredEventObserver notify slack message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Event",
+          "color": "#42f5aa",
+          "fallback": "NCG 0x2734048eC2892d111b4fbAB224400847544FC872 → wNCG 0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction/?TX-ID",
+            },
+            Object {
+              "title": "Ethereum network transaction",
+              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH?",
+            },
+            Object {
+              "title": "sender (NineChronicles)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (Ethereum)",
+              "value": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+            },
+            Object {
+              "title": "amount",
+              "value": "1.23",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "NCG → wNCG event occurred.",
+    },
+  ],
+]
+`;
