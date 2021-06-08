@@ -96,6 +96,29 @@ describe(NCGTransferredEventObserver.name, () => {
             ]);
         });
 
+        for (const invalidMemo of ["0x", "", "0x4029bC50b4747A037d38CF2197bCD335e22Ca301a"]) {
+            it(`should refund with invalid memo, ${invalidMemo}`, async () => {
+                await observer.notify({
+                    blockHash: "BLOCK-HASH",
+                    events: [
+                        {
+                            amount: "1.11",
+                            memo: invalidMemo,
+                            blockHash: "BLOCK-HASH",
+                            txId: "TX-A",
+                            recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                            sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        }
+                    ]
+                });
+
+                expect(mockNcgTransfer.transfer).toHaveBeenCalledWith(
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "1.11",
+                    "I'm bridge and you should transfer with memo having ethereum address to receive.");
+            });
+        }
+
         it("slack message - snapshot", async () => {
             await observer.notify({
                 blockHash: "BLOCK-HASH",
