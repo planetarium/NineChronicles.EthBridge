@@ -2,7 +2,6 @@ import { BlockHash } from "../types/block-hash";
 import { IObserver } from "../observers";
 
 type IMonitorObserver<TEvent> = IObserver<{ blockHash: BlockHash, events: TEvent[] }>;
-type ObserverRemover = () => void;
 
 export abstract class Monitor<TEvent> {
     private readonly _observers: Map<Symbol, IMonitorObserver<TEvent>>;
@@ -13,12 +12,9 @@ export abstract class Monitor<TEvent> {
         this._observers = new Map();
     }
 
-    public attach(observer: IMonitorObserver<TEvent>): ObserverRemover {
+    public attach(observer: IMonitorObserver<TEvent>): void {
         const symbol = Symbol();
         this._observers.set(symbol, observer);
-        return () => {
-            this._observers.delete(symbol);
-        };
     }
 
     public run() {
