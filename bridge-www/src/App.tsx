@@ -17,7 +17,7 @@ function App() {
   const [web3, setWeb3] = useState<Web3 | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<string[] | null>(null);
-  const [contractAddress, setContractAddress] = useState<string>("0x2395900038eEf1814161A76621912B3599D7d242");
+  const [contractAddress, setContractAddress] = useState<string>("0xb5a91b62a6722c0da981e51065f074d6929237e4");
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);

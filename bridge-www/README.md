@@ -7,7 +7,7 @@ The web application to show and burn the address' wNCG with [MetaMask].
 1. Install [MetaMask] if it isn't installed yet.
 1. Connect [Metamask].  
   ![image](https://user-images.githubusercontent.com/26626194/120439494-8c005780-c3bd-11eb-9a0f-b7fa2497fa71.png)
-1. Insert the wNCG contract address. (default is `0x2395900038eEf1814161A76621912B3599D7d242`)
+1. Insert the wNCG contract address. (default is `0xb5a91b62a6722c0da981e51065f074d6929237e4`)
 1. Choose Address. (default is the first address) 
 1. Insert wNCG amount to burn.  
 ![image](https://user-images.githubusercontent.com/26626194/120439773-df72a580-c3bd-11eb-82ea-94e2f4184c26.png)
