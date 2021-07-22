@@ -9,6 +9,9 @@ describe(NCGTransfer.name, () => {
         getNextTxNonce: jest.fn((address) => Promise.resolve(0)),
         getTipIndex: jest.fn(),
         transfer: jest.fn(),
+        createUnsignedTx: jest.fn(),
+        attachSignature: jest.fn(),
+        stageTx: jest.fn(),
     };
     const mockAddress = "0x0000000000000000000000000000000000000000";
     const ncgTransfer = new NCGTransfer(mockHeadlessGraphQlClient, mockAddress);

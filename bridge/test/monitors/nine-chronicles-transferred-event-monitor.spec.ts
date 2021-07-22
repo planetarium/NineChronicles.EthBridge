@@ -15,6 +15,9 @@ describe("NineChroniclesTransferredEventMonitor", () => {
         getNCGTransferredEvents: jest.fn().mockResolvedValue(Promise.resolve([])),
         getNextTxNonce: jest.fn(),
         transfer: jest.fn(),
+        attachSignature: jest.fn(),
+        createUnsignedTx: jest.fn(),
+        stageTx: jest.fn(),
     };
 
     const mockObserver: jest.Mocked<IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }>> = {
