@@ -5,10 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "ts-node ./src/index.ts",
-    "test": "run-s test:*",
-    "test:aws": "jest --config=./aws.jest.config.js",
-    "test:bridge": "jest --config=./bridge.jest.config.js",
-    "coverage": "jest --coverage --config=./bridge.jest.config.js",
+    "test": "jest",
+    "coverage": "jest --coverage",
     "lint": "eslint src --ext .ts",
     "build": "tsc"
   },
@@ -32,6 +30,14 @@
     "url": "https://github.com/planetarium/NineChronicles.EthBridge/issues"
   },
   "homepage": "https://github.com/planetarium/NineChronicles.EthBridge#readme",
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["lcov"]
+  },
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/preset-env": "^7.14.4",
