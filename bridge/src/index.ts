@@ -1,5 +1,6 @@
 import Web3 from "web3";
 import { init } from "@sentry/node";
+import { KmsProvider } from "aws-kms-provider";
 
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
@@ -8,7 +9,6 @@ import { NineChroniclesTransferredEventMonitor } from "./monitors/nine-chronicle
 import { NCGTransfer } from "./ncg-transfer";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
 import { wNCGTokenAbi } from "./wrapped-ncg-token";
-import HDWalletProvider from "@truffle/hdwallet-provider";
 import { HeadlessGraphQLClient } from "./headless-graphql-client";
 import { IHeadlessHTTPClient } from "./interfaces/headless-http-client";
 import { HeadlessHTTPClient } from "./headless-http-client";
@@ -27,9 +27,11 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
     const BRIDGE_9C_ADDRESS: string = Configuration.get("BRIDGE_9C_ADDRESS");
     const BRIDGE_9C_PRIVATE_KEY: string = Configuration.get("BRIDGE_9C_PRIVATE_KEY");
     const CHAIN_ID: number = Configuration.get("CHAIN_ID", true, "integer");
-    const HD_WALLET_PROVIDER_URL: string = Configuration.get("HD_WALLET_PROVIDER_URL");
-    const HD_WALLET_MNEMONIC: string = Configuration.get("HD_WALLET_MNEMONIC");
-    const HD_WALLET_MNEMONIC_ADDRESS_NUMBER: number = Configuration.get("HD_WALLET_MNEMONIC_ADDRESS_NUMBER", true, "integer");
+    const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
+    const KMS_PROVIDER_KEY_ID: string = Configuration.get("KMS_PROVIDER_KEY_ID");
+    const KMS_PROVIDER_REGION: string = Configuration.get("KMS_PROVIDER_REGION");
+    const KMS_PROVIDER_AWS_ACCESSKEY: string = Configuration.get("KMS_PROVIDER_AWS_ACCESSKEY");
+    const KMS_PROVIDER_AWS_SECRETKEY: string = Configuration.get("KMS_PROVIDER_AWS_SECRETKEY");
     const WNCG_CONTRACT_ADDRESS: string = Configuration.get("WNCG_CONTRACT_ADDRESS");
     const MONITOR_STATE_STORE_PATH: string = Configuration.get("MONITOR_STATE_STORE_PATH");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
@@ -50,18 +52,19 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
     const ncgTransfer: INCGTransfer = new NCGTransfer(headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
-    const hdWalletProvider = new HDWalletProvider({
-        mnemonic: HD_WALLET_MNEMONIC,
-        addressIndex: HD_WALLET_MNEMONIC_ADDRESS_NUMBER,
-        providerOrUrl: HD_WALLET_PROVIDER_URL,
-        numberOfAddresses: HD_WALLET_MNEMONIC_ADDRESS_NUMBER + 1,
-        chainId: CHAIN_ID,
+    const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
+      region: KMS_PROVIDER_REGION,
+      keyIds: [KMS_PROVIDER_KEY_ID],
+      credential: {
+        accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
+        secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY
+      }
     });
     const wNCGToken: ContractDescription = {
         abi: wNCGTokenAbi,
         address: WNCG_CONTRACT_ADDRESS,
     };
-    const web3 = new Web3(hdWalletProvider);
+    const web3 = new Web3(kmsProvider);
 
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
@@ -70,7 +73,12 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
     const headlessHttpClient: IHeadlessHTTPClient = new HeadlessHTTPClient(HTTP_ROOT_API_ENDPOINT);
     await headlessHttpClient.setPrivateKey(BRIDGE_9C_PRIVATE_KEY);
 
-    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, hdWalletProvider.getAddress());
+    const kmsAddress = await kmsProvider.getAccounts();
+    if(kmsAddress.length != 1) {
+      throw Error("NineChronicles.EthBridge is supported only one address.");
+    }
+    console.log(kmsAddress)
+    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress[0]);
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, BRIDGE_9C_ADDRESS);
     // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.

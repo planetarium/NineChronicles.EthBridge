@@ -4,7 +4,8 @@
   "description": "Contracts of ethereum nine-chronicles bridge",
   "main": "index.js",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.0.0"
+    "@openzeppelin/contracts": "^4.0.0",
+    "aws-kms-provider": "^0.3.2"
   },
   "devDependencies": {
     "@truffle/hdwallet-provider": "^1.2.6",
