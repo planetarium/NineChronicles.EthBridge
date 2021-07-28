@@ -25,6 +25,12 @@ function App() {
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
     [web3, validContractAddress, contractAddress]);
+  function loadAccounts(web3: Web3) {
+    web3.eth.requestAccounts().then(accounts => {
+      setAccounts(accounts);
+      setAccount(accounts[0]);
+    });
+  }
 
   useEffect(() => {
     if (window.ethereum === undefined || !window.ethereum.isMetaMask) {
@@ -32,20 +38,14 @@ function App() {
     } else {
       // FIXME: ethereum.enable() method was deprecated. Use ethereum.request(...) method.
       window.ethereum.enable();
-      setWeb3(new Web3(window.ethereum as Provider))
+      const web3 = new Web3(window.ethereum as Provider);
+      setWeb3(web3)
+      window.ethereum.on("accountsChanged", (accounts) => {
+        loadAccounts(web3);
+      });
+      loadAccounts(web3);
     }
   }, []);
-
-  useEffect(() => {
-    if (web3 === null) {
-      return;
-    }
-
-    web3.eth.requestAccounts().then(accounts => {
-      setAccounts(accounts);
-      setAccount(accounts[0]);
-    });
-  }, [web3]);
 
 
   if (web3 === null) {
