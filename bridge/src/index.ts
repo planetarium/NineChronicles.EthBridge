@@ -95,7 +95,7 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, kmsAddress);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
     ethereumBurnEventMonitor.run();

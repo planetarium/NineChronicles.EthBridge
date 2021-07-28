@@ -31,7 +31,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
 
         for (const confirmations of [0, 5]) {
             it(`should yield events with ${confirmations} confirmations`, async () => {
-                const monitor = new NineChroniclesTransferredEventMonitor(null, confirmations, mockHeadlessGraphQLClient, "");
+                const monitor = new NineChroniclesTransferredEventMonitor(null, mockHeadlessGraphQLClient, "");
 
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0);
                 console.log(mockHeadlessGraphQLClient.getBlockHash(0))
@@ -81,7 +81,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 mockHeadlessGraphQLClient.getNCGTransferredEvents.mockResolvedValueOnce(Promise.resolve(txIds.map(makeNcgTransferredEvent)));
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1).mockResolvedValueOnce(2);
 
-                const monitor = new NineChroniclesTransferredEventMonitor({ blockHash: "0", txId: latestTxId }, 0, mockHeadlessGraphQLClient, "");
+                const monitor = new NineChroniclesTransferredEventMonitor({ blockHash: "0", txId: latestTxId }, mockHeadlessGraphQLClient, "");
                 monitor.attach(mockObserver);
                 monitor.run();
 
