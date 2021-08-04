@@ -8,6 +8,7 @@ import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
 import { WrappedEvent } from "../messages/wrapped-event";
+import Decimal from "decimal.js"
 
 export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
@@ -34,8 +35,8 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         }
 
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
-            const amount = parseFloat(amountString) * 100;
-            if (recipient === null || !isAddress(recipient) || !Number.isSafeInteger(amount)) {
+            const amount = new Decimal(amountString).mul(new Decimal(10).pow(18));
+            if (recipient === null || !isAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
                 console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                 return;

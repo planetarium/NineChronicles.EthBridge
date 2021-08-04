@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract WrappedNCG is ERC20, Ownable {
     event Burn(address indexed _sender, bytes32 indexed _to, uint256 amount);
 
-    constructor() ERC20("Wrapped NCG", "wNCG") {}
+    constructor() ERC20("Wrapped NCG", "WNCG") {}
 
     function burn(uint256 amount, bytes32 to) public {
         _burn(_msgSender(), amount);
@@ -21,6 +21,6 @@ contract WrappedNCG is ERC20, Ownable {
     }
 
     function decimals() public pure override returns (uint8) {
-        return 2;
+        return 18;
     }
 }
