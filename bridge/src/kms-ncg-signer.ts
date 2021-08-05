@@ -64,11 +64,6 @@ export class KMSNCGSigner {
       const sequence = new Sequence();
       // @ts-ignore
       sequence.valueBlock.value.push(new Integer({ isHexOnly: true, valueHex: r }));
-      console.log("n", nBigInt)
-      console.log('r', bufToBigint(r));
-      console.log('s', sBigInt);
-      console.log('otherS', otherSBigInt);
-      console.log('use otherS', sBigInt > otherSBigInt);
       if (sBigInt > otherSBigInt) {
         // @ts-ignore
         sequence.valueBlock.value.push(new Integer({ isHexOnly: true, valueHex: otherS }).convertToDER());
@@ -79,8 +74,6 @@ export class KMSNCGSigner {
       }
 
       const sequence_buffer = toBuffer(sequence.toBER(false));
-      console.log('original sign: ', asn1Signature.toString('hex'));
-      console.log('sign: ', sequence_buffer.toString('hex'));
       return sequence_buffer;
     }
 
