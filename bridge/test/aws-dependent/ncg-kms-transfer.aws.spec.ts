@@ -17,8 +17,8 @@ describe(NCGKMSTransfer.name, () => {
         stageTx: jest.fn(),
     };
     const mockAddress = "0x0000000000000000000000000000000000000000";
-    const mockPublicKey = "022fe4852e1584fa7a74b06c40dd73b54d9b931f061bb79626943d8c5e3b72522f";
-    const mockNcgMinterAddress = "0x0000000000000000000000000000000000000000";
+    const mockPublicKey = "BB/RQoardpERFnzxZs05Tj0Lq2gpyOGJUZ4nn6Oq1XnlkPRq1LN5HQqPdIOgYV73MbaSfW+VwPVpbtf/ViX51OE=";
+    const mockNcgMinterAddress = "0x99DF57BF45240C8a87615B0C884007501395d526";
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "TEST_KMS_PROVIDER_KEY_ID"
     );
