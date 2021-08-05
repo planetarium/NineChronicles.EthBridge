@@ -7,7 +7,7 @@ import { TxId } from "./types/txid";
 interface GraphQLRequestBody {
     operationName: string | null;
     query: string;
-    variables: Object;
+    variables: Record<string, unknown>;
 }
 
 export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
@@ -110,6 +110,48 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         });
 
         return response.data.data.nextTxNonce;
+    }
+    async createUnsignedTx(plainValue: string, publicKey: string): Promise<string> {
+        const query = `query CreateUnsignedTx($publicKey: String!, $plainValue: String!)
+        {
+          transaction {
+            createUnsignedTx(publicKey: $publicKey, plainValue: $plainValue)
+          }
+        } `;
+        const response = await this.graphqlRequest({
+            operationName: "CreateUnsignedTx",
+            query,
+            variables: { publicKey, plainValue }
+        });
+
+        return response.data.data.transaction.createUnsignedTx;
+      }
+
+    async attachSignature(unsignedTransaction: string, signature: string): Promise<string> {
+        const query = `query AttachSignature($unsignedTransaction: String!, $signature: String!)
+        {
+          transaction {
+            attachSignature(unsignedTransaction: $unsignedTransaction, signature: $signature)
+          }
+        } `;
+        const response = await this.graphqlRequest({
+            operationName: "AttachSignature",
+            query,
+            variables: { unsignedTransaction, signature }
+        });
+
+        return response.data.data.transaction.attachSignature;
+    }
+
+    async stageTx(payload: string): Promise<boolean> {
+        const query = `mutation StageTx($payload: String!) { stageTx(payload: $payload) }`;
+        const response = await this.graphqlRequest({
+            operationName: "StageTx",
+            query,
+            variables: { payload },
+        });
+
+        return response.data.data.stageTx;
     }
 
     private async graphqlRequest(body: GraphQLRequestBody): Promise<AxiosResponse> {
