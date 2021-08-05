@@ -1,6 +1,7 @@
 import Web3 from "web3";
 import { TransactionReceipt, TransactionConfig } from "web3-core";
 import { Contract } from "web3-eth-contract";
+import Decimal from "decimal.js"
 
 import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
@@ -18,7 +19,11 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         this._minterAddress = minterAddress;
     }
 
-    async mint(address: string, amount: number): Promise<TransactionReceipt> {
-        return this._contract.methods.mint(address, amount).send({from: this._minterAddress});
+    async mint(address: string, amount: Decimal): Promise<TransactionReceipt> {
+      //NOTICE: This can be a problem if the number of digits in amount exceeds 9e+14.
+      //more detail: https://mikemcl.github.io/decimal.js/#toExpPos
+      Decimal.set({toExpPos: 900000000000000});
+      console.log(`Minting ${amount.toString()} ${this._contractDescription.address} to ${address}`);
+        return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress});
     }
 }

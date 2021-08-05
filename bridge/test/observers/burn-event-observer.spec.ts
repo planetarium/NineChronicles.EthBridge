@@ -54,7 +54,7 @@ describe(EthereumBurnEventObserver.name, () => {
         });
 
         it("should post slack message every events", async () => {
-            const ncgRecipient: string = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
+            const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
             function makeEvent(ncgRecipient: string, amount: number, txId: TxId): (EventData & TransactionLocation) {
                 return {
                     blockHash: "BLOCK-HASH",
@@ -79,10 +79,10 @@ describe(EthereumBurnEventObserver.name, () => {
             }
 
             const events = [
-                makeEvent(ncgRecipient, 100, "TX-A"),
-                makeEvent(ncgRecipient, 120, "TX-B"),
-                makeEvent(ncgRecipient, 1, "TX-C"),
-                makeEvent(ncgRecipient, 322, "TX-D"),
+                makeEvent(ncgRecipient, 1000000000000000000, "TX-A"),
+                makeEvent(ncgRecipient, 1200000000000000000, "TX-B"),
+                makeEvent(ncgRecipient, 10000000000000000, "TX-C"),
+                makeEvent(ncgRecipient, 3225000000000000000, "TX-D"),
             ];
 
             await observer.notify({
@@ -96,8 +96,8 @@ describe(EthereumBurnEventObserver.name, () => {
             });
 
             expect(mockNcgTransfer.transfer.mock.calls).toEqual([
-                [ncgRecipient, "1", null],
-                [ncgRecipient, "1.2", null],
+                [ncgRecipient, "1.00", null],
+                [ncgRecipient, "1.20", null],
                 [ncgRecipient, "0.01", null],
                 [ncgRecipient, "3.22", null],
             ]);
@@ -124,7 +124,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         returnValues: {
                             _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
                             _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                            amount: 100
+                            amount: 1000000000000000000
                         }
                     }
                 ],

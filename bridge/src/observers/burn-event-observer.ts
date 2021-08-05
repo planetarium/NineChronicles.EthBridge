@@ -7,6 +7,7 @@ import { INCGTransfer } from "../interfaces/ncg-transfer";
 import { WebClient as SlackWebClient } from "@slack/web-api";
 import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { UnwrappedEvent } from "../messages/unwrapped-event";
+import Decimal from "decimal.js";
 
 export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHash, events: (EventData & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
@@ -33,8 +34,8 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
             const { _sender: sender, _to, amount: burnedWrappedNcgAmountString } = returnValues as BurnEventResult;
             const recipient = _to.substring(0, 42);
 
-            const amount = parseInt(burnedWrappedNcgAmountString) / 100;
-            const amountString = amount.toString();
+            const amount = new Decimal(burnedWrappedNcgAmountString).div(new Decimal(10).pow(18));
+            const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
             const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, null);
 
             await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });

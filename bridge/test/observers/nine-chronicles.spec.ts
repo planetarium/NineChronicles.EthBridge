@@ -1,3 +1,5 @@
+import Decimal from "decimal.js"
+
 import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IWrappedNCGMinter } from "../../src/interfaces/wrapped-ncg-minter";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
@@ -76,6 +78,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-D"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-E"),
             ];
 
             await observer.notify({
@@ -89,10 +92,11 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, 100],
-                [wrappedNcgRecipient, 120],
-                [wrappedNcgRecipient, 1],
-                [wrappedNcgRecipient, 322],
+                [wrappedNcgRecipient, new Decimal(1000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(1200000000000000000)],
+                [wrappedNcgRecipient, new Decimal(10000000000000000)],
+                [wrappedNcgRecipient, new Decimal(3220000000000000000)],
+                [wrappedNcgRecipient, new Decimal(10000000000000000000000000000)],
             ]);
         });
 
