@@ -50,7 +50,7 @@ export class NCGKMSTransfer implements INCGTransfer {
                         },
                         parseInt(amount)
                     ],
-                    memo: memo,
+                    ...(memo === null ? {} : { memo }),
                     recipient: Buffer.from(web3.utils.hexToBytes(address)),
                     sender: Buffer.from(web3.utils.hexToBytes(this._address))
                 }
