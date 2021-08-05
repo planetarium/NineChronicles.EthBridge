@@ -16,6 +16,6 @@ export const WrappedNcgBalance: React.FC<WrappedNcgBalanceProps> = ({ address, b
     if (balance === null) {
         return <b>🕑</b>
     } else {
-        return <b>{parseInt(balance) / 100}</b>;
+        return <b>{parseInt(balance) / 10e17}</b>;
     }
 }

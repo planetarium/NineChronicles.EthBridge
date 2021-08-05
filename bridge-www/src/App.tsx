@@ -75,11 +75,11 @@ function App() {
       To : <input type="text" value={ncAddress} onChange={event => { setNcAddress(event.target.value) }}/>
       <br/>
       {
-        contract === null || account === null || amount === null || (parseFloat(amount) * 100).toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+        contract === null || account === null || amount === null || (parseFloat(amount) * 10e17).toString().indexOf(".") !== -1 || !isAddress(ncAddress)
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
-            contract.methods.burn(parseFloat(amount) * 100, ncAddress).send({ from: account }).then(console.debug)
+            contract.methods.burn(parseFloat(amount) * 10e17, ncAddress).send({ from: account }).then(console.debug)
           }}>Burn</button>
       }
     </div>
