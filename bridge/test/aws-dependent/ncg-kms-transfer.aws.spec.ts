@@ -36,7 +36,7 @@ describe(NCGKMSTransfer.name, () => {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
     });
-    const headlessGraphQLCLient = new HeadlessGraphQLClient("http://localhost:23061/graphql");
+    const headlessGraphQLCLient = new HeadlessGraphQLClient(Configuration.get("TEST_GRAPHQL_API_ENDPOINT"));
     const ncgKmsTransfer = new NCGKMSTransfer(
         headlessGraphQLCLient,
         mockAddress,
