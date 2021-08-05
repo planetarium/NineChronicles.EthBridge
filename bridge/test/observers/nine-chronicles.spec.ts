@@ -78,6 +78,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-D"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-E"),
             ];
 
             await observer.notify({
@@ -95,6 +96,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 [wrappedNcgRecipient, new Decimal(1200000000000000000)],
                 [wrappedNcgRecipient, new Decimal(10000000000000000)],
                 [wrappedNcgRecipient, new Decimal(3220000000000000000)],
+                [wrappedNcgRecipient, new Decimal(10000000000000000000000000000)],
             ]);
         });
 
