@@ -6,6 +6,7 @@ import Web3 from 'web3';
 import { provider as Provider } from 'web3-core';
 import { Contract } from "web3-eth-contract";
 import { wNCGAbi } from "./wrapped-ncg-token";
+import Decimal from "decimal.js";
 
 declare global {
   interface Window {
@@ -21,6 +22,7 @@ function App() {
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
+  const amountInEthereum = useMemo<Decimal>(() => new Decimal(amount || "0").mul(new Decimal(10).pow(18)), [amount]);
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
@@ -75,11 +77,11 @@ function App() {
       To : <input type="text" value={ncAddress} onChange={event => { setNcAddress(event.target.value) }}/>
       <br/>
       {
-        contract === null || account === null || amount === null || (parseFloat(amount) * 100).toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+        contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
-            contract.methods.burn(parseFloat(amount) * 100, ncAddress).send({ from: account }).then(console.debug)
+            contract.methods.burn(web3.utils.toBN(amountInEthereum.toString()), ncAddress).send({ from: account }).then(console.debug)
           }}>Burn</button>
       }
     </div>

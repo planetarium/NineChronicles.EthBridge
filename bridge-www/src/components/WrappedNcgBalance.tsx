@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import React, { useEffect, useState } from "react";
 
 export interface WrappedNcgBalanceProps {
@@ -16,6 +17,6 @@ export const WrappedNcgBalance: React.FC<WrappedNcgBalanceProps> = ({ address, b
     if (balance === null) {
         return <b>🕑</b>
     } else {
-        return <b>{parseInt(balance) / 100}</b>;
+        return <b>{new Decimal(balance).div(new Decimal(10).pow(18)).toString()}</b>;
     }
 }
