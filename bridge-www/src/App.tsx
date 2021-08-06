@@ -22,6 +22,7 @@ function App() {
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
+  const amountInEthereum = useMemo<Decimal>(() => new Decimal(amount || "0").mul(new Decimal(10).pow(18)), [amount]);
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
@@ -54,7 +55,6 @@ function App() {
   }
 
   console.log(contract, contractAddress, accounts, account, amount)
-  const amountInEthereum = new Decimal(amount || "0").mul(new Decimal(10).pow(18));
   return (
     <div className="App">
       Contract Address : <input type="text" value={contractAddress} onChange={event => setContractAddress(event.target.value)} />
