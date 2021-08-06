@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.js": "/NineChronicles.EthBridge/static/js/main.13b57c24.chunk.js",
-    "main.js.map": "/NineChronicles.EthBridge/static/js/main.13b57c24.chunk.js.map",
+    "main.js": "/NineChronicles.EthBridge/static/js/main.44297d3b.chunk.js",
+    "main.js.map": "/NineChronicles.EthBridge/static/js/main.44297d3b.chunk.js.map",
     "runtime-main.js": "/NineChronicles.EthBridge/static/js/runtime-main.d81203a0.js",
     "runtime-main.js.map": "/NineChronicles.EthBridge/static/js/runtime-main.d81203a0.js.map",
-    "static/js/2.4f905aa2.chunk.js": "/NineChronicles.EthBridge/static/js/2.4f905aa2.chunk.js",
-    "static/js/2.4f905aa2.chunk.js.map": "/NineChronicles.EthBridge/static/js/2.4f905aa2.chunk.js.map",
+    "static/js/2.16393f14.chunk.js": "/NineChronicles.EthBridge/static/js/2.16393f14.chunk.js",
+    "static/js/2.16393f14.chunk.js.map": "/NineChronicles.EthBridge/static/js/2.16393f14.chunk.js.map",
     "index.html": "/NineChronicles.EthBridge/index.html",
-    "static/js/2.4f905aa2.chunk.js.LICENSE.txt": "/NineChronicles.EthBridge/static/js/2.4f905aa2.chunk.js.LICENSE.txt"
+    "static/js/2.16393f14.chunk.js.LICENSE.txt": "/NineChronicles.EthBridge/static/js/2.16393f14.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.d81203a0.js",
-    "static/js/2.4f905aa2.chunk.js",
-    "static/js/main.13b57c24.chunk.js"
+    "static/js/2.16393f14.chunk.js",
+    "static/js/main.44297d3b.chunk.js"
   ]
 }
