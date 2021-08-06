@@ -6,6 +6,7 @@ import Web3 from 'web3';
 import { provider as Provider } from 'web3-core';
 import { Contract } from "web3-eth-contract";
 import { wNCGAbi } from "./wrapped-ncg-token";
+import Decimal from "decimal.js";
 
 declare global {
   interface Window {
@@ -53,6 +54,7 @@ function App() {
   }
 
   console.log(contract, contractAddress, accounts, account, amount)
+  const amountInEthereum = new Decimal(amount || "0").mul(new Decimal(10).pow(18));
   return (
     <div className="App">
       Contract Address : <input type="text" value={contractAddress} onChange={event => setContractAddress(event.target.value)} />
@@ -75,11 +77,11 @@ function App() {
       To : <input type="text" value={ncAddress} onChange={event => { setNcAddress(event.target.value) }}/>
       <br/>
       {
-        contract === null || account === null || amount === null || (parseFloat(amount) * 10e17).toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+        contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
-            contract.methods.burn(parseFloat(amount) * 10e17, ncAddress).send({ from: account }).then(console.debug)
+            contract.methods.burn(web3.utils.toBN(amountInEthereum.toString()), ncAddress).send({ from: account }).then(console.debug)
           }}>Burn</button>
       }
     </div>
