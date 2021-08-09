@@ -17,7 +17,7 @@ export class NineChroniclesTransferredEventMonitor extends TriggerableMonitor<NC
         this._address = address;
     }
 
-    protected async processRemains(transactionLocation: TransactionLocation): Promise<{ nextBlockIndex: number; remainedEvents: { blockHash: string; events: any[]; }[]; }> {
+    protected async processRemains(transactionLocation: TransactionLocation) {
         const blockHash = transactionLocation.blockHash;
         const blockIndex = await this.getBlockIndex(transactionLocation.blockHash);
         const authorizedBlockIndex = Math.floor((blockIndex + AUTHORIZED_BLOCK_INTERVAL) / AUTHORIZED_BLOCK_INTERVAL) * AUTHORIZED_BLOCK_INTERVAL;

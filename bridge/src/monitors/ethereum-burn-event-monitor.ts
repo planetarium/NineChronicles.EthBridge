@@ -20,7 +20,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         this._contractDescription = contractDescription;
         this._confirmations = confirmations;
     }
-    protected async processRemains(transactionLocation: TransactionLocation): Promise<{ nextBlockIndex: number, remainedEvents: { blockHash: string; events: (EventData & TransactionLocation)[]; }[] }> {
+    protected async processRemains(transactionLocation: TransactionLocation) {
         const blockIndex = await this.getBlockIndex(transactionLocation.blockHash);
         const events = await this.getEvents(blockIndex);
         const returnEvents = [];
