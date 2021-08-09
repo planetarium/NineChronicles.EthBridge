@@ -9,6 +9,9 @@ function delay(ms: number): Promise<void> {
     })
 }
 
+type ProcessRemainsResult<TEventData> = { nextBlockIndex: number, remainedEvents: RemainedEvent<TEventData>[] }
+type RemainedEvent<TEventData> = { blockHash: string; events: (TEventData & TransactionLocation)[]; };
+
 export abstract class TriggerableMonitor<TEventData> extends Monitor<TEventData & TransactionLocation> {
     private latestBlockNumber: number | undefined;
 
@@ -62,7 +65,7 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<TEventData 
         }
     }
 
-    protected abstract processRemains(transactionLocation: TransactionLocation): Promise<{ nextBlockIndex: number, remainedEvents: { blockHash: string; events: (TEventData & TransactionLocation)[]; }[] }>;
+    protected abstract processRemains(transactionLocation: TransactionLocation): Promise<ProcessRemainsResult<TEventData>>;
 
     protected abstract triggerredBlocks(blockIndex: number): number[];
 
