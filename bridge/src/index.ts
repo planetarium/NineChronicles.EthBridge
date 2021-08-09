@@ -35,7 +35,6 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
-    const DEBUG: boolean = Configuration.get("DEBUG", false, "boolean");
     const SENTRY_DSN: string | undefined = Configuration.get("SENTRY_DSN", false);
     if (SENTRY_DSN !== undefined) {
         init({
@@ -97,11 +96,7 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, kmsAddress);
-    // chain id, 1, means mainnet. See EIP-155, https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md#specification.
-    // It should be not able to run in mainnet because it is for test.
-    if (DEBUG && CHAIN_ID !== 1) {
-        nineChroniclesMonitor.attach(ncgTransferredEventObserver);
-    }
+    nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
     ethereumBurnEventMonitor.run();
     nineChroniclesMonitor.run();
