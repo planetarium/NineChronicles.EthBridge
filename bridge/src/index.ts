@@ -22,7 +22,6 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
 
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
-    const CHAIN_ID: number = Configuration.get("CHAIN_ID", true, "integer");
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
     const KMS_PROVIDER_KEY_ID: string = Configuration.get("KMS_PROVIDER_KEY_ID");
@@ -95,7 +94,7 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
-    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), 50, headlessGraphQLCLient, kmsAddress);
+    const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
     ethereumBurnEventMonitor.run();

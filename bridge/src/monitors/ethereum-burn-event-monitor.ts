@@ -1,23 +1,51 @@
 import Web3 from "web3";
 import { Contract, EventData } from 'web3-eth-contract';
-import { ConfirmationMonitor } from "./confirmation-monitor";
+import { TriggerableMonitor } from "./triggerable-monitor";
 import { ContractDescription } from "../types/contract-description";
 import { TransactionLocation } from "../types/transaction-location";
 
 const BURN_EVENT_NAME = "Burn";
 
-export class EthereumBurnEventMonitor extends ConfirmationMonitor<EventData> {
-
+export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _web3: Web3;
     private readonly _contract: Contract;
     private readonly _contractDescription: ContractDescription;
+    private readonly _confirmations: number;
 
     constructor(web3: Web3, contractDescription: ContractDescription, latestTransactionLocation: TransactionLocation | null, confirmations: number) {
-        super(latestTransactionLocation, confirmations);
+        super(latestTransactionLocation);
 
         this._web3 = web3;
         this._contract = new this._web3.eth.Contract(contractDescription.abi, contractDescription.address);
         this._contractDescription = contractDescription;
+        this._confirmations = confirmations;
+    }
+    protected async processRemains(transactionLocation: TransactionLocation) {
+        const blockIndex = await this.getBlockIndex(transactionLocation.blockHash);
+        const events = await this.getEvents(blockIndex);
+        const returnEvents = [];
+        let skip: boolean = true;
+        for (const event of events) {
+            if (skip) {
+                if (event.txId === transactionLocation.txId) {
+                    skip = false;
+                }
+                continue;
+            } else {
+                returnEvents.push(event);
+            }
+        }
+
+        return { nextBlockIndex: blockIndex + this._confirmations, remainedEvents: [{ blockHash: transactionLocation.blockHash, events: returnEvents }] };
+    }
+
+    protected triggerredBlocks(blockIndex: number): number[] {
+        const confirmedBlockIndex = blockIndex - this._confirmations;
+        if (confirmedBlockIndex >= 0) {
+            return [confirmedBlockIndex];
+        }
+
+        return [];
     }
 
     protected async getBlockIndex(blockHash: string) {
