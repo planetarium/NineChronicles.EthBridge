@@ -14,6 +14,20 @@ module.exports = {
       port: 7545,
       network_id: "*"
     },
+    mainnet: {
+      provider: () =>
+        new HDWalletProvider({
+            mnemonic: process.env.MNEMONIC,
+            providerOrUrl: `https://mainnet.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+            addressIndex: process.env.MNEMONIC_INDEX,
+        }),
+      network_id: 1, // Mainnet's id
+      gasPrice: 40000000000,
+      confirmations: 10, // # of confs to wait between deployments. (default: 0)
+      timeoutBlocks: 200, // # of blocks before a deployment times out  (minimum/default: 50)
+      skipDryRun: false, // Skip dry run before migrations? (default: false for public nets )
+      networkCheckTimeout: 1000000000,
+    },
     ropsten: {
       provider: () =>
         new HDWalletProvider({
