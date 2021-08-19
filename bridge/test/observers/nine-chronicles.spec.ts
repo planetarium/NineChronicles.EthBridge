@@ -100,7 +100,12 @@ describe(NCGTransferredEventObserver.name, () => {
             ]);
         });
 
-        for (const invalidMemo of ["0x", "", "0x4029bC50b4747A037d38CF2197bCD335e22Ca301a"]) {
+        for (const invalidMemo of [
+            "0x",
+            "",
+            "0x4029bC50b4747A037d38CF2197bCD335e22Ca301a",
+            "0x0000000000000000000000000000000000000000"
+        ]) {
             it(`should refund with invalid memo, ${invalidMemo}`, async () => {
                 await observer.notify({
                     blockHash: "BLOCK-HASH",
