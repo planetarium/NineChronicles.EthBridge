@@ -140,5 +140,49 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         })
+
+        it("slack refund error message - snapshot", async () => {
+            mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
+                throw new Error("mockNcgTransfer.transfer error");
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "1.23",
+                        memo: "0x0000000000000000000000000000000000000000",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+        });
+
+        it("slack ethereum transfer error message - snapshot", async () => {
+            mockWrappedNcgMinter.mint.mockImplementationOnce((address, amount) => {
+                throw new Error("mockWrappedNcgMinter.mint error");
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "1.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+        });
     })
 })

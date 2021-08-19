@@ -1,5 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`NCGTransferredEventObserver notify slack ethereum transfer error message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Error",
+          "color": "#ff0033",
+          "fallback": "NCG 0x2734048eC2892d111b4fbAB224400847544FC872 → wNCG 0x4029bC50b4747A037d38CF2197bCD335e22Ca301 failed",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
+            },
+            Object {
+              "title": "sender (NineChronicles)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (Ethereum)",
+              "value": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+            },
+            Object {
+              "title": "amount",
+              "value": "1.23",
+            },
+            Object {
+              "title": "error",
+              "value": "Error: mockWrappedNcgMinter.mint error",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "NCG → wNCG event failed.",
+    },
+  ],
+]
+`;
+
 exports[`NCGTransferredEventObserver notify slack message - snapshot 1`] = `
 Array [
   Array [
@@ -35,6 +75,46 @@ Array [
       ],
       "channel": "#nine-chronicles-bridge-bot",
       "text": "NCG → wNCG event occurred.",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack refund error message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Error",
+          "color": "#ff0033",
+          "fallback": "NCG 0x2734048eC2892d111b4fbAB224400847544FC872 → wNCG 0x0000000000000000000000000000000000000000 failed",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
+            },
+            Object {
+              "title": "sender (NineChronicles)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (Ethereum)",
+              "value": "0x0000000000000000000000000000000000000000",
+            },
+            Object {
+              "title": "amount",
+              "value": "1.23",
+            },
+            Object {
+              "title": "error",
+              "value": "Error: mockNcgTransfer.transfer error",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "NCG → wNCG event failed.",
     },
   ],
 ]
