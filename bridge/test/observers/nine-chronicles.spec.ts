@@ -71,6 +71,28 @@ describe(NCGTransferredEventObserver.name, () => {
             });
         });
 
+        it("shouldn't do anything if the amount is zero", async () => {
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [{
+                    amount: "0",
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ID",
+                    memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                }],
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: null,
+            });
+
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+        });
+
         it("should post slack message every events", async () => {
             const amounts = new Map<string, number>();
             mockExchangeHistoryStore.put.mockImplementation(({ sender, amount }) => {
