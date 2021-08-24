@@ -21,6 +21,14 @@ describe("Sqlite3ExchangeHistoryStore", () => {
     });
 
     describe("transferredAmountInLast24Hours", () => {
+        it("should return 0 if there is no record.", async () => {
+            const network = "9c-main",
+                  sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
+
+            expect(await store.transferredAmountInLast24Hours(network, sender))
+                .toEqual(0);
+        });
+
         it("should return sum of the transactions.", async () => {
             const network = "9c-main",
                   sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
