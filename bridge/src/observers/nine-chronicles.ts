@@ -18,6 +18,11 @@ function isValidAddress(address: string): boolean {
     return address.startsWith("0x") && isAddress(address) && address !== ZERO_ADDRESS;
 }
 
+interface LimitationPolicy {
+    maximum: number,
+    minimum: number,
+};
+
 export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
     private readonly _wrappedNcgTransfer: IWrappedNCGMinter;
@@ -29,8 +34,9 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
      * The fee ratio requried to exchange. This should be float value like 0.01.
      */
     private readonly _exchangeFeeRatio: Decimal;
+    private readonly _limitationPolicy: LimitationPolicy;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal) {
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackWebClient = slackWebClient;
@@ -38,6 +44,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         this._explorerUrl = explorerUrl;
         this._etherscanUrl = etherscanUrl;
         this._exchangeFeeRatio = exchangeFeeRatio;
+        this._limitationPolicy = limitationPolicy;
     }
 
     async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
@@ -49,8 +56,11 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             try {
+                const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
-                if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
+                const minimum = new Decimal(this._limitationPolicy.minimum);
+                const maximum = new Decimal(this._limitationPolicy.maximum);
+                if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN() || amount.cmp(minimum) === -1 || amount.cmp(maximum) === 1) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     continue;
@@ -59,7 +69,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
                 const fee = new Decimal(amount.mul(this._exchangeFeeRatio).toFixed(2));
                 const exchangeAmount = amount.sub(fee);
-                const ethereumExchangeAmount = exchangeAmount.mul(new Decimal(10).pow(18));
+                const ethereumExchangeAmount = exchangeAmount.mul(decimals);
 
                 const { transactionHash } = await this._wrappedNcgTransfer.mint(recipient, ethereumExchangeAmount);
                 console.log("Receipt", transactionHash);

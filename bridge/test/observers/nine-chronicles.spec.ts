@@ -46,8 +46,11 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatio = new Decimal(0.01);
-
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio);
+    const limitationPolicy = {
+        maximum: 100000,
+        minimum: 100,
+    };
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -76,11 +79,16 @@ describe(NCGTransferredEventObserver.name, () => {
             }
 
             const events = [
-                makeEvent(wrappedNcgRecipient, "1", "TX-A"),
-                makeEvent(wrappedNcgRecipient, "1.2", "TX-B"),
-                makeEvent(wrappedNcgRecipient, "0.01", "TX-C"),
-                makeEvent(wrappedNcgRecipient, "3.22", "TX-D"),
-                makeEvent(wrappedNcgRecipient, "10000000000", "TX-E"),
+                makeEvent(wrappedNcgRecipient, "1", "TX-INVALID-A"),
+                makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
+                makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
+                makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-INVALID-E"),
+                makeEvent(wrappedNcgRecipient, "100", "TX-VALID-F"),
+                makeEvent(wrappedNcgRecipient, "99", "TX-INVALID-G"),
+                makeEvent(wrappedNcgRecipient, "100.01", "TX-VALID-H"),
+                makeEvent(wrappedNcgRecipient, "100000", "TX-VALID-I"),
+                makeEvent(wrappedNcgRecipient, "99999.99", "TX-VALID-J"),
             ];
 
             await observer.notify({
@@ -90,15 +98,14 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-E",
+                txId: "TX-VALID-J",
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(990000000000000000)],
-                [wrappedNcgRecipient, new Decimal(1190000000000000000)],
-                [wrappedNcgRecipient, new Decimal(10000000000000000)],
-                [wrappedNcgRecipient, new Decimal(3190000000000000000)],
-                [wrappedNcgRecipient, new Decimal(9900000000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(   99000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(   99010000000000000000)],
+                [wrappedNcgRecipient, new Decimal(99000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(98999990000000000000000)],
             ]);
         });
 
@@ -117,7 +124,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     blockHash: "BLOCK-HASH",
                     events: [
                         {
-                            amount: "1.11",
+                            amount: "100.11",
                             memo: invalidMemo,
                             blockHash: "BLOCK-HASH",
                             txId: "TX-A",
@@ -129,7 +136,7 @@ describe(NCGTransferredEventObserver.name, () => {
 
                 expect(mockNcgTransfer.transfer).toHaveBeenCalledWith(
                     "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "1.11",
+                    "100.11",
                     "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
             });
         }
@@ -139,7 +146,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "1.23",
+                        amount: "100.23",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
@@ -183,7 +190,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "1.23",
+                        amount: "100.23",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
