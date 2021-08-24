@@ -90,7 +90,7 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-D",
+                txId: "TX-E",
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
