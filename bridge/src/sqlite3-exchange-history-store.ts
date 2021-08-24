@@ -31,7 +31,7 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     async transferredAmountInLast24Hours(network: string, sender: string): Promise<number> {
         this.checkClosed();
         const get: (sql: string, params: any[]) => Promise<{ "SUM(amount)": string } | undefined > = promisify(this._database.get.bind(this._database));
-        const row = await get("SELECT SUM(amount) FROM exchange_histories WHERE network = ? AND sender = ? and timestamp > date('now', '-1 day');", [network, sender]);
+        const row = await get("SELECT SUM(amount) FROM exchange_histories WHERE network = ? AND sender = ? AND datetime(timestamp) > datetime('now', '-1 day');", [network, sender]);
 
         return parseInt(row["SUM(amount)"]);
     }

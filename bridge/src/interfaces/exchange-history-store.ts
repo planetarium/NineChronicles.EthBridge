@@ -3,7 +3,7 @@ export interface ExchangeHistory {
     tx_id: string,
     sender: string,
     recipient: string,
-    timestamp: Date,
+    timestamp: string,
     amount: number,
 };
 
