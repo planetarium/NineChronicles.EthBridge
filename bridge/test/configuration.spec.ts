@@ -20,6 +20,14 @@ describe("Configuration", () => {
                 expect(Configuration.get("UNDEFINED", false, "integer")).toEqual(undefined);
             });
 
+            it("should return float value", () => {
+                const expected = 1.1;
+                process.env[ENV_NAME] = expected.toString();
+                expect(Configuration.get(ENV_NAME, true, "float")).toEqual(expected);
+                expect(Configuration.get(ENV_NAME, false, "float")).toEqual(expected);
+                expect(Configuration.get("UNDEFINED", false, "float")).toEqual(undefined);
+            });
+
             it("should return 'TRUE' as boolean value", () => {
                 process.env[ENV_NAME] = "TRUE";
                 expect(Configuration.get(ENV_NAME, true, "boolean")).toEqual(true);
@@ -41,6 +49,16 @@ describe("Configuration", () => {
                     process.env[ENV_NAME] = testcase;
                     expect(() => Configuration.get(ENV_NAME, true, "integer")).toThrowError();
                     expect(() => Configuration.get(ENV_NAME, false, "integer")).toThrowError();
+                });
+            });
+        }
+
+        for (const testcase of [".1", "FALSE", "", "*", "1.1.1"]) {
+            describe(`with incorrect float '${testcase}'`, () => {
+                it("should throw error", () => {
+                    process.env[ENV_NAME] = testcase;
+                    expect(() => Configuration.get(ENV_NAME, true, "float")).toThrowError();
+                    expect(() => Configuration.get(ENV_NAME, false, "float")).toThrowError();
                 });
             });
         }

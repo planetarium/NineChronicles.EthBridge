@@ -2,7 +2,7 @@ import { config } from "dotenv";
 
 config();
 
-type ConversionType = "string" | "integer" | "boolean";
+type ConversionType = "string" | "integer" | "float" | "boolean";
 
 export class Configuration {
     static get(name: string): string;
@@ -11,6 +11,8 @@ export class Configuration {
     static get(name: string, required: boolean, type: "string"): string | undefined;
     static get(name: string, required: true, type: "integer"): number;
     static get(name: string, required: boolean, type: "integer"): number | undefined;
+    static get(name: string, required: true, type: "float"): number;
+    static get(name: string, required: boolean, type: "float"): number | undefined;
     static get(name: string, required: true, type: "boolean"): boolean;
     static get(name: string, required: boolean, type: "boolean"): boolean;
     static get(name: string, required: boolean = true, type: ConversionType = "string"): string | undefined | number | boolean {
@@ -35,6 +37,19 @@ export class Configuration {
             }
 
             return asInt;
+        }
+
+        if (type === "float") {
+            if (environmentVariable === undefined) {
+                return environmentVariable;
+            }
+
+            const asFloat = parseFloat(environmentVariable);
+            if (isNaN(asFloat) || asFloat.toString() !== environmentVariable) {
+                throw new Error(`Please set '${name}' with valid float format at .env`);
+            }
+
+            return asFloat;
         }
 
         if (type === "boolean") {
