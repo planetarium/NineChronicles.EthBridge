@@ -1,5 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthereumBurnEventObserver notify slack 9c transfer error message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Error",
+          "color": "#ff0033",
+          "fallback": "wNCG 0x2734048eC2892d111b4fbAB224400847544FC872 → NCG 0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e failed",
+          "fields": Array [
+            Object {
+              "title": "Ethereum transaction",
+              "value": "https://ropsten.etherscan.io/tx/TX-ID?",
+            },
+            Object {
+              "title": "sender (Ethereum)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (NineChronicles)",
+              "value": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+            },
+            Object {
+              "title": "amount",
+              "value": "1.00",
+            },
+            Object {
+              "title": "error",
+              "value": "Error: mockNcgTransfer.transfer error",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "wNCG → NCG event failed.",
+    },
+  ],
+]
+`;
+
 exports[`EthereumBurnEventObserver notify slack message - snapshot 1`] = `
 Array [
   Array [

@@ -9,6 +9,14 @@ import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
 import { WrappedEvent } from "../messages/wrapped-event";
 import Decimal from "decimal.js"
+import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
+
+// See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+function isValidAddress(address: string): boolean {
+    return isAddress(address) && address !== ZERO_ADDRESS;
+}
 
 export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
@@ -35,20 +43,28 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         }
 
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
-            const amount = new Decimal(amountString).mul(new Decimal(10).pow(18));
-            if (recipient === null || !isAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
-                const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
-                console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
-                return;
-            }
+            try {
+                const amount = new Decimal(amountString).mul(new Decimal(10).pow(18));
+                if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
+                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
+                    console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
+                    return;
+                }
 
-            const { transactionHash } = await this._wrappedNcgTransfer.mint(recipient, amount);
-            console.log("Receipt", transactionHash);
-            await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
-            await this._slackWebClient.chat.postMessage({
-                channel: "#nine-chronicles-bridge-bot",
-                ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, txId, transactionHash).render()
-            });
+                const { transactionHash } = await this._wrappedNcgTransfer.mint(recipient, amount);
+                console.log("Receipt", transactionHash);
+                await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
+                await this._slackWebClient.chat.postMessage({
+                    channel: "#nine-chronicles-bridge-bot",
+                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, txId, transactionHash).render()
+                });
+            } catch (e) {
+                console.log("EERRRR", e)
+                await this._slackWebClient.chat.postMessage({
+                    channel: "#nine-chronicles-bridge-bot",
+                    ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(e)).render()
+                });
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import { WebClient as SlackWebClient } from "@slack/web-api";
 import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { UnwrappedEvent } from "../messages/unwrapped-event";
 import Decimal from "decimal.js";
+import { UnwrappingFailureEvent } from "../messages/unwrapping-failure-event";
 
 export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHash, events: (EventData & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
@@ -33,17 +34,24 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
         for (const { returnValues, transactionHash, blockHash } of events) {
             const { _sender: sender, _to, amount: burnedWrappedNcgAmountString } = returnValues as BurnEventResult;
             const recipient = _to.substring(0, 42);
-
             const amount = new Decimal(burnedWrappedNcgAmountString).div(new Decimal(10).pow(18));
             const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
-            const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, null);
 
-            await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
-            await this._slackWebClient.chat.postMessage({
-                channel: "#nine-chronicles-bridge-bot",
-                ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, nineChroniclesTxId, transactionHash).render()
-            });
-            console.log("Transferred", transactionHash);
+            try {
+                const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, null);
+
+                await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
+                await this._slackWebClient.chat.postMessage({
+                    channel: "#nine-chronicles-bridge-bot",
+                    ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, nineChroniclesTxId, transactionHash).render()
+                });
+                console.log("Transferred", transactionHash);
+            } catch (e) {
+                await this._slackWebClient.chat.postMessage({
+                    channel: "#nine-chronicles-bridge-bot",
+                    ...new UnwrappingFailureEvent(this._etherscanUrl, sender, recipient, amountString, transactionHash, String(e)).render()
+                });
+            }
         }
     }
 }

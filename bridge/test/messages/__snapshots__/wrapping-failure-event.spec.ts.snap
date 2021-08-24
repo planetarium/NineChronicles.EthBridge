@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`WrappingFailureEvent render snapshot 1`] = `
+Object {
+  "attachments": Array [
+    Object {
+      "author_name": "Bridge Error",
+      "color": "#ff0033",
+      "fallback": "NCG 0xCbfC996ad185c61a031f40CeeE80a055e6D83005 → wNCG 0xDac65eCE9CB3E7a538773e08DE31F973233F064f failed",
+      "fields": Array [
+        Object {
+          "title": "9c network transaction",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
+        },
+        Object {
+          "title": "sender (NineChronicles)",
+          "value": "0xCbfC996ad185c61a031f40CeeE80a055e6D83005",
+        },
+        Object {
+          "title": "recipient (Ethereum)",
+          "value": "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
+        },
+        Object {
+          "title": "amount",
+          "value": "100",
+        },
+        Object {
+          "title": "error",
+          "value": "Error: error",
+        },
+      ],
+    },
+  ],
+  "text": "NCG → wNCG event failed.",
+}
+`;

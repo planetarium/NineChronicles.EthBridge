@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UnwrappingFailureEvent render snapshot 1`] = `
+Object {
+  "attachments": Array [
+    Object {
+      "author_name": "Bridge Error",
+      "color": "#ff0033",
+      "fallback": "wNCG 0xDac65eCE9CB3E7a538773e08DE31F973233F064f → NCG 0xCbfC996ad185c61a031f40CeeE80a055e6D83005 failed",
+      "fields": Array [
+        Object {
+          "title": "Ethereum transaction",
+          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7?",
+        },
+        Object {
+          "title": "sender (Ethereum)",
+          "value": "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
+        },
+        Object {
+          "title": "recipient (NineChronicles)",
+          "value": "0xCbfC996ad185c61a031f40CeeE80a055e6D83005",
+        },
+        Object {
+          "title": "amount",
+          "value": "100",
+        },
+        Object {
+          "title": "error",
+          "value": "Error: error",
+        },
+      ],
+    },
+  ],
+  "text": "wNCG → NCG event failed.",
+}
+`;
