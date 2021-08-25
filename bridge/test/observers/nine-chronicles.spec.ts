@@ -104,7 +104,11 @@ describe(NCGTransferredEventObserver.name, () => {
             "0x",
             "",
             "0x4029bC50b4747A037d38CF2197bCD335e22Ca301a",
-            "0x0000000000000000000000000000000000000000"
+            "0x0000000000000000000000000000000000000000",
+            // See https://github.com/planetarium/NineChronicles.EthBridge/issues/73
+            "0XC1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
+            "0Xc1912fee45d61c87cc5ea59dae31190fffff232d",
+            "C1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
         ]) {
             it(`should refund with invalid memo, ${invalidMemo}`, async () => {
                 await observer.notify({

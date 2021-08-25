@@ -15,7 +15,7 @@ import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 function isValidAddress(address: string): boolean {
-    return isAddress(address) && address !== ZERO_ADDRESS;
+    return address.startsWith("0x") && isAddress(address) && address !== ZERO_ADDRESS;
 }
 
 export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
