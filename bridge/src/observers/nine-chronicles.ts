@@ -53,10 +53,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
     async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
         const { blockHash, events } = data;
 
-        if (events.length === 0) {
-            await this._monitorStateStore.store("nineChronicles", { blockHash, txId: null });
-        }
-
+        let recorded = false;
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             try {
                 const decimals = new Decimal(10).pow(18);
@@ -115,6 +112,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 console.log("Receipt", transactionHash);
                 await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
+                recorded = true;
                 await this._exchangeHistoryStore.put({
                     network: "nineChronicles",
                     tx_id: txId,
@@ -134,6 +132,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(e)).render()
                 });
             }
+        }
+
+        if (!recorded) {
+            await this._monitorStateStore.store("nineChronicles", { blockHash, txId: null });
         }
     }
 }
