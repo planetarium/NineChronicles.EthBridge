@@ -128,7 +128,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 expect(mockNcgTransfer.transfer).toHaveBeenCalledWith(
                     "0x2734048eC2892d111b4fbAB224400847544FC872",
                     "1.11",
-                    "I'm bridge and you should transfer with memo having ethereum address to receive.");
+                    "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
             });
         }
 
