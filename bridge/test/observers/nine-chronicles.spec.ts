@@ -45,7 +45,9 @@ describe(NCGTransferredEventObserver.name, () => {
         store: jest.fn(),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io");
+    const exchangeFeeRatio = new Decimal(0.01);
+
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -92,11 +94,11 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(1000000000000000000)],
-                [wrappedNcgRecipient, new Decimal(1200000000000000000)],
+                [wrappedNcgRecipient, new Decimal(990000000000000000)],
+                [wrappedNcgRecipient, new Decimal(1190000000000000000)],
                 [wrappedNcgRecipient, new Decimal(10000000000000000)],
-                [wrappedNcgRecipient, new Decimal(3220000000000000000)],
-                [wrappedNcgRecipient, new Decimal(10000000000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(3190000000000000000)],
+                [wrappedNcgRecipient, new Decimal(9900000000000000000000000000)],
             ]);
         });
 

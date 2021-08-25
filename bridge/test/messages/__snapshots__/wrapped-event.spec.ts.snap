@@ -28,6 +28,10 @@ Object {
           "title": "amount",
           "value": "100",
         },
+        Object {
+          "title": "fee",
+          "value": "1",
+        },
       ],
     },
   ],
