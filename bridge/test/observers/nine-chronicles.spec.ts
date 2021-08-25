@@ -72,6 +72,7 @@ describe(NCGTransferredEventObserver.name, () => {
         });
 
         it("shouldn't do anything if the amount is zero", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(0);
             await observer.notify({
                 blockHash: "BLOCK-HASH",
                 events: [{
