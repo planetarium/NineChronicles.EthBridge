@@ -19,6 +19,7 @@ import { NCGTransferredEventObserver } from "./observers/nine-chronicles"
 import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
 import { KMSNCGSigner } from "./kms-ncg-signer";
 import { NCGKMSTransfer } from "./ncg-kms-transfer";
+import Decimal from "decimal.js";
 
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
@@ -93,7 +94,8 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
-    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
+    const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 

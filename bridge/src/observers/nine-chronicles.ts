@@ -25,14 +25,19 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _explorerUrl: string;
     private readonly _etherscanUrl: string;
+    /**
+     * The fee ratio requried to exchange. This should be float value like 0.01.
+     */
+    private readonly _exchangeFeeRatio: Decimal;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string) {
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackWebClient = slackWebClient;
         this._monitorStateStore = monitorStateStore;
         this._explorerUrl = explorerUrl;
         this._etherscanUrl = etherscanUrl;
+        this._exchangeFeeRatio = exchangeFeeRatio;
     }
 
     async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
@@ -44,19 +49,24 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             try {
-                const amount = new Decimal(amountString).mul(new Decimal(10).pow(18));
+                const amount = new Decimal(amountString);
                 if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo having ethereum address to receive.");
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     continue;
                 }
 
-                const { transactionHash } = await this._wrappedNcgTransfer.mint(recipient, amount);
+                // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
+                const fee = new Decimal(amount.mul(this._exchangeFeeRatio).toFixed(2));
+                const exchangeAmount = amount.sub(fee);
+                const ethereumExchangeAmount = exchangeAmount.mul(new Decimal(10).pow(18));
+
+                const { transactionHash } = await this._wrappedNcgTransfer.mint(recipient, ethereumExchangeAmount);
                 console.log("Receipt", transactionHash);
                 await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, txId, transactionHash).render()
+                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, exchangeAmount.toString(), txId, transactionHash, fee).render()
                 });
             } catch (e) {
                 console.log("EERRRR", e)

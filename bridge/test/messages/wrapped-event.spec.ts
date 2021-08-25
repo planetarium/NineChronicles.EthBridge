@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { WrappedEvent } from "../../src/messages/wrapped-event"
 
 describe("WrappedEvent", () => {
@@ -10,6 +11,7 @@ describe("WrappedEvent", () => {
             const AMOUNT = "100";
             const ETHEREUM_TRANSACTION_HASH = "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7";
             const NINE_CHRONICLES_TX_ID = "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043";
+            const FEE = new Decimal(1);
             expect(new WrappedEvent(
                 EXPLORER_URL,
                 ETHERSCAN_URL,
@@ -17,7 +19,8 @@ describe("WrappedEvent", () => {
                 RECIPIENT,
                 AMOUNT,
                 NINE_CHRONICLES_TX_ID,
-                ETHEREUM_TRANSACTION_HASH).render()).toMatchSnapshot();
+                ETHEREUM_TRANSACTION_HASH,
+                FEE).render()).toMatchSnapshot();
         });
     })
 })

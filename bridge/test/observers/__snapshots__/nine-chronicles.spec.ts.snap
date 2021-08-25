@@ -68,7 +68,11 @@ Array [
             },
             Object {
               "title": "amount",
-              "value": "1.23",
+              "value": "1.22",
+            },
+            Object {
+              "title": "fee",
+              "value": "0.01",
             },
           ],
         },
