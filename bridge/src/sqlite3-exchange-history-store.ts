@@ -51,7 +51,8 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
             amount TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
             PRIMARY KEY(network, tx_id)
-        )`;
+        );
+        CREATE INDEX IF NOT EXISTS exchange_history_idx ON exchange_histories(sender);`;
         return new Promise((resolve, error) => {
             database.run(CREATE_TABLE_QUERY, e => {
                 if (e) {
