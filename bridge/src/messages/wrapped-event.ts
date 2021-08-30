@@ -9,30 +9,48 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _recipient: Address;
     private readonly _nineChroniclesTxId: TxId;
     private readonly _ethereumTransactionHash: string;
-    private readonly _amount: string;
     private readonly _fee: Decimal;
+    private readonly _exchangeAmount: string;
+    private readonly _refundAmount: string | null;
+    private readonly _refundTxId: string | null;
 
     constructor(
         explorerUrl: string,
         etherscanUrl: string,
         sender: Address,
         recipient: Address,
-        amount: string,
+        exchangeAmount: string,
         nineChroniclesTxId: TxId,
         ethereumTransactionHash: string,
-        fee: Decimal
+        fee: Decimal,
+        refundAmount: string | null,
+        refundTxId: TxId | null,
     ) {
         super(explorerUrl, etherscanUrl);
 
         this._sender = sender;
         this._recipient = recipient;
-        this._amount = amount;
+        this._exchangeAmount = exchangeAmount;
         this._nineChroniclesTxId = nineChroniclesTxId;
         this._ethereumTransactionHash = ethereumTransactionHash;
         this._fee = fee;
+        this._refundAmount = refundAmount;
+        this._refundTxId = refundTxId;
     }
 
     render(): Partial<ChatPostMessageArguments> {
+        const refundFields = this._refundAmount !== null && this._refundTxId !== null
+            ? [
+                 {
+                     title: "refund amount",
+                     value: this._refundAmount,
+                 },
+                 {
+                     title: "refund transaction",
+                     value: this.toExplorerUrl(this._refundTxId),
+                 },
+             ]
+             : [];
         return {
             text: "NCG → wNCG event occurred.",
             attachments: [
@@ -58,12 +76,13 @@ export class WrappedEvent extends WrappingEvent {
                         },
                         {
                             title: "amount",
-                            value: this._amount
+                            value: this._exchangeAmount
                         },
                         {
                             title: "fee",
                             value: this._fee.toString()
-                        }
+                        },
+                        ...refundFields
                     ],
                     fallback: `NCG ${this._sender} → wNCG ${this._recipient}`
                 }

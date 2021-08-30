@@ -6,6 +6,7 @@ import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
 import { NCGTransferredEventObserver } from "../../src/observers/nine-chronicles";
 import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
+import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -46,8 +47,16 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatio = new Decimal(0.01);
+    const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
+        put: jest.fn(),
+        transferredAmountInLast24Hours: jest.fn(),
+    };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio);
+    const limitationPolicy = {
+        maximum: 100000,
+        minimum: 100,
+    };
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -62,7 +71,46 @@ describe(NCGTransferredEventObserver.name, () => {
             });
         });
 
+        it("shouldn't do anything if the amount is zero", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(0);
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [{
+                    amount: "0",
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ID",
+                    memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                }],
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: null,
+            });
+
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+        });
+
         it("should post slack message every events", async () => {
+            const amounts = new Map<string, number>();
+            mockExchangeHistoryStore.put.mockImplementation(({ sender, amount }) => {
+                if (!amounts.has(sender)) {
+                    amounts.set(sender, amount);
+                } else {
+                    console.log("mockImpl", sender, amounts.get(sender)!, amount)
+                    amounts.set(sender, amounts.get(sender)! + amount);
+                }
+
+                return Promise.resolve();
+            });
+
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockImplementation((_, sender) => {
+                return Promise.resolve(amounts.get(sender) || 0);
+            });
+
             const wrappedNcgRecipient: string = "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
             function makeEvent(wrappedNcgRecipient: string, amount: string, txId: TxId) {
                 return {
@@ -76,29 +124,33 @@ describe(NCGTransferredEventObserver.name, () => {
             }
 
             const events = [
-                makeEvent(wrappedNcgRecipient, "1", "TX-A"),
-                makeEvent(wrappedNcgRecipient, "1.2", "TX-B"),
-                makeEvent(wrappedNcgRecipient, "0.01", "TX-C"),
-                makeEvent(wrappedNcgRecipient, "3.22", "TX-D"),
-                makeEvent(wrappedNcgRecipient, "10000000000", "TX-E"),
+                makeEvent(wrappedNcgRecipient, "1", "TX-INVALID-A"),
+                makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
+                makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
+                makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-SHOULD-REFUND-PART-E"),
+                makeEvent(wrappedNcgRecipient, "100", "TX-SHOULD-REFUND-F"),
+                makeEvent(wrappedNcgRecipient, "99", "TX-SHOULD-REFUND-G"),
+                makeEvent(wrappedNcgRecipient, "100.01", "TX-SHOULD-REFUND-H"),
+                makeEvent(wrappedNcgRecipient, "100000", "TX-SHOULD-REFUND-I"),
+                makeEvent(wrappedNcgRecipient, "99999.99", "TX-SHOULD-REFUND-J"),
             ];
+
+            console.log("HERE");
 
             await observer.notify({
                 blockHash: "BLOCK-HASH",
                 events,
             });
 
+
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-D",
+                txId: "TX-SHOULD-REFUND-PART-E",
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(990000000000000000)],
-                [wrappedNcgRecipient, new Decimal(1190000000000000000)],
-                [wrappedNcgRecipient, new Decimal(10000000000000000)],
-                [wrappedNcgRecipient, new Decimal(3190000000000000000)],
-                [wrappedNcgRecipient, new Decimal(9900000000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal( 99000000000000000000000)],
             ]);
         });
 
@@ -117,7 +169,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     blockHash: "BLOCK-HASH",
                     events: [
                         {
-                            amount: "1.11",
+                            amount: "100.11",
                             memo: invalidMemo,
                             blockHash: "BLOCK-HASH",
                             txId: "TX-A",
@@ -129,17 +181,19 @@ describe(NCGTransferredEventObserver.name, () => {
 
                 expect(mockNcgTransfer.transfer).toHaveBeenCalledWith(
                     "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "1.11",
+                    "100.11",
                     "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
             });
         }
 
         it("slack message - snapshot", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValue(0);
+
             await observer.notify({
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "1.23",
+                        amount: "100.23",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
@@ -183,7 +237,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "1.23",
+                        amount: "100.23",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",

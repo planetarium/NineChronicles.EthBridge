@@ -24,7 +24,7 @@ Array [
             },
             Object {
               "title": "amount",
-              "value": "1.23",
+              "value": "100.23",
             },
             Object {
               "title": "error",
@@ -68,11 +68,11 @@ Array [
             },
             Object {
               "title": "amount",
-              "value": "1.22",
+              "value": "99.23",
             },
             Object {
               "title": "fee",
-              "value": "0.01",
+              "value": "1",
             },
           ],
         },

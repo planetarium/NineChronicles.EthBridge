@@ -20,6 +20,8 @@ import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
 import { KMSNCGSigner } from "./kms-ncg-signer";
 import { NCGKMSTransfer } from "./ncg-kms-transfer";
 import Decimal from "decimal.js";
+import { IExchangeHistoryStore } from "./interfaces/exchange-history-store";
+import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
 
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
@@ -32,6 +34,9 @@ import Decimal from "decimal.js";
     const KMS_PROVIDER_PUBLIC_KEY: string = Configuration.get("KMS_PROVIDER_PUBLIC_KEY");
     const WNCG_CONTRACT_ADDRESS: string = Configuration.get("WNCG_CONTRACT_ADDRESS");
     const MONITOR_STATE_STORE_PATH: string = Configuration.get("MONITOR_STATE_STORE_PATH");
+    const EXCHANGE_HISTORY_STORE_PATH: string = Configuration.get("EXCHANGE_HISTORY_STORE_PATH");
+    const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
+    const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
@@ -45,6 +50,7 @@ import Decimal from "decimal.js";
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
+    const exchangeHistoryStore: IExchangeHistoryStore = await Sqlite3ExchangeHistoryStore.open(EXCHANGE_HISTORY_STORE_PATH);
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
 
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
@@ -95,7 +101,10 @@ import Decimal from "decimal.js";
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
-    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio);
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
+        maximum: MAXIMUM_NCG,
+        minimum: MINIMUM_NCG,
+    });
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
