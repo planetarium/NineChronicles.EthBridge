@@ -111,6 +111,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 return Promise.resolve(amounts.get(sender) || 0);
             });
 
+            const sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
             const wrappedNcgRecipient: string = "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
             function makeEvent(wrappedNcgRecipient: string, amount: string, txId: TxId) {
                 return {
@@ -119,7 +120,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     blockHash: "BLOCK-HASH",
                     txId: txId,
                     recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    sender: sender,
                 };
             }
 
@@ -147,6 +148,15 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
                 txId: "TX-SHOULD-REFUND-PART-E",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                amount: 100000,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-PART-E"
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
