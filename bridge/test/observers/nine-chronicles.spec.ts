@@ -111,6 +111,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 return Promise.resolve(amounts.get(sender) || 0);
             });
 
+            const sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
             const wrappedNcgRecipient: string = "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
             function makeEvent(wrappedNcgRecipient: string, amount: string, txId: TxId) {
                 return {
@@ -119,7 +120,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     blockHash: "BLOCK-HASH",
                     txId: txId,
                     recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    sender: sender,
                 };
             }
 
@@ -128,8 +129,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
-                makeEvent(wrappedNcgRecipient, "10000000000", "TX-SHOULD-REFUND-PART-E"),
-                makeEvent(wrappedNcgRecipient, "100", "TX-SHOULD-REFUND-F"),
+                makeEvent(wrappedNcgRecipient, "100", "TX-E"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-SHOULD-REFUND-PART-F"),
                 makeEvent(wrappedNcgRecipient, "99", "TX-SHOULD-REFUND-G"),
                 makeEvent(wrappedNcgRecipient, "100.01", "TX-SHOULD-REFUND-H"),
                 makeEvent(wrappedNcgRecipient, "100000", "TX-SHOULD-REFUND-I"),
@@ -144,13 +145,37 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
 
-            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(1, "nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-SHOULD-REFUND-PART-E",
+                txId: "TX-E",
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(2, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-PART-F",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 100,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-E"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
+                amount: 99900,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-PART-F"
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal( 99000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(    99000000000000000000)],
+                [wrappedNcgRecipient, new Decimal( 98901000000000000000000)],
             ]);
         });
 
