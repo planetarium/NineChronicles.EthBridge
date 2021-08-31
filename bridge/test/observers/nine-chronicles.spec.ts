@@ -129,8 +129,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
-                makeEvent(wrappedNcgRecipient, "10000000000", "TX-SHOULD-REFUND-PART-E"),
-                makeEvent(wrappedNcgRecipient, "100", "TX-SHOULD-REFUND-F"),
+                makeEvent(wrappedNcgRecipient, "100", "TX-E"),
+                makeEvent(wrappedNcgRecipient, "10000000000", "TX-SHOULD-REFUND-PART-F"),
                 makeEvent(wrappedNcgRecipient, "99", "TX-SHOULD-REFUND-G"),
                 makeEvent(wrappedNcgRecipient, "100.01", "TX-SHOULD-REFUND-H"),
                 makeEvent(wrappedNcgRecipient, "100000", "TX-SHOULD-REFUND-I"),
@@ -145,22 +145,37 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
 
-            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(1, "nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-SHOULD-REFUND-PART-E",
+                txId: "TX-E",
             });
 
-            expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
-                amount: 100000,
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(2, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-PART-F",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 100,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
                 timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-PART-E"
+                tx_id: "TX-E"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
+                amount: 99900,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-PART-F"
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal( 99000000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(    99000000000000000000)],
+                [wrappedNcgRecipient, new Decimal( 98901000000000000000000)],
             ]);
         });
 

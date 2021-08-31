@@ -60,7 +60,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
                 const maximum = new Decimal(this._limitationPolicy.maximum);
-                const transferredAmountInLast24Hours = new Decimal(await this._exchangeHistoryStore.transferredAmountInLast24Hours("nineChronicles", sender)).mul(decimals);
+                const transferredAmountInLast24Hours = new Decimal(await this._exchangeHistoryStore.transferredAmountInLast24Hours("nineChronicles", sender));
 
                 if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
