@@ -46,6 +46,8 @@ import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
             dsn: SENTRY_DSN,
         });
     }
+    const GAS_TIP_RATIO_STRING: string = Configuration.get("GAS_TIP_RATIO", true, "string");
+    const GAS_TIP_RATIO = new Decimal(GAS_TIP_RATIO_STRING);
 
     const CONFIRMATIONS = 10;
 
@@ -78,7 +80,7 @@ import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
     }
     const kmsAddress = kmsAddresses[0];
     console.log(kmsAddress);
-    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress);
+    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress, GAS_TIP_RATIO);
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
