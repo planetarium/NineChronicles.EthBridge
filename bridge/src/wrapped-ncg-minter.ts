@@ -11,12 +11,21 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _contractDescription: ContractDescription;
     private readonly _contract: Contract;
     private readonly _minterAddress: string;
+    private readonly _gasTipRatio: Decimal;
 
-    constructor(web3: Web3, contractDescription: ContractDescription, minterAddress: string) {
+    /**
+     *
+     * @param web3
+     * @param contractDescription
+     * @param minterAddress
+     * @param gasTipRatio Percentage of gas tips to be incorporated into the block but not X %. If you want 150%, you should pass 1.5 decimal instance.
+     */
+    constructor(web3: Web3, contractDescription: ContractDescription, minterAddress: string, gasTipRatio: Decimal) {
         this._web3 = web3;
         this._contractDescription = contractDescription;
         this._contract = new this._web3.eth.Contract(this._contractDescription.abi, this._contractDescription.address);
         this._minterAddress = minterAddress;
+        this._gasTipRatio = gasTipRatio;
     }
 
     async mint(address: string, amount: Decimal): Promise<TransactionReceipt> {
@@ -24,6 +33,10 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
       //more detail: https://mikemcl.github.io/decimal.js/#toExpPos
       Decimal.set({toExpPos: 900000000000000});
       console.log(`Minting ${amount.toString()} ${this._contractDescription.address} to ${address}`);
-        return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress});
+      // e.g. '103926224184', '93574861317'
+      const gasPriceString = await this._web3.eth.getGasPrice();
+      const gasPrice = new Decimal(gasPriceString);
+      const gasPriceWithTip = gasPrice.mul(this._gasTipRatio).floor();
+        return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()});
     }
 }
