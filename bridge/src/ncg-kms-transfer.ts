@@ -7,6 +7,7 @@ import web3 from "web3";
 import crypto from "crypto";
 import { KMSNCGSigner } from "./kms-ncg-signer"
 import { Address } from "./types/address";
+import Decimal from "decimal.js";
 
 export class NCGKMSTransfer implements INCGTransfer {
     private readonly _headlessGraphQLCLient: IHeadlessGraphQLClient;
@@ -38,6 +39,10 @@ export class NCGKMSTransfer implements INCGTransfer {
     }
 
     async transfer(address: string, amount: string, memo: string | null): Promise<TxId> {
+        // If 0.01 came as `amount`, expect 1.
+        // If 50.00 came as `amount`, expect 5000.
+        // If 50.011 came as `amount`, expect 5001.
+        const ncgAmount = new Decimal(amount).mul(100).floor().toNumber();
         return await this._mutex.runExclusive(async () => {
             const plainValue = {
                 type_id: "transfer_asset",
@@ -48,7 +53,7 @@ export class NCGKMSTransfer implements INCGTransfer {
                             minters: this._minters.map(x => Buffer.from(web3.utils.hexToBytes(x))),
                             ticker: 'NCG'
                         },
-                        parseInt(amount)
+                        ncgAmount
                     ],
                     ...(memo === null ? {} : { memo }),
                     recipient: Buffer.from(web3.utils.hexToBytes(address)),
