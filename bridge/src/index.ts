@@ -3,7 +3,6 @@ import { init } from "@sentry/node";
 import { KmsProvider } from "@planetarium/aws-kms-provider";
 
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
-import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { EthereumBurnEventMonitor } from "./monitors/ethereum-burn-event-monitor";
 import { NineChroniclesTransferredEventMonitor } from "./monitors/nine-chronicles-transferred-event-monitor";
 import { WrappedNCGMinter } from "./wrapped-ncg-minter";
@@ -13,7 +12,6 @@ import { ContractDescription } from "./types/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { WebClient } from "@slack/web-api"
-import { URL } from "url";
 import { Configuration } from "./configuration";
 import { NCGTransferredEventObserver } from "./observers/nine-chronicles"
 import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
@@ -22,7 +20,9 @@ import { NCGKMSTransfer } from "./ncg-kms-transfer";
 import Decimal from "decimal.js";
 import { IExchangeHistoryStore } from "./interfaces/exchange-history-store";
 import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
+import consoleStamp from 'console-stamp';
 
+consoleStamp(console);
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
