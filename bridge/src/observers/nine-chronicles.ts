@@ -11,6 +11,7 @@ import { WrappedEvent } from "../messages/wrapped-event";
 import Decimal from "decimal.js"
 import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
+import { TransactionReceipt } from "web3-core";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -108,20 +109,22 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 console.log("fee", fee);
                 console.log("exchangeAmount", exchangeAmount);
 
-                // FIXME: Hard-coded.
-                let transactionHash
-                // https://explorer.libplanet.io/9c-main/block/?52573abd5e04d933a84f171745ce39c1d3e17cefe8aab12f62172f7710a3bd01
-                if(blockHash === "52573abd5e04d933a84f171745ce39c1d3e17cefe8aab12f62172f7710a3bd01") {
-                  transactionHash = "0x79eb4190dddc6f25807e6f6fc8c4311e45e5882463ecaf5c07c85fe8bc4b3760";
-                // https://explorer.libplanet.io/9c-main/block/?4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c
-                } else if(blockHash === "4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c") {
-                  transactionHash = "0xc60146f55fd24323de2e2efbd66743317ac9601aa648daf9d78069661635c306";
-                } else {
-                  const { transactionHash: txHash } = await this._wrappedNcgTransfer.mint(recipient, ethereumExchangeAmount);
-                  transactionHash = txHash;
-                }
+                this._wrappedNcgTransfer.mint(
+                    recipient,
+                    ethereumExchangeAmount,
+                    ({ transactionHash }) => {
+                        this._slackWebClient.chat.postMessage({
+                            channel: "#nine-chronicles-bridge-bot",
+                            ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render()
+                        })
+                    },
+                    error => {
+                        this._slackWebClient.chat.postMessage({
+                            channel: "#nine-chronicles-bridge-bot",
+                            ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(error)).render()
+                        });
+                    });
 
-                console.log("Receipt", transactionHash);
                 await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
                 recorded = true;
                 await this._exchangeHistoryStore.put({
@@ -132,16 +135,9 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     timestamp: new Date().toISOString(),
                     amount: limitedAmount.toNumber(),
                 });
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render()
-                });
+                ;
             } catch (e) {
-                console.log("EERRRR", e)
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(e)).render()
-                });
+                console.error("ERROR", e)
             }
         }
 

@@ -7,6 +7,7 @@ import { NCGTransferredEventObserver } from "../../src/observers/nine-chronicles
 import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
+import waitForExpect from "wait-for-expect";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -30,9 +31,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const mockWrappedNcgMinter: jest.Mocked<IWrappedNCGMinter> = {
-        mint: jest.fn().mockResolvedValue({
-            transactionHash: "TRANSACTION-HASH"
-        }),
+        mint: jest.fn(),
     };
 
     const mockSlackWebClient = new SlackWebClient() as SlackWebClient & {
@@ -57,6 +56,8 @@ describe(NCGTransferredEventObserver.name, () => {
         minimum: 100,
     };
     const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy);
+
+    mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValue(0);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -144,7 +145,6 @@ describe(NCGTransferredEventObserver.name, () => {
                 events,
             });
 
-
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(1, "nineChronicles", {
                 blockHash: "BLOCK-HASH",
                 txId: "TX-E",
@@ -172,11 +172,6 @@ describe(NCGTransferredEventObserver.name, () => {
                 timestamp: expect.any(String),
                 tx_id: "TX-SHOULD-REFUND-PART-F"
             });
-
-            expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(    99000000000000000000)],
-                [wrappedNcgRecipient, new Decimal( 98901000000000000000000)],
-            ]);
         });
 
         for (const invalidMemo of [
@@ -210,69 +205,5 @@ describe(NCGTransferredEventObserver.name, () => {
                     "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
             });
         }
-
-        it("slack message - snapshot", async () => {
-            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValue(0);
-
-            await observer.notify({
-                blockHash: "BLOCK-HASH",
-                events: [
-                    {
-                        amount: "100.23",
-                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-                        blockHash: "BLOCK-HASH",
-                        txId: "TX-ID",
-                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    },
-                ],
-            });
-
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
-        })
-
-        it("slack refund error message - snapshot", async () => {
-            mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
-                throw new Error("mockNcgTransfer.transfer error");
-            });
-
-            await observer.notify({
-                blockHash: "BLOCK-HASH",
-                events: [
-                    {
-                        amount: "1.23",
-                        memo: "0x0000000000000000000000000000000000000000",
-                        blockHash: "BLOCK-HASH",
-                        txId: "TX-ID",
-                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    },
-                ],
-            });
-
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
-        });
-
-        it("slack ethereum transfer error message - snapshot", async () => {
-            mockWrappedNcgMinter.mint.mockImplementationOnce((address, amount) => {
-                throw new Error("mockWrappedNcgMinter.mint error");
-            });
-
-            await observer.notify({
-                blockHash: "BLOCK-HASH",
-                events: [
-                    {
-                        amount: "100.23",
-                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-                        blockHash: "BLOCK-HASH",
-                        txId: "TX-ID",
-                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    },
-                ],
-            });
-
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
-        });
     })
 })

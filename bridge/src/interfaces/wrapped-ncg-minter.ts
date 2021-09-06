@@ -10,5 +10,5 @@ export interface IWrappedNCGMinter {
      * @param address The address to mint {@link wrapped-ncg-token.ts#wNCGToken | Wrapped NCG}.
      * @param amount The amount of {@link wrapped-ncg-token.ts#wNCGToken | Wrapped NCG} to mint.
      */
-    mint(address: string, amount: Decimal): Promise<TransactionReceipt>;
+    mint(address: string, amount: Decimal, callback: (transactionReceipt: TransactionReceipt) => void, errorCallback: (error: Error) => void): void;
 }

@@ -28,15 +28,18 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         this._gasTipRatio = gasTipRatio;
     }
 
-    async mint(address: string, amount: Decimal): Promise<TransactionReceipt> {
+    mint(address: string, amount: Decimal, callback: (transactionReceipt: TransactionReceipt) => void, errorCallback: (error: Error) => void): void {
       //NOTICE: This can be a problem if the number of digits in amount exceeds 9e+14.
       //more detail: https://mikemcl.github.io/decimal.js/#toExpPos
       Decimal.set({toExpPos: 900000000000000});
       console.log(`Minting ${amount.toString()} ${this._contractDescription.address} to ${address}`);
       // e.g. '103926224184', '93574861317'
-      const gasPriceString = await this._web3.eth.getGasPrice();
-      const gasPrice = new Decimal(gasPriceString);
-      const gasPriceWithTip = gasPrice.mul(this._gasTipRatio).floor();
-        return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()});
+      this._web3.eth.getGasPrice().then(gasPriceString => {
+        const gasPrice = new Decimal(gasPriceString);
+        const gasPriceWithTip = gasPrice.mul(this._gasTipRatio).floor();
+        this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()})
+            .then(callback)
+            .catch(errorCallback);
+      });
     }
 }
