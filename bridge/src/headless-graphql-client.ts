@@ -20,15 +20,11 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getBlockIndex(blockHash: BlockHash): Promise<number> {
         const query = `query GetBlockHash($hash: ID!)
         { chainQuery { blockQuery { block(hash: $hash) { index } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetBlockHash",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetBlockHash",
             query,
             variables: {
                 hash: blockHash,
-            },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
             },
         });
 
@@ -38,14 +34,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getTipIndex(): Promise<number> {
         const query = `query
         { chainQuery { blockQuery { blocks(desc: true, limit: 1) { index } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: null,
+        const { data } = await this.graphqlRequest({
+            operationName: null,
             query,
             variables: {},
-        }, {
-            headers: {
-                "Content-Type": "application/json",
-            },
         });
 
         return data.data.chainQuery.blockQuery.blocks[0].index;
@@ -54,15 +46,11 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getBlockHash(index: number): Promise<BlockHash> {
         const query = `query GetBlockHash($index: ID!)
         { chainQuery { blockQuery { block(index: $index) { hash } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetBlockHash",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetBlockHash",
             query,
             variables: {
                 index,
-            },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
             },
         });
 
@@ -72,14 +60,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<NCGTransferredEvent[]> {
         const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
         { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount memo } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetNCGTransferEvents",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetNCGTransferEvents",
             query,
             variables: { blockHash, recipient },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
-            },
         });
 
         return data.data.transferNCGHistories;
