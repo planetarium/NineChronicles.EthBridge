@@ -4,6 +4,12 @@ import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => {
+        setTimeout(() => { resolve() }, ms);
+    })
+}
+
 interface GraphQLRequestBody {
     operationName: string | null;
     query: string;
@@ -153,6 +159,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         } catch(error) {
             console.error(`Retrying left ${retry - 1}... error:`, error);
             if (retry > 0) {
+                await delay(500);
                 const response = await this.graphqlRequest(body, retry - 1);
                 return response;
             }
