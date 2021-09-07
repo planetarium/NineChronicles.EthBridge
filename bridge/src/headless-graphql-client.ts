@@ -12,9 +12,11 @@ interface GraphQLRequestBody {
 
 export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     private readonly _apiEndpoint: string;
+    private readonly _maxRetry: number;
 
-    constructor(apiEndpoint: string) {
+    constructor(apiEndpoint: string, maxRetry: number) {
         this._apiEndpoint = apiEndpoint;
+        this._maxRetry = maxRetry;
     }
 
     async getBlockIndex(blockHash: BlockHash): Promise<number> {
@@ -138,12 +140,25 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return response.data.data.stageTx;
     }
 
-    private async graphqlRequest(body: GraphQLRequestBody): Promise<AxiosResponse> {
-        return axios.post(this._apiEndpoint, body,
-        {
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+    private async graphqlRequest(body: GraphQLRequestBody, retry: number = this._maxRetry): Promise<AxiosResponse> {
+        try {
+            const response = await axios.post(this._apiEndpoint, body,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            return response;
+        } catch(error) {
+            console.error(`Retrying left ${retry - 1}... error:`, error);
+            if (retry > 0) {
+                const response = await this.graphqlRequest(body, retry - 1);
+                return response;
+            }
+
+            throw error;
+        }
+
     }
 }
