@@ -87,12 +87,47 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: null,
+                txId: "TX-ID",
             });
 
             expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
             expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });
+
+        it("should record exchange history though mint failed", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(0);
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(new Error());
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.11",
+                        memo: "0xa2D738C3442609d92F1C62BDF051D0385F644b8E",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    }
+                ]
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledTimes(1);
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(1, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-ID",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenCalledTimes(1);
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 100.11,
+                network: "nineChronicles",
+                recipient: "0xa2D738C3442609d92F1C62BDF051D0385F644b8E",
+                sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                timestamp: expect.any(String),
+                tx_id: "TX-ID"
+            });
+        })
 
         it("should post slack message every events", async () => {
             const amounts = new Map<string, number>();
@@ -147,15 +182,88 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(1, "nineChronicles", {
                 blockHash: "BLOCK-HASH",
-                txId: "TX-E",
+                txId: "TX-INVALID-A",
             });
 
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(2, "nineChronicles", {
                 blockHash: "BLOCK-HASH",
+                txId: "TX-INVALID-B",
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(3, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-INVALID-C",
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(4, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-INVALID-D",
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(5, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-E",
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(6, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
                 txId: "TX-SHOULD-REFUND-PART-F",
             });
 
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(7, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-G",
+            });
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(8, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-H",
+            });
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(9, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-I",
+            });
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(10, "nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-SHOULD-REFUND-J",
+            });
+
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-INVALID-A"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-INVALID-B"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(3, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-INVALID-C"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(4, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-INVALID-D"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(5, {
                 amount: 100,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
@@ -164,13 +272,40 @@ describe(NCGTransferredEventObserver.name, () => {
                 tx_id: "TX-E"
             });
 
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(6, {
                 amount: 99900,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
                 timestamp: expect.any(String),
                 tx_id: "TX-SHOULD-REFUND-PART-F"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(7, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-G"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-H"
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(9, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-I"
             });
 
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
@@ -188,6 +323,7 @@ describe(NCGTransferredEventObserver.name, () => {
             "0XC1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
             "0Xc1912fee45d61c87cc5ea59dae31190fffff232d",
             "C1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
+            null,
         ]) {
             it(`should refund with invalid memo, ${invalidMemo}`, async () => {
                 await observer.notify({
@@ -208,6 +344,15 @@ describe(NCGTransferredEventObserver.name, () => {
                     "0x2734048eC2892d111b4fbAB224400847544FC872",
                     "100.11",
                     "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    network: "nineChronicles",
+                    tx_id: "TX-A",
+                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    recipient: invalidMemo ?? "",
+                    timestamp: expect.any(String),
+                    amount: 0,
+                });
             });
         }
 
