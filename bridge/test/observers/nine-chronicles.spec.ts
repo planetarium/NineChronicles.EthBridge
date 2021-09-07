@@ -323,6 +323,7 @@ describe(NCGTransferredEventObserver.name, () => {
             "0XC1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
             "0Xc1912fee45d61c87cc5ea59dae31190fffff232d",
             "C1912FEE45D61C87CC5EA59DAE31190FFFFF232D",
+            null,
         ]) {
             it(`should refund with invalid memo, ${invalidMemo}`, async () => {
                 await observer.notify({
@@ -343,6 +344,15 @@ describe(NCGTransferredEventObserver.name, () => {
                     "0x2734048eC2892d111b4fbAB224400847544FC872",
                     "100.11",
                     "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    network: "nineChronicles",
+                    tx_id: "TX-A",
+                    sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    recipient: invalidMemo ?? "",
+                    timestamp: expect.any(String),
+                    amount: 0,
+                });
             });
         }
 
