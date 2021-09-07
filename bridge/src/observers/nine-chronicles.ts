@@ -61,8 +61,35 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 const minimum = new Decimal(this._limitationPolicy.minimum);
                 const maximum = new Decimal(this._limitationPolicy.maximum);
                 const transferredAmountInLast24Hours = new Decimal(await this._exchangeHistoryStore.transferredAmountInLast24Hours("nineChronicles", sender));
+                const maxExchangableAmount = maximum.sub(transferredAmountInLast24Hours);
+                const limitedAmount: Decimal = Decimal.min(maxExchangableAmount, amount);
 
-                if (recipient === null || !isValidAddress(recipient) || !amount.isFinite() || amount.isNaN()) {
+                const lessThanMinimum = amount.cmp(minimum) === -1;
+                const alreadyExchangedUptoMaximum = transferredAmountInLast24Hours.cmp(maximum) >= 0;
+                const overflowedExchangeAmount = !alreadyExchangedUptoMaximum && transferredAmountInLast24Hours.add(amount).cmp(maximum) === 1;
+
+                const isInvalidRecipient = recipient === null || !isValidAddress(recipient);
+                const isInvalidAmount = !amount.isFinite() || amount.isNaN();
+                const isInvalidTx = isInvalidRecipient || isInvalidAmount;
+
+                const isExchangableTx = !isInvalidTx && !lessThanMinimum && !alreadyExchangedUptoMaximum
+
+                let refundAmount: Decimal | null = null;
+                let refundTxId: string | null = null;
+                let refundMemo: string | null = null;
+
+                await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
+                recorded = true;
+                await this._exchangeHistoryStore.put({
+                    network: "nineChronicles",
+                    tx_id: txId,
+                    sender,
+                    recipient: recipient === null ? "" : recipient,
+                    timestamp: new Date().toISOString(),
+                    amount: isExchangableTx ? limitedAmount.toNumber() : 0,
+                });
+
+                if (isInvalidTx) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     continue;
@@ -73,30 +100,30 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     continue;
                 }
 
-                if (amount.cmp(minimum) === -1) {
-                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`);
-                    console.log(`The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`, nineChroniclesTxId);
-                    continue;
+                if (lessThanMinimum) {
+                    refundAmount = amount;
+                    refundMemo = `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`;
+                    console.log(`The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG.`);
                 }
-
-                console.log(minimum, "<", transferredAmountInLast24Hours, "<", maximum, "?");
-                console.log(transferredAmountInLast24Hours.cmp(maximum));
-
                 // NOTE x.cmp(y) returns -1, means x < y.
-                if (transferredAmountInLast24Hours.cmp(maximum) >= 0) {
-                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`);
-                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
-                    continue;
+                else if (alreadyExchangedUptoMaximum) {
+                    refundAmount = amount;
+                    refundMemo = `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`;
+                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`);
+                }
+                else if (overflowedExchangeAmount) {
+                    refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum);
+                    refundMemo = `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`;
+                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
                 }
 
-                let refundAmount: string | null = null;
-                let refundTxId: string | null = null;
-                let limitedAmount: Decimal = amount;
-                if (transferredAmountInLast24Hours.add(amount).cmp(maximum) === 1) {
-                    refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum).toString();
-                    limitedAmount = maximum.sub(transferredAmountInLast24Hours);
-                    refundTxId = await this._ncgTransfer.transfer(sender, refundAmount, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
-                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
+                if (refundAmount !== null) {
+                    refundTxId = await this._ncgTransfer.transfer(sender, refundAmount.toString(), refundMemo);
+                    console.log("Refund TX ID", refundTxId)
+
+                    if (!isExchangableTx) {
+                        continue;
+                    }
                 }
 
                 // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
@@ -117,24 +144,14 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 } else if(blockHash === "4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c") {
                   transactionHash = "0xc60146f55fd24323de2e2efbd66743317ac9601aa648daf9d78069661635c306";
                 } else {
-                  const { transactionHash: txHash } = await this._wrappedNcgTransfer.mint(recipient, ethereumExchangeAmount);
+                  const { transactionHash: txHash } = await this._wrappedNcgTransfer.mint(recipient!, ethereumExchangeAmount);
                   transactionHash = txHash;
                 }
 
                 console.log("Receipt", transactionHash);
-                await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
-                recorded = true;
-                await this._exchangeHistoryStore.put({
-                    network: "nineChronicles",
-                    tx_id: txId,
-                    sender,
-                    recipient,
-                    timestamp: new Date().toISOString(),
-                    amount: limitedAmount.toNumber(),
-                });
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render()
+                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient!, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount === null ? null : refundAmount.toString(), refundTxId).render()
                 });
             } catch (e) {
                 console.log("EERRRR", e)
@@ -146,6 +163,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         }
 
         if (!recorded) {
+            console.log(recorded);
             await this._monitorStateStore.store("nineChronicles", { blockHash, txId: null });
         }
     }
