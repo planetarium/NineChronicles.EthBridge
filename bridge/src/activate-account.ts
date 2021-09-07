@@ -5,7 +5,7 @@ import { KMSNCGSigner } from "./kms-ncg-signer";
 import crypto from "crypto";
 
 const ACTION = "ACTIVATE_ACCOUNT_PLAIN_VALUE";
-const headlessGraphQLClient = new HeadlessGraphQLClient(Configuration.get("GRAPHQL_API_ENDPOINT"));
+const headlessGraphQLClient = new HeadlessGraphQLClient(Configuration.get("GRAPHQL_API_ENDPOINT"), 5);
 
 const kmsSigner = new KmsSigner(Configuration.get("KMS_PROVIDER_REGION"), Configuration.get("KMS_PROVIDER_KEY_ID"), {
     accessKeyId: Configuration.get("KMS_PROVIDER_AWS_ACCESSKEY"),
