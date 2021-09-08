@@ -105,7 +105,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 // NOTE x.cmp(y) returns -1, means x < y.
                 if (alreadyExchangedUptoMaximum) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`);
-                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
+                    console.log(`${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
                     continue;
                 }
 
