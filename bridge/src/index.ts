@@ -55,7 +55,8 @@ consoleStamp(console);
     const exchangeHistoryStore: IExchangeHistoryStore = await Sqlite3ExchangeHistoryStore.open(EXCHANGE_HISTORY_STORE_PATH);
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
 
-    const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT);
+    const GRAPHQL_REQUEST_RETRY = 5;
+    const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT, GRAPHQL_REQUEST_RETRY);
     const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
       region: KMS_PROVIDER_REGION,
       keyIds: [KMS_PROVIDER_KEY_ID],

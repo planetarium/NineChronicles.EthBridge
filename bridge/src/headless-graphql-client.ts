@@ -4,6 +4,12 @@ import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => {
+        setTimeout(() => { resolve() }, ms);
+    })
+}
+
 interface GraphQLRequestBody {
     operationName: string | null;
     query: string;
@@ -12,23 +18,21 @@ interface GraphQLRequestBody {
 
 export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     private readonly _apiEndpoint: string;
+    private readonly _maxRetry: number;
 
-    constructor(apiEndpoint: string) {
+    constructor(apiEndpoint: string, maxRetry: number) {
         this._apiEndpoint = apiEndpoint;
+        this._maxRetry = maxRetry;
     }
 
     async getBlockIndex(blockHash: BlockHash): Promise<number> {
         const query = `query GetBlockHash($hash: ID!)
         { chainQuery { blockQuery { block(hash: $hash) { index } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetBlockHash",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetBlockHash",
             query,
             variables: {
                 hash: blockHash,
-            },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
             },
         });
 
@@ -38,14 +42,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getTipIndex(): Promise<number> {
         const query = `query
         { chainQuery { blockQuery { blocks(desc: true, limit: 1) { index } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: null,
+        const { data } = await this.graphqlRequest({
+            operationName: null,
             query,
             variables: {},
-        }, {
-            headers: {
-                "Content-Type": "application/json",
-            },
         });
 
         return data.data.chainQuery.blockQuery.blocks[0].index;
@@ -54,15 +54,11 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getBlockHash(index: number): Promise<BlockHash> {
         const query = `query GetBlockHash($index: ID!)
         { chainQuery { blockQuery { block(index: $index) { hash } } } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetBlockHash",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetBlockHash",
             query,
             variables: {
                 index,
-            },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
             },
         });
 
@@ -72,14 +68,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<NCGTransferredEvent[]> {
         const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
         { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount memo } }`;
-        const { data } = await axios.post(this._apiEndpoint, {
-            operation: "GetNCGTransferEvents",
+        const { data } = await this.graphqlRequest({
+            operationName: "GetNCGTransferEvents",
             query,
             variables: { blockHash, recipient },
-        }, {
-            headers: {
-                "Content-Type": "application/json",
-            },
         });
 
         return data.data.transferNCGHistories;
@@ -154,12 +146,26 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return response.data.data.stageTx;
     }
 
-    private async graphqlRequest(body: GraphQLRequestBody): Promise<AxiosResponse> {
-        return axios.post(this._apiEndpoint, body,
-        {
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+    private async graphqlRequest(body: GraphQLRequestBody, retry: number = this._maxRetry): Promise<AxiosResponse> {
+        try {
+            const response = await axios.post(this._apiEndpoint, body,
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            return response;
+        } catch(error) {
+            console.error(`Retrying left ${retry - 1}... error:`, error);
+            if (retry > 0) {
+                await delay(500);
+                const response = await this.graphqlRequest(body, retry - 1);
+                return response;
+            }
+
+            throw error;
+        }
+
     }
 }
