@@ -116,7 +116,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     // Should equal with amount - limitedAmount
                     refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum).toString();
                     refundTxId = await this._ncgTransfer.transfer(sender, refundAmount, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
-                    console.log(`${sender} already exchanged ${amountString} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
+                    console.log(`${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
                 }
 
                 // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
