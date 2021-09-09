@@ -21,6 +21,7 @@ import Decimal from "decimal.js";
 import { IExchangeHistoryStore } from "./interfaces/exchange-history-store";
 import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
 import consoleStamp from 'console-stamp';
+import { AddressBanPolicy } from "./policies/address-ban";
 
 consoleStamp(console);
 (async () => {
@@ -99,6 +100,22 @@ consoleStamp(console);
         signer
     );
 
+    // Nine Coparations' cold wallet addresses.
+    const addressBanPolicy = new AddressBanPolicy([
+        "0xa1ef9701F151244F9aA7131639990c4664d2aEeF",
+        "0xf2fAe7aAF4c8AAC267EAB6962Fc294bc876d7b08",
+        "0x4b56280B84a7DC0B1Da1CdE43Aa109a33354Da1f",
+        "0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19",
+        "0x0bbBd789280AF719Ee886cb3A0430F63D04bDc2b",
+        "0x7cA620bAc4b96dA636BD4Cb2141A42b55C5f6Fdd",
+        "0xebCa4032529221a9BCd3fF3a17C26e7d4f829695",
+        "0x310518163256A9642364FDadb0eB2b218cfa86c6",
+        "0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5",
+        "0x47D082a115c63E7b58B1532d20E631538eaFADde",
+        "0xB3bCa3b3c6069EF5Bdd6384bAD98F11378Dc360E",
+        "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
+    ]);
+
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
@@ -107,7 +124,7 @@ consoleStamp(console);
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
         maximum: MAXIMUM_NCG,
         minimum: MINIMUM_NCG,
-    });
+    }, addressBanPolicy);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
