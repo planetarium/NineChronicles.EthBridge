@@ -7,6 +7,7 @@ import { NCGTransferredEventObserver } from "../../src/observers/nine-chronicles
 import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
+import { IAddressBanPolicy } from "../../src/policies/address-ban";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -56,7 +57,12 @@ describe(NCGTransferredEventObserver.name, () => {
         maximum: 100000,
         minimum: 100,
     };
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy);
+    const BANNED_ADDRESS = "0x47D082a115c63E7b58B1532d20E631538eaFADde";
+    const addressBanPolicy: jest.Mocked<IAddressBanPolicy> = {
+        isBannedAddress: jest.fn().mockImplementation(address => address === BANNED_ADDRESS),
+    };
+
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -88,6 +94,28 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
                 blockHash: "BLOCK-HASH",
                 txId: "TX-ID",
+            });
+
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+        });
+
+        it("shouldn skip if the sender is banned", async () => {
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [{
+                    amount: "0",
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ID",
+                    memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: BANNED_ADDRESS,
+                }],
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {
+                blockHash: "BLOCK-HASH",
+                txId: null,
             });
 
             expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();

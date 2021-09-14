@@ -11,6 +11,7 @@ import { WrappedEvent } from "../messages/wrapped-event";
 import Decimal from "decimal.js"
 import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
+import { IAddressBanPolicy } from "../policies/address-ban";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -37,8 +38,9 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
      */
     private readonly _exchangeFeeRatio: Decimal;
     private readonly _limitationPolicy: LimitationPolicy;
+    private readonly _addressBanPolicy: IAddressBanPolicy;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy) {
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackWebClient = slackWebClient;
@@ -48,6 +50,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         this._etherscanUrl = etherscanUrl;
         this._exchangeFeeRatio = exchangeFeeRatio;
         this._limitationPolicy = limitationPolicy;
+        this._addressBanPolicy = addressBanPolicy;
     }
 
     async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
@@ -56,6 +59,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         let recorded = false;
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             try {
+                if (this._addressBanPolicy.isBannedAddress(sender)) {
+                    continue;
+                }
+
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
