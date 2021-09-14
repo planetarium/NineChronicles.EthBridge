@@ -3,6 +3,7 @@ import { IHeadlessGraphQLClient } from "../src/interfaces/headless-graphql-clien
 import Decimal from "decimal.js";
 import Web3 from "web3";
 import PromiEvent from "web3-core-promievent";
+import { IGasPricePolicy } from "../src/policies/gas-price";
 
 describe(WrappedNCGMinter.name, () => {
     const mockHeadlessGraphQlClient: jest.Mocked<IHeadlessGraphQLClient> = {
@@ -44,11 +45,14 @@ describe(WrappedNCGMinter.name, () => {
             toBN: jest.fn(parseInt),
         }
     };
+    const mockGasPricePolicy: IGasPricePolicy = {
+        calculateGasPrice: jest.fn().mockImplementation(x => x * 1.5),
+    };
     const mockMinterAddress = "0x0000000000000000000000000000000000000000";
-    const wrappedNcgMinter = new WrappedNCGMinter(mockWeb3 as unknown as Web3, {abi: [], address: ""}, mockMinterAddress, new Decimal(1.5));
+    const wrappedNcgMinter = new WrappedNCGMinter(mockWeb3 as unknown as Web3, {abi: [], address: ""}, mockMinterAddress, mockGasPricePolicy);
 
     describe(WrappedNCGMinter.prototype.mint.name, () => {
-        it("should mint with gas price ratio", async () => {
+        it("should mint", async () => {
             await wrappedNcgMinter.mint("0x1111111111111111111111111111111111111111", new Decimal(10));
             expect(mockContract.methods.mint).toHaveBeenCalledWith("0x1111111111111111111111111111111111111111", 10)
             expect(mockContractMethodReturn.send).toHaveBeenCalledWith({
