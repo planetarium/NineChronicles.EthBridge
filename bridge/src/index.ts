@@ -22,7 +22,7 @@ import { IExchangeHistoryStore } from "./interfaces/exchange-history-store";
 import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
 import consoleStamp from 'console-stamp';
 import { AddressBanPolicy } from "./policies/address-ban";
-import { GasPriceTipPolicy, IGasPricePolicy } from "./policies/gas-price";
+import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "./policies/gas-price";
 
 consoleStamp(console);
 (async () => {
@@ -50,6 +50,9 @@ consoleStamp(console);
     }
     const GAS_TIP_RATIO_STRING: string = Configuration.get("GAS_TIP_RATIO", true, "string");
     const GAS_TIP_RATIO = new Decimal(GAS_TIP_RATIO_STRING);
+
+    const MAX_GAS_PRICE_STRING: string = Configuration.get("MAX_GAS_PRICE", true, "string");
+    const MAX_GAS_PRICE = new Decimal(MAX_GAS_PRICE_STRING);
 
     const CONFIRMATIONS = 10;
 
@@ -83,7 +86,12 @@ consoleStamp(console);
     }
     const kmsAddress = kmsAddresses[0];
     console.log(kmsAddress);
-    const gasPricePolicy: IGasPricePolicy = new GasPriceTipPolicy(GAS_TIP_RATIO);
+    const gasPriceTipPolicy: IGasPricePolicy = new GasPriceTipPolicy(GAS_TIP_RATIO);
+    const gasPriceLimitPolicy: IGasPricePolicy = new GasPriceLimitPolicy(MAX_GAS_PRICE);
+    const gasPricePolicy: IGasPricePolicy = new GasPricePolicies([
+        gasPriceTipPolicy,
+        gasPriceLimitPolicy,
+    ]);
     const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress, gasPricePolicy);
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
