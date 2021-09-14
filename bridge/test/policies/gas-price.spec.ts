@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { GasPriceTipPolicy, IGasPricePolicy } from "../../src/policies/gas-price";
+import { GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "../../src/policies/gas-price";
 
 describe(GasPriceTipPolicy.name, () => {
     describe(GasPriceTipPolicy.prototype.calculateGasPrice.name, () => {
@@ -9,6 +9,24 @@ describe(GasPriceTipPolicy.name, () => {
             const caculatedGasPrice = gasPricePolicy.calculateGasPrice(new Decimal(10));
 
             expect(caculatedGasPrice).toStrictEqual(new Decimal(15));
+        })
+    })
+})
+
+describe(GasPricePolicies.name, () => {
+    describe(GasPricePolicies.prototype.calculateGasPrice.name, () => {
+        it("should iterate all", () => {
+            const gasPricePolicy: IGasPricePolicy = new GasPricePolicies([
+                {
+                    calculateGasPrice: jest.fn<Decimal, [Decimal]>(x => x.mul(1.5)),
+                },
+                {
+                    calculateGasPrice: jest.fn<Decimal, [Decimal]>(x => x.sub(1)),
+                }
+            ]);
+
+            const caculatedGasPrice = gasPricePolicy.calculateGasPrice(new Decimal(10));
+            expect(caculatedGasPrice).toStrictEqual(new Decimal(14));
         })
     })
 })

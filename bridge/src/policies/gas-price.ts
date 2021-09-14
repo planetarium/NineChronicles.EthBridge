@@ -15,3 +15,19 @@ export class GasPriceTipPolicy implements IGasPricePolicy {
         return gasPrice.mul(this._tipRatio).floor();
     }
 }
+
+export class GasPricePolicies implements IGasPricePolicy {
+    private readonly _policies: IGasPricePolicy[];
+
+    constructor(policies: IGasPricePolicy[]) {
+        this._policies = policies;
+    }
+
+    calculateGasPrice(gasPrice: Decimal): Decimal {
+        for (const policy of this._policies) {
+            gasPrice = policy.calculateGasPrice(gasPrice);
+        }
+
+        return gasPrice;
+    }
+};
