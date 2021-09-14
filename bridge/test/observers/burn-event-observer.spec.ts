@@ -96,10 +96,10 @@ describe(EthereumBurnEventObserver.name, () => {
             });
 
             expect(mockNcgTransfer.transfer.mock.calls).toEqual([
-                [ncgRecipient, "1.00", null],
-                [ncgRecipient, "1.20", null],
-                [ncgRecipient, "0.01", null],
-                [ncgRecipient, "3.22", null],
+                [ncgRecipient, "1.00", "TX-A"],
+                [ncgRecipient, "1.20", "TX-B"],
+                [ncgRecipient, "0.01", "TX-C"],
+                [ncgRecipient, "3.22", "TX-D"],
             ]);
         });
 
