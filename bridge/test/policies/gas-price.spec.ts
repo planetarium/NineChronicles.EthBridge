@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "../../src/policies/gas-price";
+import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "../../src/policies/gas-price";
 
 describe(GasPriceTipPolicy.name, () => {
     describe(GasPriceTipPolicy.prototype.calculateGasPrice.name, () => {
@@ -27,6 +27,16 @@ describe(GasPricePolicies.name, () => {
 
             const caculatedGasPrice = gasPricePolicy.calculateGasPrice(new Decimal(10));
             expect(caculatedGasPrice).toStrictEqual(new Decimal(14));
+        })
+    })
+})
+
+describe(GasPriceLimitPolicy.name, () => {
+    describe(GasPriceLimitPolicy.prototype.calculateGasPrice.name, () => {
+        it("should return limited price", () => {
+            const gasPricePolicy: IGasPricePolicy = new GasPriceLimitPolicy(new Decimal(1.1));
+            const caculatedGasPrice = gasPricePolicy.calculateGasPrice(new Decimal(10));
+            expect(caculatedGasPrice).toStrictEqual(new Decimal(1.1));
         })
     })
 })

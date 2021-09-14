@@ -31,3 +31,15 @@ export class GasPricePolicies implements IGasPricePolicy {
         return gasPrice;
     }
 };
+
+export class GasPriceLimitPolicy implements IGasPricePolicy {
+    private readonly _maximumGasPrice: Decimal;
+
+    constructor(maximumGasPrice: Decimal) {
+        this._maximumGasPrice = maximumGasPrice;
+    }
+
+    calculateGasPrice(gasPrice: Decimal): Decimal {
+        return Decimal.min(gasPrice, this._maximumGasPrice);
+    }
+};
