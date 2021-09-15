@@ -2,6 +2,7 @@ import { WrappedNCGMinter } from "../src/wrapped-ncg-minter";
 import { IHeadlessGraphQLClient } from "../src/interfaces/headless-graphql-client";
 import Decimal from "decimal.js";
 import Web3 from "web3";
+import PromiEvent from "web3-core-promievent";
 
 describe(WrappedNCGMinter.name, () => {
     const mockHeadlessGraphQlClient: jest.Mocked<IHeadlessGraphQLClient> = {
@@ -17,7 +18,14 @@ describe(WrappedNCGMinter.name, () => {
     };
 
     const mockContractMethodReturn = {
-        send: jest.fn(),
+        send: jest.fn(() => {
+            const event = PromiEvent<string>(false);
+            setTimeout(() => {
+                event.eventEmitter.emit("transactionHash", "TX-ID");
+                event.resolve("TX-ID");
+            }, 10);
+            return event.eventEmitter;
+        }),
     }
 
     const mockContract = {

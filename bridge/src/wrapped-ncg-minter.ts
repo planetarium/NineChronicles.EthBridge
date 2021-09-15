@@ -2,6 +2,7 @@ import Web3 from "web3";
 import { TransactionReceipt, TransactionConfig } from "web3-core";
 import { Contract } from "web3-eth-contract";
 import Decimal from "decimal.js"
+import { PromiEvent } from "web3-core";
 
 import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
@@ -37,6 +38,7 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
       const gasPriceString = await this._web3.eth.getGasPrice();
       const gasPrice = new Decimal(gasPriceString);
       const gasPriceWithTip = gasPrice.mul(this._gasTipRatio).floor();
-        return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()});
+      const promiEvent: PromiEvent<TransactionReceipt> = this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()});
+        return promiEvent.on("transactionHash", transactionHash => console.log("Transaction Hash is", transactionHash));
     }
 }
