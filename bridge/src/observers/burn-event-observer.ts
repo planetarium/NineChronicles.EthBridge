@@ -38,7 +38,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
             const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
 
             try {
-                const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, null);
+                const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, transactionHash);
 
                 await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
                 await this._slackWebClient.chat.postMessage({
