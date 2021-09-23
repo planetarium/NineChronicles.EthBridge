@@ -19,6 +19,9 @@
             "web3/providers": [
                 "./types/web3/providers"
             ],
+            "web3-core-promievent": [
+                "./types/web3-core-promievent"
+            ],
         },
     },
     "include": [
