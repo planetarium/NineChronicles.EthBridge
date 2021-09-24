@@ -9,6 +9,7 @@ import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { UnwrappedEvent } from "../messages/unwrapped-event";
 import Decimal from "decimal.js";
 import { UnwrappingFailureEvent } from "../messages/unwrapping-failure-event";
+import { Integration } from "../integrations";
 
 export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHash, events: (EventData & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
@@ -16,13 +17,15 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _explorerUrl: string;
     private readonly _etherscanUrl: string;
+    private readonly _integration: Integration;
 
-    constructor(ncgTransfer: INCGTransfer, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string) {
+    constructor(ncgTransfer: INCGTransfer, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, integration: Integration) {
         this._ncgTransfer = ncgTransfer;
         this._slackWebClient = slackWebClient;
         this._monitorStateStore = monitorStateStore;
         this._explorerUrl = explorerUrl;
         this._etherscanUrl = etherscanUrl;
+        this._integration = integration;
     }
 
     async notify(data: { blockHash: BlockHash; events: (EventData & TransactionLocation)[]; }): Promise<void> {
@@ -50,6 +53,13 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
                     ...new UnwrappingFailureEvent(this._etherscanUrl, sender, recipient, amountString, transactionHash, String(e)).render()
+                });
+                await this._integration.error("Unexpected error during unwrapping NCG", {
+                    errorMessage: String(e),
+                    sender,
+                    recipient,
+                    transactionHash,
+                    amountString,
                 });
             }
         }

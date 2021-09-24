@@ -5,6 +5,7 @@ import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
 import { EthereumBurnEventObserver } from "../../src/observers/burn-event-observer";
 import { TransactionLocation } from '../../src/types/transaction-location';
+import { Integration } from '../../src/integrations';
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -38,7 +39,11 @@ describe(EthereumBurnEventObserver.name, () => {
         store: jest.fn(),
     };
 
-    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io");
+    const mockIntegration: jest.Mocked<Integration> = {
+        error: jest.fn(),
+    };
+
+    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -165,6 +170,40 @@ describe(EthereumBurnEventObserver.name, () => {
             });
 
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+        });
+
+        it("pagerduty 9c transfer error message - snapshot", async () => {
+            mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
+                throw new Error("mockNcgTransfer.transfer error");
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        blockHash: "BLOCK-HASH",
+                        address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        logIndex: 0,
+                        blockNumber: 0,
+                        event: "Burn",
+                        raw: {
+                            data: "",
+                            topics: [],
+                        },
+                        signature: "",
+                        transactionIndex: 0,
+                        transactionHash: "TX-ID",
+                        txId: "TX-ID",
+                        returnValues: {
+                            _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                            amount: 1000000000000000000
+                        }
+                    }
+                ],
+            });
+
+            expect(mockIntegration.error.mock.calls).toMatchSnapshot();
         });
     })
 })

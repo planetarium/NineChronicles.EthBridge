@@ -8,6 +8,7 @@ import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../../src/policies/address-ban";
+import { Integration } from "../../src/integrations";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -62,7 +63,11 @@ describe(NCGTransferredEventObserver.name, () => {
         isBannedAddress: jest.fn().mockImplementation(address => address === BANNED_ADDRESS),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy);
+    const mockIntegration: jest.Mocked<Integration> = {
+        error: jest.fn(),
+    };
+
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -446,6 +451,28 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+        });
+
+        it("pagerduty ethereum transfer error message - snapshot", async () => {
+            mockWrappedNcgMinter.mint.mockImplementationOnce((address, amount) => {
+                throw new Error("mockWrappedNcgMinter.mint error");
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockIntegration.error.mock.calls).toMatchSnapshot();
         });
     })
 })
