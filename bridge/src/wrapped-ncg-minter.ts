@@ -6,13 +6,14 @@ import { PromiEvent } from "web3-core";
 
 import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
+import { IGasPricePolicy } from "./policies/gas-price";
 
 export class WrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _web3: Web3;
     private readonly _contractDescription: ContractDescription;
     private readonly _contract: Contract;
     private readonly _minterAddress: string;
-    private readonly _gasTipRatio: Decimal;
+    private readonly _gasPricePolicy: IGasPricePolicy;
 
     /**
      *
@@ -21,12 +22,12 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
      * @param minterAddress
      * @param gasTipRatio Percentage of gas tips to be incorporated into the block but not X %. If you want 150%, you should pass 1.5 decimal instance.
      */
-    constructor(web3: Web3, contractDescription: ContractDescription, minterAddress: string, gasTipRatio: Decimal) {
+    constructor(web3: Web3, contractDescription: ContractDescription, minterAddress: string, gasPricePolicy: IGasPricePolicy) {
         this._web3 = web3;
         this._contractDescription = contractDescription;
         this._contract = new this._web3.eth.Contract(this._contractDescription.abi, this._contractDescription.address);
         this._minterAddress = minterAddress;
-        this._gasTipRatio = gasTipRatio;
+        this._gasPricePolicy = gasPricePolicy;
     }
 
     async mint(address: string, amount: Decimal): Promise<TransactionReceipt> {
@@ -37,8 +38,8 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
       // e.g. '103926224184', '93574861317'
       const gasPriceString = await this._web3.eth.getGasPrice();
       const gasPrice = new Decimal(gasPriceString);
-      const gasPriceWithTip = gasPrice.mul(this._gasTipRatio).floor();
-      const promiEvent: PromiEvent<TransactionReceipt> = this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: gasPriceWithTip.toString()});
+      const calculatedGasPrice = this._gasPricePolicy.calculateGasPrice(gasPrice);
+      const promiEvent: PromiEvent<TransactionReceipt> = this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: calculatedGasPrice.toString()});
       return promiEvent.on("transactionHash", transactionHash => console.log("Transaction Hash is", transactionHash));
     }
 }
