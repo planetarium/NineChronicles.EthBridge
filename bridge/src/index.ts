@@ -24,6 +24,9 @@ import consoleStamp from 'console-stamp';
 import { AddressBanPolicy } from "./policies/address-ban";
 
 consoleStamp(console);
+
+process.on("uncaughtException", console.error);
+
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
