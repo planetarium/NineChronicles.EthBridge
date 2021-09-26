@@ -25,6 +25,10 @@ import { AddressBanPolicy } from "./policies/address-ban";
 
 consoleStamp(console);
 
+// The reason to subscribe 'uncaughtException', to leave only a error log,
+// is to avoid that the bridge has been killed by unexpected error
+// occurred from 'eth-block-tracker' package.
+// See also https://github.com/planetarium/NineChronicles.EthBridge/issues/63#issuecomment-926558558.
 process.on("uncaughtException", console.error);
 
 (async () => {
