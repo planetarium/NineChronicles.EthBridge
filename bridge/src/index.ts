@@ -25,6 +25,13 @@ import { AddressBanPolicy } from "./policies/address-ban";
 import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "./policies/gas-price";
 
 consoleStamp(console);
+
+// The reason to subscribe 'uncaughtException', to leave only a error log,
+// is to avoid that the bridge has been killed by unexpected error
+// occurred from 'eth-block-tracker' package.
+// See also https://github.com/planetarium/NineChronicles.EthBridge/issues/63#issuecomment-926558558.
+process.on("uncaughtException", console.error);
+
 (async () => {
     const GRAPHQL_API_ENDPOINT: string = Configuration.get("GRAPHQL_API_ENDPOINT");
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
