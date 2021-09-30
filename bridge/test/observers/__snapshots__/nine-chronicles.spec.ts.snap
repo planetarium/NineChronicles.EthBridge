@@ -1,5 +1,20 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`NCGTransferredEventObserver notify pagerduty ethereum transfer error message - snapshot 1`] = `
+Array [
+  Array [
+    "Unexpected error during wrapping NCG",
+    Object {
+      "amountString": "100.23",
+      "errorMessage": "Error: mockWrappedNcgMinter.mint error",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+      "txId": "TX-ID",
+    },
+  ],
+]
+`;
+
 exports[`NCGTransferredEventObserver notify slack ethereum transfer error message - snapshot 1`] = `
 Array [
   Array [

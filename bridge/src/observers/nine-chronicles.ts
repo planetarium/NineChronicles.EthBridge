@@ -12,6 +12,7 @@ import Decimal from "decimal.js"
 import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../policies/address-ban";
+import { Integration } from "../integrations";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -40,7 +41,9 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
     private readonly _limitationPolicy: LimitationPolicy;
     private readonly _addressBanPolicy: IAddressBanPolicy;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy) {
+    private readonly _integration: Integration;
+
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackWebClient = slackWebClient;
@@ -51,6 +54,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         this._exchangeFeeRatio = exchangeFeeRatio;
         this._limitationPolicy = limitationPolicy;
         this._addressBanPolicy = addressBanPolicy;
+        this._integration = integration;
     }
 
     async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
@@ -155,9 +159,17 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 });
             } catch (e) {
                 console.log("EERRRR", e)
+                // TODO: it should be replaced with `Integration` Slack implementation.
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
                     ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(e)).render()
+                });
+                await this._integration.error("Unexpected error during wrapping NCG", {
+                    errorMessage: String(e),
+                    sender,
+                    recipient,
+                    txId,
+                    amountString,
                 });
             }
         }

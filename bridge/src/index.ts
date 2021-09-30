@@ -23,6 +23,8 @@ import { Sqlite3ExchangeHistoryStore } from "./sqlite3-exchange-history-store";
 import consoleStamp from 'console-stamp';
 import { AddressBanPolicy } from "./policies/address-ban";
 import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "./policies/gas-price";
+import { Integration } from "./integrations";
+import { PagerDutyIntegration } from "./integrations/pagerduty";
 
 consoleStamp(console);
 
@@ -61,6 +63,8 @@ process.on("uncaughtException", console.error);
     const MAX_GAS_PRICE_STRING: string = Configuration.get("MAX_GAS_PRICE", true, "string");
     const MAX_GAS_PRICE = new Decimal(MAX_GAS_PRICE_STRING);
 
+    const PAGERDUTY_ROUTING_KEY: string = Configuration.get("PAGERDUTY_ROUTING_KEY", true, "string");;
+
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
@@ -69,6 +73,7 @@ process.on("uncaughtException", console.error);
 
     const GRAPHQL_REQUEST_RETRY = 5;
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT, GRAPHQL_REQUEST_RETRY);
+    const integration: Integration = new PagerDutyIntegration(PAGERDUTY_ROUTING_KEY);
     const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
       region: KMS_PROVIDER_REGION,
       keyIds: [KMS_PROVIDER_KEY_ID],
@@ -133,7 +138,7 @@ process.on("uncaughtException", console.error);
         "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
     ]);
 
-    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL);
+    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
@@ -141,7 +146,7 @@ process.on("uncaughtException", console.error);
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
         maximum: MAXIMUM_NCG,
         minimum: MINIMUM_NCG,
-    }, addressBanPolicy);
+    }, addressBanPolicy, integration);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
 
