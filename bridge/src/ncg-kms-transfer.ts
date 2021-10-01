@@ -44,8 +44,10 @@ export class NCGKMSTransfer implements INCGTransfer {
         // If 50.011 came as `amount`, expect 5001.
         const ncgAmount = new Decimal(amount).mul(100).floor().toNumber();
         return await this._mutex.runExclusive(async () => {
+            // FIXME: request unsigned transaction builder API to NineChronicles.Headless developer
+            //        and remove these lines.
             const plainValue = {
-                type_id: "transfer_asset",
+                type_id: "transfer_asset2",
                 values: {
                     amount: [
                         {
