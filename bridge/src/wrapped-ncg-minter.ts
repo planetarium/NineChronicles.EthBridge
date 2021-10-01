@@ -39,7 +39,6 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
       const gasPriceString = await this._web3.eth.getGasPrice();
       const gasPrice = new Decimal(gasPriceString);
       const calculatedGasPrice = this._gasPricePolicy.calculateGasPrice(gasPrice);
-      const promiEvent: PromiEvent<TransactionReceipt> = this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: calculatedGasPrice.toString()});
-      return promiEvent.on("transactionHash", transactionHash => console.log("Transaction Hash is", transactionHash));
+      return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: calculatedGasPrice.toString()});
     }
 }
