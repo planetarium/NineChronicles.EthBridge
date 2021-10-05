@@ -41,6 +41,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
             const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
 
             try {
+                console.log("Process Ethereum transaction", transactionHash);
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, transactionHash);
 
                 await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
