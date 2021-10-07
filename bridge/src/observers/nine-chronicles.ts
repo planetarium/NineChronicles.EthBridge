@@ -63,6 +63,8 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         let recorded = false;
         for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
             try {
+                console.log("Process NineChronicles transaction", txId);
+
                 if (this._addressBanPolicy.isBannedAddress(sender)) {
                     continue;
                 }
