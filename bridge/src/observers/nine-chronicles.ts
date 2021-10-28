@@ -161,13 +161,22 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 });
             } catch (e) {
                 console.log("EERRRR", e)
+                let errorMessage: string;
+                if (e instanceof Error) {
+                    errorMessage = String(e);
+                } else if (e instanceof Object) {
+                    errorMessage = JSON.stringify(e);
+                } else {
+                    errorMessage = String(e);
+                }
+
                 // TODO: it should be replaced with `Integration` Slack implementation.
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, String(e)).render()
+                    ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, errorMessage).render()
                 });
                 await this._integration.error("Unexpected error during wrapping NCG", {
-                    errorMessage: String(e),
+                    errorMessage,
                     sender,
                     recipient,
                     txId,
