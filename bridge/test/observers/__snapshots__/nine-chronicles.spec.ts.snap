@@ -140,3 +140,5 @@ Array [
   ],
 ]
 `;
+
+exports[`NCGTransferredEventObserver notify slack string error message - snapshot 1`] = `Array []`;
