@@ -164,10 +164,8 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 let errorMessage: string;
                 if (e instanceof Error) {
                     errorMessage = String(e);
-                } else if (e instanceof Object) {
-                    errorMessage = JSON.stringify(e);
                 } else {
-                    errorMessage = String(e);
+                    errorMessage = JSON.stringify(e);
                 }
 
                 // TODO: it should be replaced with `Integration` Slack implementation.
