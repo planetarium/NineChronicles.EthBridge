@@ -70,6 +70,10 @@ describe(NCGTransferredEventObserver.name, () => {
     const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
         it("should record the block hash even if there is no events", () => {
             observer.notify({
                 blockHash: "BLOCK-HASH",
@@ -431,6 +435,31 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
 
+        it("slack object error message - snapshot", async () => {
+            mockWrappedNcgMinter.mint.mockImplementationOnce(() => {
+                throw {
+                    code: -32000,
+                    message: 'err: max fee per gas less than block base fee: address 0x9093dd96c4bb6b44A9E0A522e2DE49641F146223, maxFeePerGas: 300000000000 baseFee: 305545815494 (supplied gas 11118348)'
+                };
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "1.23",
+                        memo: "0x0000000000000000000000000000000000000000",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+        });
+
         it("slack ethereum transfer error message - snapshot", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce((address, amount) => {
                 throw new Error("mockWrappedNcgMinter.mint error");
@@ -473,6 +502,27 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockIntegration.error.mock.calls).toMatchSnapshot();
+        });
+
+        // Try to catch cases when others, not object and error, were thrown.
+        it("slack string error message - snapshot", async () => {
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce("error message");
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "1.23",
+                        memo: "0x0000000000000000000000000000000000000000",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
     })
 })

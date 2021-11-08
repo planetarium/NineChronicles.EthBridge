@@ -43,7 +43,7 @@ Array [
             },
             Object {
               "title": "error",
-              "value": "Error: mockWrappedNcgMinter.mint error",
+              "value": "{\\"code\\":-32000,\\"message\\":\\"err: max fee per gas less than block base fee: address 0x9093dd96c4bb6b44A9E0A522e2DE49641F146223, maxFeePerGas: 300000000000 baseFee: 305545815494 (supplied gas 11118348)\\"}",
             },
           ],
         },
@@ -99,6 +99,8 @@ Array [
 ]
 `;
 
+exports[`NCGTransferredEventObserver notify slack object error message - snapshot 1`] = `Array []`;
+
 exports[`NCGTransferredEventObserver notify slack refund error message - snapshot 1`] = `
 Array [
   Array [
@@ -138,3 +140,5 @@ Array [
   ],
 ]
 `;
+
+exports[`NCGTransferredEventObserver notify slack string error message - snapshot 1`] = `Array []`;
