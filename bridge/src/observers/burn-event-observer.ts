@@ -49,7 +49,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                     channel: "#nine-chronicles-bridge-bot",
                     ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, nineChroniclesTxId, transactionHash).render()
                 });
-                console.log("Transferred", transactionHash);
+                console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
                 await this._slackWebClient.chat.postMessage({
                     channel: "#nine-chronicles-bridge-bot",
