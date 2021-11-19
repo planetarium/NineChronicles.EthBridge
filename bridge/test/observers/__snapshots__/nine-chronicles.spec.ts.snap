@@ -43,7 +43,7 @@ Array [
             },
             Object {
               "title": "error",
-              "value": "{\\"code\\":-32000,\\"message\\":\\"err: max fee per gas less than block base fee: address 0x9093dd96c4bb6b44A9E0A522e2DE49641F146223, maxFeePerGas: 300000000000 baseFee: 305545815494 (supplied gas 11118348)\\"}",
+              "value": "Error: mockWrappedNcgMinter.mint error",
             },
           ],
         },
@@ -99,7 +99,45 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack object error message - snapshot 1`] = `Array []`;
+exports[`NCGTransferredEventObserver notify slack object error message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Error",
+          "color": "#ff0033",
+          "fallback": "NCG 0x2734048eC2892d111b4fbAB224400847544FC872 → wNCG 0x0000000000000000000000000000000000000001 failed",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
+            },
+            Object {
+              "title": "sender (NineChronicles)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (Ethereum)",
+              "value": "0x0000000000000000000000000000000000000001",
+            },
+            Object {
+              "title": "amount",
+              "value": "100.23",
+            },
+            Object {
+              "title": "error",
+              "value": "{\\"code\\":-32000,\\"message\\":\\"err: max fee per gas less than block base fee: address 0x9093dd96c4bb6b44A9E0A522e2DE49641F146223, maxFeePerGas: 300000000000 baseFee: 305545815494 (supplied gas 11118348)\\"}",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "NCG → wNCG event failed.",
+    },
+  ],
+]
+`;
 
 exports[`NCGTransferredEventObserver notify slack refund error message - snapshot 1`] = `
 Array [
@@ -141,4 +179,46 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack string error message - snapshot 1`] = `Array []`;
+exports[`NCGTransferredEventObserver notify slack string error message - snapshot 1`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Event",
+          "color": "#42f5aa",
+          "fallback": "Refund NCG 1.23 in 1.23 to 0x2734048eC2892d111b4fbAB224400847544FC872",
+          "fields": Array [
+            Object {
+              "title": "Reason",
+              "value": "The memo(0x0000000000000000000000000000000000000000) is invalid.",
+            },
+            Object {
+              "title": "Address",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "Request transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/TX-ID?",
+            },
+            Object {
+              "title": "Request Amount",
+              "value": "1.23",
+            },
+            Object {
+              "title": "Refund transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/TX-ID?",
+            },
+            Object {
+              "title": "Refund Amount",
+              "value": "1.23",
+            },
+          ],
+        },
+      ],
+      "channel": "#nine-chronicles-bridge-bot",
+      "text": "NCG refund event occurred.",
+    },
+  ],
+]
+`;
