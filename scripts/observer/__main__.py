@@ -1,7 +1,7 @@
 import time
 import datetime
 import sys
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional
 
 import slack_sdk
 
@@ -128,7 +128,6 @@ def validate_wrapping_event(e: WrappingEvent):
         except Exception as exc:
             print("Exception", exc)
             pass
-        # client.chat_postMessage(channel=channel_id, text="@dogeon the {txid} seems gone. please check it :pray:", thread_ts=e.timestamp)
 
 
 for event in events:
