@@ -10,6 +10,7 @@ from scripts.observer.ncscan import get_transaction
 from scripts.observer.parser import parse_slack_response
 
 TOKEN = sys.argv[1]
+CHANNEL_NAME = sys.argv[2]
 
 client = slack_sdk.web.WebClient(TOKEN)
 bot_id = client.users_profile_get().get("profile")["bot_id"]
@@ -23,7 +24,7 @@ def get_channel_id_from_channel_name(name: str) -> Optional[str]:
     return None
 
 
-channel_id = get_channel_id_from_channel_name("nine-chronicles-bridge-bot")
+channel_id = get_channel_id_from_channel_name(CHANNEL_NAME)
 events = []
 
 OLDEST = "1630854000.0"
