@@ -40,7 +40,7 @@ TOTAL_SUPPLY=$(get_total_supply)
 GOLD_BALANCE=$(get_gold_balance "$BRIDGE_ADDRESS")
 ETH_BALANCE=$(get_eth_balance "$BRIDGE_ADDRESS")
 
-GAP=$(bc <<< "$TOTAL_SUPPLY - 44073334 - $GOLD_BALANCE")
+GAP=$(bc <<< "$TOTAL_SUPPLY - 54073334 - $GOLD_BALANCE")
 
 TEXT=":notebook: *9c-bridge report*\\n\
 > Currently, there are WNCGs minted manually not through bridge swap process. The total amount is *44,073,334*. So the gap was calculated via:\
