@@ -2,7 +2,7 @@ from typing import Callable, Optional, Sequence, TypeVar, TypedDict, Union
 
 from slack_sdk.web.slack_response import SlackResponse
 
-from scripts.observer.models import NetworkType, UnwrappingEvent, WrappingEvent
+from scripts.observer.models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent
 
 
 class _Field(TypedDict):
@@ -58,17 +58,14 @@ def parse_slack_response(
     refund_tx = _first_from_fields(fields, "refund transaction", lambda x, y: y == x)
     refund_amount = _first_from_fields(fields, "refund amount", lambda x, y: y == x)
 
-    if nc_tx is None or eth_tx is None:
-        return None
-
-    nc_tx = nc_tx.replace("<", "").replace(">", "")
-    eth_tx = eth_tx.replace("<", "").replace(">", "")
+    nc_tx = _map(nc_tx, lambda x: x.replace("<", "").replace(">", ""))
+    eth_tx = _map(eth_tx, lambda x: x.replace("<", "").replace(">", ""))
 
     refund_tx = _map(refund_tx, lambda x: x.replace("<", "").replace(">", ""))
 
     import urllib3.util.url
 
-    nc_txid = urllib3.util.url.parse_url(nc_tx).query
+    nc_txid = _map(nc_tx, lambda x: urllib3.util.url.parse_url(x).query)
 
     refund_txid: Optional[str] = None
     if refund_tx is not None:
@@ -78,38 +75,58 @@ def parse_slack_response(
         refund_amount = float(refund_amount)
 
     try:
-        network_type = NetworkType(urllib3.util.url.parse_url(nc_tx).path.split("/")[1])
+        network_type = _map(nc_tx, lambda x: NetworkType(urllib3.util.url.parse_url(x).path.split("/")[1]))
     except ValueError:
         return None
 
     if network_type != NetworkType.MAINNET:
         return None
 
-    eth_txid = urllib3.util.url.parse_url(eth_tx).path.split("/")[-1]
+    eth_txid = _map(eth_tx, lambda x: urllib3.util.url.parse_url(x).path.split("/")[-1])
 
     text: str = message["text"]
     if text.startswith("wNCG → NCG"):  # WNCG to NCG
-        return UnwrappingEvent(
-            network_type,
-            message["ts"],
-            sender,
-            recipient,
-            amount,
-            eth_txid,
-            nc_txid,
-        )
+        if text.endswith("failed."):
+            return UnwrappingFailureEvent(
+                network_type,
+                message["ts"],
+                sender,
+                recipient,
+                amount,
+                eth_txid,
+            )
+        else:
+            return UnwrappingEvent(
+                network_type,
+                message["ts"],
+                sender,
+                recipient,
+                amount,
+                eth_txid,
+                nc_txid,
+            )
     elif text.startswith("NCG → wNCG"):  # NCG to WNCG
-        return WrappingEvent(
-            network_type,
-            message["ts"],
-            sender,
-            recipient,
-            amount,
-            fee,
-            nc_txid,
-            eth_txid,
-            refund_txid,
-            refund_amount,
-        )
+        if text.endswith("failed."):
+            return WrappingFailureEvent(
+                network_type,
+                message["ts"],
+                sender,
+                recipient,
+                amount,
+                nc_txid,
+            )
+        else:
+            return WrappingEvent(
+                network_type,
+                message["ts"],
+                sender,
+                recipient,
+                amount,
+                fee,
+                nc_txid,
+                eth_txid,
+                refund_txid,
+                refund_amount,
+            )
     else:
         return None

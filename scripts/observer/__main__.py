@@ -3,9 +3,11 @@ import datetime
 import sys
 from typing import Any, Callable, Optional
 
+import code
+
 import slack_sdk
 
-from scripts.observer.models import WrappingEvent, UnwrappingEvent
+from scripts.observer.models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, UnwrappingEvent, WrappingFailureEvent
 from scripts.observer.ncscan import get_transaction
 from scripts.observer.parser import parse_slack_response
 
@@ -71,6 +73,16 @@ def count_total_fee(e: WrappingEvent):
     global total_fee
 
     total_fee += e.fee
+
+failure_events = list[SlackMessage]()
+
+@handle(WrappingFailureEvent)
+def collect_wrapping_failure_event(e: WrappingFailureEvent):
+    failure_events.append(e)
+
+@handle(UnwrappingFailureEvent)
+def collect_wrapping_failure_event(e: UnwrappingFailureEvent):
+    failure_events.append(e)
 
 
 # [request_txid, response_txid, recipient, type, amount]
@@ -138,3 +150,7 @@ for event in events:
 
 print("Earned", total_fee, "NCG")
 print(*gone_txs, sep="\n")
+
+print(failure_events)
+
+code.interact(local=locals())

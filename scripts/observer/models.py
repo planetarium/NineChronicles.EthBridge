@@ -33,6 +33,15 @@ class WrappingEvent(SlackMessage):
 
 
 @dataclass
+class WrappingFailureEvent(SlackMessage):
+    sender: Address  # NineChronicles
+    recipient: Address  # Ethereum
+    amount: float
+
+    request_txid: TxId
+
+
+@dataclass
 class UnwrappingEvent(SlackMessage):
     sender: Address  # Ethereum
     recipient: Address  # NineChronicles
@@ -40,3 +49,11 @@ class UnwrappingEvent(SlackMessage):
 
     request_txid: TxId
     response_txid: TxId
+
+@dataclass
+class UnwrappingFailureEvent(SlackMessage):
+    sender: Address  # Ethereum
+    recipient: Address  # NineChronicles
+    amount: float
+
+    request_txid: TxId
