@@ -2,7 +2,7 @@ from typing import Optional
 
 import requests
 
-from .models import TxId
+from models import TxId
 
 
 def get_transaction(txid: TxId) -> Optional[dict]:

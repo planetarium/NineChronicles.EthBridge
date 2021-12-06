@@ -2,7 +2,7 @@ from typing import Callable, Optional, Sequence, TypeVar, TypedDict, Union
 
 from slack_sdk.web.slack_response import SlackResponse
 
-from scripts.observer.models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent
+from models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent
 
 
 class _Field(TypedDict):

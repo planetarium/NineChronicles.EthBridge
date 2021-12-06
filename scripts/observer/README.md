@@ -7,7 +7,7 @@ Because the nine chronicles network doesn't work well, the transactions dropped 
 ## run
 
 ```
-python3 -m scripts.observer [SLACK_BOT_TOKEN] [CHANNEL_NAME]
+python3 __main__.py [SLACK_BOT_TOKEN] [CHANNEL_NAME] [-i|--interactive]
 ```
 
 ## lint
