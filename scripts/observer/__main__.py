@@ -1,3 +1,5 @@
+import argparse
+import optparse
 import time
 import datetime
 import sys
@@ -11,8 +13,17 @@ from scripts.observer.models import SlackMessage, UnwrappingFailureEvent, Wrappi
 from scripts.observer.ncscan import get_transaction
 from scripts.observer.parser import parse_slack_response
 
-TOKEN = sys.argv[1]
-CHANNEL_NAME = sys.argv[2]
+
+parser = argparse.ArgumentParser()
+parser.add_argument("TOKEN")
+parser.add_argument("CHANNEL_NAME")
+parser.add_argument("-i", "--interactive", action="store_true")
+args = parser.parse_args()
+
+TOKEN = args.TOKEN
+CHANNEL_NAME = args.CHANNEL_NAME
+INTERACTIVE = args.interactive
+
 
 client = slack_sdk.web.WebClient(TOKEN)
 bot_id = client.users_profile_get().get("profile")["bot_id"]
@@ -153,4 +164,5 @@ print(*gone_txs, sep="\n")
 
 print(failure_events)
 
-code.interact(local=locals())
+if INTERACTIVE:
+    code.interact(local=locals())
