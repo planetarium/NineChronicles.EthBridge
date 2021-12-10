@@ -71,6 +71,10 @@ describe(NCGTransferredEventObserver.name, () => {
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         beforeEach(() => {
+            mockNcgTransfer.transfer.mockResolvedValue("TX-ID");
+        });
+
+        afterEach(() => {
             jest.clearAllMocks();
         });
 
@@ -447,8 +451,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "1.23",
-                        memo: "0x0000000000000000000000000000000000000000",
+                        amount: "100.23",
+                        memo: "0x0000000000000000000000000000000000000001",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
                         recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
