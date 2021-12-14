@@ -49,7 +49,7 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Request transaction",
-                            value: combineUrl(this._explorerUrl, this._requestTxId),
+                            value: combineUrl(this._explorerUrl, `transaction?${this._requestTxId}`),
                         },
                         {
                             title: "Request Amount",
@@ -57,7 +57,7 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Refund transaction",
-                            value: combineUrl(this._explorerUrl, this._refundTxId),
+                            value: combineUrl(this._explorerUrl, `transaction?${this._refundTxId}`),
                         },
                         {
                             title: "Refund Amount",
