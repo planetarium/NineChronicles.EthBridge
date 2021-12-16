@@ -38,7 +38,7 @@ describe(NCGKMSTransfer.name, () => {
     });
     const headlessGraphQLCLient = new HeadlessGraphQLClient(Configuration.get("TEST_GRAPHQL_API_ENDPOINT"), 5);
     const ncgKmsTransfer = new NCGKMSTransfer(
-        headlessGraphQLCLient,
+        [headlessGraphQLCLient],
         mockAddress,
         mockPublicKey,
         [mockNcgMinterAddress],

@@ -10,7 +10,7 @@ import { Address } from "./types/address";
 import Decimal from "decimal.js";
 
 export class NCGKMSTransfer implements INCGTransfer {
-    private readonly _headlessGraphQLCLient: IHeadlessGraphQLClient;
+    private readonly _headlessGraphQLCLients: IHeadlessGraphQLClient[];
     private readonly _mutex: Mutex;
     private readonly _signer: KMSNCGSigner;
 
@@ -23,19 +23,23 @@ export class NCGKMSTransfer implements INCGTransfer {
 
     /**
      *
-     * @param headlessGraphQLCLient A GraphQL client to create unsigned tx, attach unsigned tx with signature and stage tx.
+     * @param headlessGraphQLCLients GraphQL clients to create unsigned tx, attach unsigned tx with signature and stage tx.
      * @param address An address to use in transaction as sender.
      * @param publicKey base64 encoded public key to use in transaction.
      * @param minters A list of minters' addresses.
      * @param kmsSigner A signer to sign transaction
      */
-    constructor(headlessGraphQLCLient: IHeadlessGraphQLClient, address: Address, publicKey: string, minters: [Address], kmsSigner: KMSNCGSigner) {
-        this._headlessGraphQLCLient = headlessGraphQLCLient;
+    constructor(headlessGraphQLCLients: IHeadlessGraphQLClient[], address: Address, publicKey: string, minters: [Address], kmsSigner: KMSNCGSigner) {
+        this._headlessGraphQLCLients = headlessGraphQLCLients;
         this._address = address;
         this._publicKey = publicKey;
         this._minters = minters;
         this._mutex = new Mutex();
         this._signer = kmsSigner;
+    }
+
+    private get headlessGraphQLClient(): IHeadlessGraphQLClient {
+        return this._headlessGraphQLCLients[0];
     }
 
     async transfer(address: string, amount: string, memo: string | null): Promise<TxId> {
@@ -62,13 +66,14 @@ export class NCGKMSTransfer implements INCGTransfer {
                     sender: Buffer.from(web3.utils.hexToBytes(this._address))
                 }
             };
-            const unsignedTx = await this._headlessGraphQLCLient.createUnsignedTx(encode(plainValue).toString('base64'), this._publicKey);
+            const unsignedTx = await this.headlessGraphQLClient.createUnsignedTx(encode(plainValue).toString('base64'), this._publicKey);
             const unsignedTxId = crypto.createHash('sha256').update(unsignedTx, 'base64').digest();
             const sign = await this._signer.sign(unsignedTxId);
             const base64Sign = sign.toString('base64');
-            const tx = await this._headlessGraphQLCLient.attachSignature(unsignedTx, base64Sign);
-            const success = await this._headlessGraphQLCLient.stageTx(tx);
-            if (!success) {
+            const tx = await this.headlessGraphQLClient.attachSignature(unsignedTx, base64Sign);
+            const stageResults = await Promise.all(this._headlessGraphQLCLients.map(client => client.stageTx(tx)));
+            const successAtLeastOne = stageResults.reduce((a, b) => a || b);
+            if (!successAtLeastOne) {
                 throw new Error('Failed to stage transaction');
             }
             const txId = crypto.createHash('sha256').update(tx, 'base64').digest().toString("hex");
