@@ -71,7 +71,10 @@ export class NCGKMSTransfer implements INCGTransfer {
             const sign = await this._signer.sign(unsignedTxId);
             const base64Sign = sign.toString('base64');
             const tx = await this.headlessGraphQLClient.attachSignature(unsignedTx, base64Sign);
-            const stageResults = await Promise.all(this._headlessGraphQLCLients.map(client => client.stageTx(tx)));
+            const stageResults = await Promise.all(this._headlessGraphQLCLients.map(client => client.stageTx(tx).then(success => {
+                console.log(`It was ${success} to stage ${tx} to ${client.endpoint} endpoint`);
+                return success;
+            })));
             const successAtLeastOne = stageResults.reduce((a, b) => a || b);
             if (!successAtLeastOne) {
                 throw new Error('Failed to stage transaction');

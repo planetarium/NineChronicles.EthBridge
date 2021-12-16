@@ -25,6 +25,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         this._maxRetry = maxRetry;
     }
 
+    get endpoint(): string {
+        return this._apiEndpoint;
+    }
+
     async getBlockIndex(blockHash: BlockHash): Promise<number> {
         const query = `query GetBlockHash($hash: ID!)
         { chainQuery { blockQuery { block(hash: $hash) { index } } } }`;

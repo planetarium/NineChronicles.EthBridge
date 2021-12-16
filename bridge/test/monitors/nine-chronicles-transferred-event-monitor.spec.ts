@@ -19,6 +19,7 @@ async function existsAsync<T>(array: Array<T>, predicate: (value: T) => Promise<
 
 describe("NineChroniclesTransferredEventMonitor", () => {
     const mockHeadlessGraphQLClient: jest.Mocked<IHeadlessGraphQLClient> = {
+        endpoint: "http://localhost:23061/graphql",
         getBlockIndex: jest.fn(h => Promise.resolve(parseInt(h))),
         getTipIndex: jest.fn(),
         getBlockHash: jest.fn(n => Promise.resolve(n.toString())),
