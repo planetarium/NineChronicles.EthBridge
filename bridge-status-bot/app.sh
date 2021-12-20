@@ -39,6 +39,7 @@ function get_gold_balance() {
 TOTAL_SUPPLY=$(get_total_supply)
 GOLD_BALANCE=$(get_gold_balance "$BRIDGE_ADDRESS")
 ETH_BALANCE=$(get_eth_balance "$BRIDGE_ADDRESS")
+ETH_BALANCE_THRESHOLD=3
 MINTED_BALANCE=54073334
 
 GAP=$(bc <<< "$TOTAL_SUPPLY - $MINTED_BALANCE - $GOLD_BALANCE")
@@ -50,6 +51,10 @@ TEXT=":notebook: *9c-bridge report*\\n\
 :donggeul_01: NCG Balance:                *$GOLD_BALANCE*\\n\
 GAP between :wncg: and :donggeul_01:: *$GAP*
 :ether: Ether balance:                *$ETH_BALANCE*\\n"
+
+if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
+    TEXT+="Ether Balance is lower than the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
+fi
 
 DATA="{\"channel\":\"$SLACK_CHANNEL\",\"text\":\"$TEXT\",\"mrkdwn\":true}"
 curl "https://slack.com/api/chat.postMessage" --request POST --data "$DATA" -H "Content-Type: application/json; charset=utf-8" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -s
