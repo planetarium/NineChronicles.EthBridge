@@ -39,12 +39,13 @@ function get_gold_balance() {
 TOTAL_SUPPLY=$(get_total_supply)
 GOLD_BALANCE=$(get_gold_balance "$BRIDGE_ADDRESS")
 ETH_BALANCE=$(get_eth_balance "$BRIDGE_ADDRESS")
+MINTED_BALANCE=54073334
 
-GAP=$(bc <<< "$TOTAL_SUPPLY - 54073334 - $GOLD_BALANCE")
+GAP=$(bc <<< "$TOTAL_SUPPLY - $MINTED_BALANCE - $GOLD_BALANCE")
 
 TEXT=":notebook: *9c-bridge report*\\n\
-> Currently, there are WNCGs minted manually not through bridge swap process. The total amount is *44,073,334*. So the gap was calculated via:\
-\`\`\`total_supply - 44073334 - ncg_balance\`\`\`\\n
+> Currently, there are WNCGs minted manually not through bridge swap process. The total amount is *$MINTED_BALANCE*. So the gap was calculated via:\
+\`\`\`total_supply - $MINTED_BALANCE - ncg_balance\`\`\`\\n
 :wncg: WNCG Total Supply:     *$TOTAL_SUPPLY*\\n\
 :donggeul_01: NCG Balance:                *$GOLD_BALANCE*\\n\
 GAP between :wncg: and :donggeul_01:: *$GAP*
