@@ -1,8 +1,10 @@
+import urllib3.util.url
+
 from typing import Callable, Optional, Sequence, TypeVar, TypedDict, Union
 
 from slack_sdk.web.slack_response import SlackResponse
 
-from models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent
+from models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent, Address, RefundEvent
 
 
 class _Field(TypedDict):
@@ -30,10 +32,7 @@ def _first_from_fields(
 
     return None
 
-
-def parse_slack_response(
-    message: SlackResponse,
-) -> Optional[Union[UnwrappingEvent, WrappingEvent]]:
+def _parse_wrapping_like_slack_response(message: SlackResponse) -> Optional[Union[UnwrappingEvent, WrappingEvent]]:
     if "attachments" not in message:
         return None
 
@@ -62,8 +61,6 @@ def parse_slack_response(
     eth_tx = _map(eth_tx, lambda x: x.replace("<", "").replace(">", ""))
 
     refund_tx = _map(refund_tx, lambda x: x.replace("<", "").replace(">", ""))
-
-    import urllib3.util.url
 
     nc_txid = _map(nc_tx, lambda x: urllib3.util.url.parse_url(x).query)
 
@@ -128,5 +125,44 @@ def parse_slack_response(
                 refund_txid,
                 refund_amount,
             )
+    else:
+        return None
+
+def _parse_refund_event_slack_response(message: SlackResponse) -> Optional[RefundEvent]:
+    if "attachments" not in message:
+        return None
+
+    attachment = message["attachments"][0]
+
+    if "fields" not in attachment:
+        return None
+
+    fields = attachment["fields"]
+
+    address: Address = _first_from_fields(fields, "Address", lambda x, y: y == x)
+    reason: str = _first_from_fields(fields, "Reason", lambda x, y: y == x)
+    request_txid = _map(_map(_first_from_fields(fields, "Request transaction", lambda x, y: y == x), lambda x: x.replace("<", "").replace(">", "")), lambda x: urllib3.util.url.parse_url(x).query)
+    refund_txid = request_txid = _map(_map(_first_from_fields(fields, "Refund transaction", lambda x, y: y == x), lambda x: x.replace("<", "").replace(">", "")), lambda x: urllib3.util.url.parse_url(x).query)
+    request_amount = _map(_first_from_fields(fields, "Request Amount", lambda x, y: y == x), float)
+    refund_amount = _map(_first_from_fields(fields, "Refund Amount", lambda x, y: y == x), float)
+    return RefundEvent(
+        request_amount=request_amount,
+        request_txid=request_txid,
+        address=address,
+        reason=reason,
+        refund_txid=refund_txid,
+        refund_amount=refund_amount,
+        ts=message["ts"],
+        network_type=NetworkType.MAINNET
+    )
+
+def parse_slack_response(
+    message: SlackResponse,
+) -> Optional[Union[RefundEvent, UnwrappingEvent, WrappingEvent]]:
+    text: str = message["text"]
+    if text.startswith("wNCG → NCG") or text.startswith("NCG → wNCG"):
+        return _parse_wrapping_like_slack_response(message)
+    elif text.startswith("NCG refund"):  # NCG refund
+        return _parse_refund_event_slack_response(message)
     else:
         return None

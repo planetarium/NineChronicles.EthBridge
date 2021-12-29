@@ -9,7 +9,7 @@ import code
 
 import slack_sdk
 
-from models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, UnwrappingEvent, WrappingFailureEvent
+from models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, UnwrappingEvent, WrappingFailureEvent, RefundEvent
 from ncscan import get_transaction
 from parser import parse_slack_response
 
@@ -95,9 +95,15 @@ def collect_wrapping_failure_event(e: WrappingFailureEvent):
 def collect_wrapping_failure_event(e: UnwrappingFailureEvent):
     failure_events.append(e)
 
+refund_events = list[RefundEvent]()
+
+@handle(RefundEvent)
+def collect_refund_event(e: RefundEvent):
+    refund_events.append(e)
+
 
 # [request_txid, response_txid, recipient, type, amount]
-gone_txs = list[tuple[str, str, str, int]]()
+gone_txs = list[tuple[str, str, str, str, int]]()
 
 
 @handle(UnwrappingEvent)
@@ -152,6 +158,30 @@ def validate_wrapping_event(e: WrappingEvent):
             print("Exception", exc)
             pass
 
+@handle(RefundEvent)
+def validate_refund_event(e: RefundEvent):
+    txid = e.refund_txid
+    tx = get_transaction(txid)
+    if tx is None:
+        gone_txs.append((e.request_txid, txid, e.address, "refund", e.refund_amount))
+        try:
+            messages = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+                "messages"
+            )
+            if any(filter(lambda x: "bot_id" in x and x["bot_id"] == bot_id, messages)):
+                return
+
+            client.chat_postMessage(
+                channel=channel_id,
+                text="@dogeon this transaction seems gone. force re-message",
+                thread_ts=e.ts,
+                as_user=True,
+                link_names=1,
+            )
+
+        except Exception as exc:
+            print("Exception", exc)
+            pass
 
 for event in events:
     t = type(event)
