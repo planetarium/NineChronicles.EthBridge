@@ -142,7 +142,7 @@ def _parse_refund_event_slack_response(message: SlackResponse) -> Optional[Refun
     address: Address = _first_from_fields(fields, "Address", lambda x, y: y == x)
     reason: str = _first_from_fields(fields, "Reason", lambda x, y: y == x)
     request_txid = _map(_map(_first_from_fields(fields, "Request transaction", lambda x, y: y == x), lambda x: x.replace("<", "").replace(">", "")), lambda x: urllib3.util.url.parse_url(x).query)
-    refund_txid = request_txid = _map(_map(_first_from_fields(fields, "Refund transaction", lambda x, y: y == x), lambda x: x.replace("<", "").replace(">", "")), lambda x: urllib3.util.url.parse_url(x).query)
+    refund_txid = _map(_map(_first_from_fields(fields, "Refund transaction", lambda x, y: y == x), lambda x: x.replace("<", "").replace(">", "")), lambda x: urllib3.util.url.parse_url(x).query)
     request_amount = _map(_first_from_fields(fields, "Request Amount", lambda x, y: y == x), float)
     refund_amount = _map(_first_from_fields(fields, "Refund Amount", lambda x, y: y == x), float)
     return RefundEvent(
