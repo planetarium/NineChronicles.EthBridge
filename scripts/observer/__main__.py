@@ -13,6 +13,8 @@ from models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, Unwrappi
 from ncscan import get_transaction
 from parser import parse_slack_response
 
+from scripts.observer.models import Address, TxId
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("TOKEN")
@@ -29,12 +31,12 @@ client = slack_sdk.web.WebClient(TOKEN)
 bot_id = client.users_profile_get().get("profile")["bot_id"]
 
 
-def get_channel_id_from_channel_name(name: str) -> Optional[str]:
+def get_channel_id_from_channel_name(name: str) -> str:
     for channel in client.conversations_list()["channels"]:
         if channel["name"] == name:
             return channel["id"]
 
-    return None
+    raise KeyError(name)
 
 
 channel_id = get_channel_id_from_channel_name(CHANNEL_NAME)
@@ -76,7 +78,7 @@ def handle(_type: type) -> Callable[[Handler], None]:
     return decorator
 
 
-total_fee = 0
+total_fee = 0.0
 
 
 @handle(WrappingEvent)
@@ -91,9 +93,6 @@ failure_events = list[SlackMessage]()
 def collect_wrapping_failure_event(e: WrappingFailureEvent):
     failure_events.append(e)
 
-@handle(UnwrappingFailureEvent)
-def collect_wrapping_failure_event(e: UnwrappingFailureEvent):
-    failure_events.append(e)
 
 refund_events = list[RefundEvent]()
 
@@ -103,7 +102,7 @@ def collect_refund_event(e: RefundEvent):
 
 
 # [request_txid, response_txid, recipient, type, amount]
-gone_txs = list[tuple[str, str, str, str, int]]()
+gone_txs = list[tuple[TxId, TxId, Address, str, float]]()
 
 
 @handle(UnwrappingEvent)
@@ -113,10 +112,10 @@ def validate_unwrapping_event(e: UnwrappingEvent):
     if tx is None:
         gone_txs.append((e.request_txid, txid, e.recipient, "unwrapping", e.amount))
         try:
-            messages = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
                 "messages"
             )
-            if any(filter(lambda x: "bot_id" in x and x["bot_id"] == bot_id, messages)):
+            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
                 return
 
             client.chat_postMessage(
@@ -138,13 +137,13 @@ def validate_wrapping_event(e: WrappingEvent):
 
     txid = e.refund_txid
     tx = get_transaction(txid)
-    if tx is None:
+    if tx is None and e.refund_amount:
         gone_txs.append((e.request_txid, txid, e.sender, "refund", e.refund_amount))
         try:
-            messages = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
                 "messages"
             )
-            if any(filter(lambda x: "bot_id" in x and x["bot_id"] == bot_id, messages)):
+            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
                 return
 
             client.chat_postMessage(
@@ -165,10 +164,10 @@ def validate_refund_event(e: RefundEvent):
     if tx is None:
         gone_txs.append((e.request_txid, txid, e.address, "refund", e.refund_amount))
         try:
-            messages = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
                 "messages"
             )
-            if any(filter(lambda x: "bot_id" in x and x["bot_id"] == bot_id, messages)):
+            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
                 return
 
             client.chat_postMessage(
@@ -176,7 +175,7 @@ def validate_refund_event(e: RefundEvent):
                 text="@dogeon this transaction seems gone. force re-message",
                 thread_ts=e.ts,
                 as_user=True,
-                link_names=1,
+                link_names=True,
             )
 
         except Exception as exc:
