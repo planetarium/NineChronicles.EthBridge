@@ -7,6 +7,7 @@ import { IGasPricePolicy } from "../src/policies/gas-price";
 
 describe(WrappedNCGMinter.name, () => {
     const mockHeadlessGraphQlClient: jest.Mocked<IHeadlessGraphQLClient> = {
+        endpoint: "http://localhost:23061/graphql",
         getBlockHash: jest.fn(),
         getBlockIndex: jest.fn(),
         getNCGTransferredEvents: jest.fn(),

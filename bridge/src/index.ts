@@ -65,6 +65,8 @@ process.on("uncaughtException", console.error);
 
     const PAGERDUTY_ROUTING_KEY: string = Configuration.get("PAGERDUTY_ROUTING_KEY", true, "string");;
 
+    const STAGE_HEADLESSES: string[] = Configuration.get("STAGE_HEADLESSES").split(",");
+
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
@@ -73,6 +75,7 @@ process.on("uncaughtException", console.error);
 
     const GRAPHQL_REQUEST_RETRY = 5;
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT, GRAPHQL_REQUEST_RETRY);
+    const stageGraphQLClients = STAGE_HEADLESSES.map(endpoint => new HeadlessGraphQLClient(endpoint, GRAPHQL_REQUEST_RETRY));
     const integration: Integration = new PagerDutyIntegration(PAGERDUTY_ROUTING_KEY);
     const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
       region: KMS_PROVIDER_REGION,
@@ -115,7 +118,7 @@ process.on("uncaughtException", console.error);
     }
 
     const ncgKmsTransfer = new NCGKMSTransfer(
-        headlessGraphQLCLient,
+        [headlessGraphQLCLient, ...stageGraphQLClients],
         kmsAddress,
         KMS_PROVIDER_PUBLIC_KEY,
         [NCG_MINTER],

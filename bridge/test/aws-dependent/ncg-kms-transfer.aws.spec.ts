@@ -6,6 +6,7 @@ import { KMSNCGSigner } from "../../src/kms-ncg-signer";
 
 describe(NCGKMSTransfer.name, () => {
     const mockHeadlessGraphQlClient: jest.Mocked<IHeadlessGraphQLClient> = {
+        endpoint: "http://localhost:23061/graphql",
         getBlockHash: jest.fn(),
         getBlockIndex: jest.fn(),
         getNCGTransferredEvents: jest.fn(),
@@ -38,7 +39,7 @@ describe(NCGKMSTransfer.name, () => {
     });
     const headlessGraphQLCLient = new HeadlessGraphQLClient(Configuration.get("TEST_GRAPHQL_API_ENDPOINT"), 5);
     const ncgKmsTransfer = new NCGKMSTransfer(
-        headlessGraphQLCLient,
+        [headlessGraphQLCLient],
         mockAddress,
         mockPublicKey,
         [mockNcgMinterAddress],

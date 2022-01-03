@@ -3,6 +3,8 @@ import { TxId } from "../types/txid";
 import { NCGTransferredEvent } from "../types/ncg-transferred-event";
 
 export interface IHeadlessGraphQLClient {
+    readonly endpoint: string;
+
     getBlockIndex(blockHash: BlockHash): Promise<number>;
     getTipIndex(): Promise<number>;
     getBlockHash(index: number): Promise<BlockHash>;
