@@ -9,7 +9,7 @@ class NetworkType(Enum):
 
 
 Address = NewType("Address", str)
-TxId = NewType("TxId", bytes)
+TxId = NewType("TxId", str)
 
 
 @dataclass
@@ -31,6 +31,17 @@ class WrappingEvent(SlackMessage):
     refund_txid: Optional[TxId]
     refund_amount: Optional[float]
 
+@dataclass
+class RefundEvent(SlackMessage):
+    reason: str
+    address: Address  # NineChronicles
+
+    request_txid: TxId
+    request_amount: float
+
+    refund_txid: TxId
+    refund_amount: float
+
 
 @dataclass
 class WrappingFailureEvent(SlackMessage):
@@ -51,7 +62,8 @@ class UnwrappingEvent(SlackMessage):
     response_txid: TxId
 
 @dataclass
-class UnwrappingFailureEvent(SlackMessage):
+class UnwrappingFailureEvent:
+    ts: str
     sender: Address  # Ethereum
     recipient: Address  # NineChronicles
     amount: float
