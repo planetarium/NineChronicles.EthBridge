@@ -4,8 +4,7 @@ from typing import Callable, Optional, Sequence, TypeVar, TypedDict, Union, cast
 
 from slack_sdk.web.slack_response import SlackResponse
 
-from models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent, Address, RefundEvent
-from scripts.observer.models import SlackMessage, TxId
+from models import NetworkType, UnwrappingEvent, UnwrappingFailureEvent, WrappingEvent, WrappingFailureEvent, Address, RefundEvent, TxId
 
 
 class _Field(TypedDict):

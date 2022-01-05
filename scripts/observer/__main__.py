@@ -9,11 +9,9 @@ import code
 
 import slack_sdk
 
-from models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, UnwrappingEvent, WrappingFailureEvent, RefundEvent
+from models import SlackMessage, UnwrappingFailureEvent, WrappingEvent, UnwrappingEvent, WrappingFailureEvent, RefundEvent, Address, TxId
 from ncscan import get_transaction
 from parser import parse_slack_response
-
-from scripts.observer.models import Address, TxId
 
 
 parser = argparse.ArgumentParser()
