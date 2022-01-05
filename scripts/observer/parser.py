@@ -41,7 +41,8 @@ def _parse_wrapping_like_slack_response(message: SlackResponse) -> Optional[Unio
     if "fields" not in attachment:
         return None
 
-    fields = attachment["fields"]
+    fields = dict(map(lambda x: (x["title"], x["value"]), attachment["fields"]))
+    print(fields)
 
     text: str = message["text"]
     if text.startswith("wNCG → NCG"):  # WNCG to NCG
@@ -66,7 +67,8 @@ def _parse_refund_event_slack_response(message: SlackResponse) -> Optional[Refun
     if "fields" not in attachment:
         return None
 
-    fields = attachment["fields"]
+    fields = dict(map(lambda x: (x["title"], x["value"]), attachment["fields"]))
+    print(fields)
 
     address: Address = Address(fields["Address"])
     reason: str = fields["Reason"]
@@ -135,8 +137,8 @@ def _parse_wrapping_failure_event(ts: str, fields: dict[str, str]) -> WrappingFa
     )
 
 def _parse_unwrapping_event(ts: str, fields: dict[str, str]) -> UnwrappingEvent:
-    sender: Address = Address(fields["sender (NineChronicles)"])
-    recipient: Address = Address(fields["recipient (Ethereum)"])
+    sender: Address = Address(fields["sender (Ethereum)"])
+    recipient: Address = Address(fields["recipient (NineChronicles)"])
     amount: float = float(fields["amount"])
 
     nc_tx = fields["9c network transaction"].replace("<", "").replace(">", "")
@@ -159,20 +161,14 @@ def _parse_unwrapping_event(ts: str, fields: dict[str, str]) -> UnwrappingEvent:
 
 
 def _parse_unwrapping_failure_event(ts: str, fields: dict[str, str]) -> UnwrappingFailureEvent:
-    sender: Address = Address(fields["sender (NineChronicles)"])
-    recipient: Address = Address(fields["recipient (Ethereum)"])
+    sender: Address = Address(fields["sender (Ethereum)"])
+    recipient: Address = Address(fields["recipient (NineChronicles)"])
     amount: float = float(fields["amount"])
 
-    nc_tx = fields["9c network transaction"].replace("<", "").replace(">", "")
-    eth_tx = fields["Ethereum network transaction"].replace("<", "").replace(">", "")
-
-    nc_txid: TxId = TxId(urllib3.util.url.parse_url(nc_tx).query)
-
-    network_type = NetworkType(urllib3.util.url.parse_url(nc_tx).path.split("/")[1])
+    eth_tx = fields["Ethereum transaction"].replace("<", "").replace(">", "")
     eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
 
     return UnwrappingFailureEvent(
-        network_type,
         ts,
         sender,
         recipient,

@@ -170,7 +170,7 @@ def validate_refund_event(e: RefundEvent):
 
             client.chat_postMessage(
                 channel=channel_id,
-                text="@dogeon this transaction seems gone. force re-message",
+                text="@dogeon this transaction seems gone.",
                 thread_ts=e.ts,
                 as_user=True,
                 link_names=True,

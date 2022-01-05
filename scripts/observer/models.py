@@ -9,7 +9,7 @@ class NetworkType(Enum):
 
 
 Address = NewType("Address", str)
-TxId = NewType("TxId", bytes)
+TxId = NewType("TxId", str)
 
 
 @dataclass
@@ -62,7 +62,8 @@ class UnwrappingEvent(SlackMessage):
     response_txid: TxId
 
 @dataclass
-class UnwrappingFailureEvent(SlackMessage):
+class UnwrappingFailureEvent:
+    ts: str
     sender: Address  # Ethereum
     recipient: Address  # NineChronicles
     amount: float
