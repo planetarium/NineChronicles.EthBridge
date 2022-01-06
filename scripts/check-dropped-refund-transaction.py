@@ -20,15 +20,18 @@ def until(s: str, sub: str):
     return s[: s.index(sub)]
 
 
-def get_transaction(txid: str) -> Optional[dict]:
+def get_transaction(txid: str) -> dict:
     try:
         return requests.get(f"https://api.9cscan.com/transactions/{txid}").json()
     except:
+        raise KeyError(txid)
+
+
+def try_get_transaction(txid: str) -> Optional[dict]:
+    try:
+        return get_transaction(txid)
+    except:
         return None
-
-
-def try_get_transaction(txid: str):
-    return txid, get_transaction(txid)
 
 
 def get_amount_from_reason(reason: str) -> float:
@@ -45,7 +48,7 @@ results = [
     (
         after(logs[index - 1], "Process NineChronicles transaction ").strip(),
         after(log, "[LOG]   ").strip(),
-        try_get_transaction(after(log, TX_DESCRIPTION_STRING).strip()),
+        (after(log, TX_DESCRIPTION_STRING).strip(), try_get_transaction(after(log, TX_DESCRIPTION_STRING).strip())),
     )
     for index, log in enumerate(logs)
     if TX_DESCRIPTION_STRING in log
