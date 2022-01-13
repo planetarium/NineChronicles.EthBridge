@@ -57,8 +57,7 @@ process.on("uncaughtException", console.error);
             dsn: SENTRY_DSN,
         });
     }
-    const GAS_TIP_RATIO_STRING: string = Configuration.get("GAS_TIP_RATIO", true, "string");
-    const GAS_TIP_RATIO = new Decimal(GAS_TIP_RATIO_STRING);
+    const PRIORITY_FEE: number = Configuration.get("PRIORITY_FEE", true, "float");
 
     const MAX_GAS_PRICE_STRING: string = Configuration.get("MAX_GAS_PRICE", true, "string");
     const MAX_GAS_PRICE = new Decimal(MAX_GAS_PRICE_STRING);
@@ -101,13 +100,11 @@ process.on("uncaughtException", console.error);
     }
     const kmsAddress = kmsAddresses[0];
     console.log(kmsAddress);
-    const gasPriceTipPolicy: IGasPricePolicy = new GasPriceTipPolicy(GAS_TIP_RATIO);
     const gasPriceLimitPolicy: IGasPricePolicy = new GasPriceLimitPolicy(MAX_GAS_PRICE);
     const gasPricePolicy: IGasPricePolicy = new GasPricePolicies([
-        gasPriceTipPolicy,
         gasPriceLimitPolicy,
     ]);
-    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress, gasPricePolicy);
+    const minter: IWrappedNCGMinter = new WrappedNCGMinter(web3, wNCGToken, kmsAddress, gasPricePolicy, new Decimal(PRIORITY_FEE));
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,

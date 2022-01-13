@@ -44,13 +44,18 @@ describe(WrappedNCGMinter.name, () => {
         },
         utils: {
             toBN: jest.fn(parseInt),
+            toWei: jest.fn((value, unit) => {
+                if (unit === "gwei") {
+                    return (parseFloat(value) * 1000000000).toFixed(0);
+                }
+            }),
         }
     };
     const mockGasPricePolicy: IGasPricePolicy = {
         calculateGasPrice: jest.fn().mockImplementation(x => x * 1.5),
     };
     const mockMinterAddress = "0x0000000000000000000000000000000000000000";
-    const wrappedNcgMinter = new WrappedNCGMinter(mockWeb3 as unknown as Web3, {abi: [], address: ""}, mockMinterAddress, mockGasPricePolicy);
+    const wrappedNcgMinter = new WrappedNCGMinter(mockWeb3 as unknown as Web3, {abi: [], address: ""}, mockMinterAddress, mockGasPricePolicy, new Decimal("1"));
 
     describe(WrappedNCGMinter.prototype.mint.name, () => {
         it("should mint", async () => {
@@ -59,6 +64,7 @@ describe(WrappedNCGMinter.name, () => {
             expect(mockContractMethodReturn.send).toHaveBeenCalledWith({
                 from: mockMinterAddress,
                 gasPrice: "150",
+                maxPriorityFeePerGas: "1000000000",
             })
         });
     });
