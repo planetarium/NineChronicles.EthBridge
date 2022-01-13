@@ -41,6 +41,6 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
       const gasPriceString = await this._web3.eth.getGasPrice();
       const gasPrice = new Decimal(gasPriceString);
       const calculatedGasPrice = this._gasPricePolicy.calculateGasPrice(gasPrice);
-      return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: calculatedGasPrice.toString(), maxPriorityFeePerGas: this._web3.utils.toWei(this._priorityFee.toString(), "gwei"), type: this._web3.utils.toBN(2)});
+      return this._contract.methods.mint(address, this._web3.utils.toBN(amount.toString())).send({from: this._minterAddress, gasPrice: calculatedGasPrice.toString(), maxPriorityFeePerGas: this._web3.utils.toWei(this._priorityFee.toString(), "gwei"), type: "0x2"});
     }
 }
