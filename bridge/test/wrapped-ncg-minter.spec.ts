@@ -65,6 +65,7 @@ describe(WrappedNCGMinter.name, () => {
                 from: mockMinterAddress,
                 gasPrice: "150",
                 maxPriorityFeePerGas: "1000000000",
+                type: 2,
             })
         });
     });
