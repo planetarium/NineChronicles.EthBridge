@@ -63,7 +63,6 @@ describe(WrappedNCGMinter.name, () => {
             expect(mockContract.methods.mint).toHaveBeenCalledWith("0x1111111111111111111111111111111111111111", 10)
             expect(mockContractMethodReturn.send).toHaveBeenCalledWith({
                 from: mockMinterAddress,
-                gasPrice: "150",
                 maxPriorityFeePerGas: "1000000000",
                 type: "0x2",
             })
