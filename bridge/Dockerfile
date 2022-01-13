@@ -2,8 +2,8 @@ FROM node:14.17 AS build-env
 
 COPY . /build
 WORKDIR /build
-RUN npm install -D
-RUN npx tsc --project tsconfig.production.json
+RUN yarn
+RUN yarn tsc --project tsconfig.production.json
 
 FROM node:14.17-alpine
 
