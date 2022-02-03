@@ -3,7 +3,8 @@ import optparse
 import time
 import datetime
 import sys
-from typing import Any, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
+import asyncio
 
 import code
 
@@ -62,7 +63,7 @@ while True:
     cursor = response["response_metadata"]["next_cursor"]
 
 
-Handler = Callable[[Any], None]
+Handler = Callable[[Any], Awaitable[None]]
 handlers = dict[type, list[Handler]]()
 
 
@@ -80,7 +81,7 @@ total_fee = 0.0
 
 
 @handle(WrappingEvent)
-def count_total_fee(e: WrappingEvent):
+async def count_total_fee(e: WrappingEvent):
     global total_fee
 
     total_fee += e.fee
@@ -88,14 +89,14 @@ def count_total_fee(e: WrappingEvent):
 failure_events = list[SlackMessage]()
 
 @handle(WrappingFailureEvent)
-def collect_wrapping_failure_event(e: WrappingFailureEvent):
+async def collect_wrapping_failure_event(e: WrappingFailureEvent):
     failure_events.append(e)
 
 
 refund_events = list[RefundEvent]()
 
 @handle(RefundEvent)
-def collect_refund_event(e: RefundEvent):
+async def collect_refund_event(e: RefundEvent):
     refund_events.append(e)
 
 
@@ -104,9 +105,9 @@ gone_txs = list[tuple[TxId, TxId, Address, str, float]]()
 
 
 @handle(UnwrappingEvent)
-def validate_unwrapping_event(e: UnwrappingEvent):
+async def validate_unwrapping_event(e: UnwrappingEvent):
     txid = e.response_txid
-    tx = get_transaction(txid)
+    tx = await get_transaction(txid)
     if tx is None:
         gone_txs.append((e.request_txid, txid, e.recipient, "unwrapping", e.amount))
         try:
@@ -129,12 +130,12 @@ def validate_unwrapping_event(e: UnwrappingEvent):
 
 
 @handle(WrappingEvent)
-def validate_wrapping_event(e: WrappingEvent):
+async def validate_wrapping_event(e: WrappingEvent):
     if e.refund_txid is None:
         return
 
     txid = e.refund_txid
-    tx = get_transaction(txid)
+    tx = await get_transaction(txid)
     if tx is None and e.refund_amount:
         gone_txs.append((e.request_txid, txid, e.sender, "refund", e.refund_amount))
         try:
@@ -156,9 +157,10 @@ def validate_wrapping_event(e: WrappingEvent):
             pass
 
 @handle(RefundEvent)
-def validate_refund_event(e: RefundEvent):
+async def validate_refund_event(e: RefundEvent):
     txid = e.refund_txid
-    tx = get_transaction(txid)
+
+    tx = await get_transaction(txid)
     if tx is None:
         gone_txs.append((e.request_txid, txid, e.address, "refund", e.refund_amount))
         try:
@@ -182,9 +184,10 @@ def validate_refund_event(e: RefundEvent):
 
 for event in events:
     t = type(event)
+
     if t in handlers:
         for handler in handlers[t]:
-            handler(event)
+            asyncio.run(handler(event))
 
 print("Earned", total_fee, "NCG")
 print(*gone_txs, sep="\n")
