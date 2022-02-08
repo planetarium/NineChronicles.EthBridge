@@ -70,6 +70,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     continue;
                 }
 
+                if (await this._exchangeHistoryStore.exist(txId)) {
+                    continue;
+                }
+
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
