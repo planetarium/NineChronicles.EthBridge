@@ -52,6 +52,7 @@ describe(NCGTransferredEventObserver.name, () => {
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
+        exist: jest.fn(),
     };
 
     const limitationPolicy = {
