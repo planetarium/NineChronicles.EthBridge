@@ -74,6 +74,9 @@ export class NCGKMSTransfer implements INCGTransfer {
             const stageResults = await Promise.all(this._headlessGraphQLCLients.map(client => client.stageTx(tx).then(success => {
                 console.log(`It was ${success} to stage ${tx} to ${client.endpoint} endpoint`);
                 return success;
+            }).catch(error => {
+                console.error(error);
+                return false;
             })));
             const successAtLeastOne = stageResults.reduce((a, b) => a || b);
             if (!successAtLeastOne) {
