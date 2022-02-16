@@ -1,0 +1,14 @@
+on:
+  push:
+    branches: [ main ]
+
+name: push docker image
+jobs:
+  build_and_push:
+    uses: planetarium/.github/.github/workflows/push_docker_image.yaml@5ae2947dad6f0082f0a5dddba61ff54e16b3dee6
+    with:
+      repository: nine-chronicles-bridge-observer
+      working_directory: scripts/observer
+    secrets:
+      docker_username: ${{ secrets.DOCKER_USERNAME }}
+      docker_access_token: ${{ secrets.DOCKER_ACCESS_TOKEN }}
