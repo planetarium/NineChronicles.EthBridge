@@ -18,7 +18,7 @@ async def get_transaction(txid: TxId) -> Optional[dict]:
     if response.status_code == 200:
         json = response.json()
         if "data" not in json:
-            return None
+            raise Exception
         return json["data"]["chainQuery"]["transactionQuery"]["transaction"]
 
-    return None
+    raise Exception
