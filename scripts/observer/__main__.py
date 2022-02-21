@@ -38,6 +38,12 @@ def get_channel_id_from_channel_name(name: str) -> str:
     raise KeyError(name)
 
 
+def try_get_bot_message(messages: list[dict], bot_id: str = bot_id) -> Optional[dict]:
+    try:
+        return next(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id and "this transaction seems gone" in x["text"], messages))
+    except StopIteration:
+        return None
+
 channel_id = get_channel_id_from_channel_name(CHANNEL_NAME)
 events = []
 
@@ -107,27 +113,34 @@ gone_txs = list[tuple[TxId, TxId, Address, str, float]]()
 @handle(UnwrappingEvent)
 async def validate_unwrapping_event(e: UnwrappingEvent):
     txid = e.response_txid
-    tx = await get_transaction(txid)
-    if tx is None:
-        gone_txs.append((e.request_txid, txid, e.recipient, "unwrapping", e.amount))
-        try:
-            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
-                "messages"
-            )
-            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
-                return
+    try:
+        tx = await get_transaction(txid)
+        messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            "messages"
+        )
+        bot_message = try_get_bot_message(messages)
+        print("bot_message", tx, bot_message)
+        if tx is None:
+            gone_txs.append((e.request_txid, txid, e.recipient, "unwrapping", e.amount))
+            try:
+                if bot_message is not None:
+                    return
 
-            client.chat_postMessage(
-                channel=channel_id,
-                text="@dogeon this transaction seems gone.",
-                thread_ts=e.ts,
-                as_user=True,
-                link_names=True,
-            )
-        except Exception as exc:
-            print("Exception", exc)
-            pass
-
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text="@dogeon this transaction seems gone.",
+                    thread_ts=e.ts,
+                    as_user=True,
+                    link_names=True,
+                )
+            except Exception as exc:
+                print("Exception", exc)
+                pass
+        elif bot_message is not None:
+            client.chat_delete(channel=channel_id, ts=bot_message["ts"])
+    except Exception as err:
+        print(err)
+        pass
 
 @handle(WrappingEvent)
 async def validate_wrapping_event(e: WrappingEvent):
@@ -135,52 +148,68 @@ async def validate_wrapping_event(e: WrappingEvent):
         return
 
     txid = e.refund_txid
-    tx = await get_transaction(txid)
-    if tx is None and e.refund_amount:
-        gone_txs.append((e.request_txid, txid, e.sender, "refund", e.refund_amount))
-        try:
-            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
-                "messages"
-            )
-            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
-                return
+    try:
+        tx = await get_transaction(txid)
+        messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            "messages"
+        )
+        bot_message = try_get_bot_message(messages)
+        print("bot_message", tx, bot_message)
+        if tx is None and e.refund_amount:
+            gone_txs.append((e.request_txid, txid, e.sender, "refund", e.refund_amount))
+            try:
+                if bot_message is not None:
+                    return
 
-            client.chat_postMessage(
-                channel=channel_id,
-                text="@dogeon this transaction seems gone.",
-                thread_ts=e.ts,
-                as_user=True,
-            )
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text="@dogeon this transaction seems gone.",
+                    thread_ts=e.ts,
+                    as_user=True,
+                )
 
-        except Exception as exc:
-            print("Exception", exc)
-            pass
+            except Exception as exc:
+                print("Exception", exc)
+                pass
+        elif bot_message is not None:
+            client.chat_delete(channel=channel_id, ts=bot_message["ts"])
+    except Exception as err:
+        print(err)
+        pass
 
 @handle(RefundEvent)
 async def validate_refund_event(e: RefundEvent):
     txid = e.refund_txid
 
-    tx = await get_transaction(txid)
-    if tx is None:
-        gone_txs.append((e.request_txid, txid, e.address, "refund", e.refund_amount))
-        try:
-            messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
-                "messages"
-            )
-            if any(filter(lambda x: isinstance(x, dict) and "bot_id" in x and x["bot_id"] == bot_id, messages)):
-                return
+    try:
+        tx = await get_transaction(txid)
+        messages: list[dict] = client.conversations_replies(channel=channel_id, ts=e.ts).get(
+            "messages"
+        )
+        bot_message = try_get_bot_message(messages)
+        print("bot_message", tx, bot_message)
+        if tx is None:
+            gone_txs.append((e.request_txid, txid, e.address, "refund", e.refund_amount))
+            try:
+                if bot_message is not None:
+                    return
 
-            client.chat_postMessage(
-                channel=channel_id,
-                text="@dogeon this transaction seems gone.",
-                thread_ts=e.ts,
-                as_user=True,
-                link_names=True,
-            )
+                client.chat_postMessage(
+                    channel=channel_id,
+                    text="@dogeon this transaction seems gone.",
+                    thread_ts=e.ts,
+                    as_user=True,
+                    link_names=True,
+                )
 
-        except Exception as exc:
-            print("Exception", exc)
-            pass
+            except Exception as exc:
+                print("Exception", exc)
+                pass
+        elif bot_message is not None:
+            client.chat_delete(channel=channel_id, ts=bot_message["ts"])
+    except Exception as err:
+        print(err)
+        pass
 
 for event in events:
     t = type(event)
