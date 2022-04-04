@@ -11,6 +11,7 @@ import { WrappedEvent } from "../messages/wrapped-event";
 import { RefundEvent } from "../messages/refund-event";
 import Decimal from "decimal.js"
 import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
+import { WrappingRetryIgnoreEvent } from "../messages/wrapping-retry-ignore-event";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
@@ -67,6 +68,14 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 console.log("Process NineChronicles transaction", txId);
 
                 if (this._addressBanPolicy.isBannedAddress(sender)) {
+                    continue;
+                }
+
+                if (await this._exchangeHistoryStore.exist(txId)) {
+                    this._slackWebClient.chat.postMessage({
+                        channel: "#nine-chronicles-bridge-bot",
+                        ...new WrappingRetryIgnoreEvent(txId).render()
+                    });
                     continue;
                 }
 

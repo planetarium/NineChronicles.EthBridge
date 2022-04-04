@@ -28,6 +28,15 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
             [network, tx_id, sender, recipient, amount, timestamp]);
     }
 
+    async exist(tx_id: string): Promise<boolean> {
+        this.checkClosed();
+
+        const get: (sql: string, params: any[]) => Promise<{ "tx_id": string | null } > = promisify(this._database.get.bind(this._database));
+        const row = await get(
+            "SELECT tx_id FROM exchange_histories WHERE tx_id = ?", [tx_id]);
+        return row !== undefined;
+    }
+
     async transferredAmountInLast24Hours(network: string, sender: string): Promise<number> {
         this.checkClosed();
         const get: (sql: string, params: any[]) => Promise<{ "total_amount": string | null } > = promisify(this._database.get.bind(this._database));

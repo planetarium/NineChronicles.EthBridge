@@ -52,6 +52,7 @@ describe(NCGTransferredEventObserver.name, () => {
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
+        exist: jest.fn(),
     };
 
     const limitationPolicy = {
@@ -131,6 +132,32 @@ describe(NCGTransferredEventObserver.name, () => {
                 txId: null,
             });
 
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+        });
+
+        it("should skip if the exchange history already exists", async () => {
+            mockExchangeHistoryStore.exist.mockImplementationOnce(async (tx_id: string) => {
+                if (tx_id === "TX-ID-A") {
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [{
+                    amount: "0",
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ID-A",
+                    memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: BANNED_ADDRESS,
+                }],
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("nineChronicles", {blockHash: "BLOCK-HASH", txId: null});
             expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
             expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });

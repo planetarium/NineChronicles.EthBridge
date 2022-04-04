@@ -20,6 +20,27 @@ describe("Sqlite3ExchangeHistoryStore", () => {
         }
     });
 
+    describe("exist", () => {
+        it("should return false if it doesn't exist.", async () => {
+            expect(await store.exist("TX-ID"))
+                .toBeFalsy();
+        });
+
+        it("should return true if it exist.", async () => {
+            store.put({
+                amount: 0,
+                network: "9c-main",
+                recipient: "ADDRESS",
+                sender: "ADDRESS",
+                timestamp: "timestamp",
+                tx_id: "TX-ID",
+            });
+
+            expect(await store.exist("TX-ID"))
+                .toBeTruthy();
+        });
+    });
+
     describe("transferredAmountInLast24Hours", () => {
         it("should return 0 if there is no record.", async () => {
             const network = "9c-main",
