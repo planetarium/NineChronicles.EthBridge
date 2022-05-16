@@ -12,6 +12,7 @@ import { ContractDescription } from "./types/contract-description";
 import { IMonitorStateStore } from "./interfaces/monitor-state-store";
 import { Sqlite3MonitorStateStore } from "./sqlite3-monitor-state-store";
 import { WebClient } from "@slack/web-api"
+import { OpenSearchClient } from "./opensearch-client";
 import { Configuration } from "./configuration";
 import { NCGTransferredEventObserver } from "./observers/nine-chronicles"
 import { EthereumBurnEventObserver } from "./observers/burn-event-observer"
@@ -49,6 +50,8 @@ process.on("uncaughtException", console.error);
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
+    const OPENSEACRCH_ENDPOINT: string = Configuration.get("OPENSEACRCH_ENDPOINT");
+    const OPENSEACRCH_AUTH: string = Configuration.get("OPENSEACRCH_AUTH");
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
     const SENTRY_DSN: string | undefined = Configuration.get("SENTRY_DSN", false);
@@ -74,6 +77,7 @@ process.on("uncaughtException", console.error);
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
     const exchangeHistoryStore: IExchangeHistoryStore = await Sqlite3ExchangeHistoryStore.open(EXCHANGE_HISTORY_STORE_PATH);
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
+    const opensearchClient = new OpenSearchClient(OPENSEACRCH_ENDPOINT, OPENSEACRCH_AUTH);
 
     const GRAPHQL_REQUEST_RETRY = 5;
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT, GRAPHQL_REQUEST_RETRY);
@@ -143,12 +147,12 @@ process.on("uncaughtException", console.error);
         "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
     ]);
 
-    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
+    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, opensearchClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
-    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
         maximum: MAXIMUM_NCG,
         minimum: MINIMUM_NCG,
     }, addressBanPolicy, integration);

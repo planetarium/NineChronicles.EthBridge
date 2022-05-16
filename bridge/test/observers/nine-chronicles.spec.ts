@@ -1,10 +1,10 @@
-import Decimal from "decimal.js"
-
+import { Decimal } from "decimal.js"
 import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IWrappedNCGMinter } from "../../src/interfaces/wrapped-ncg-minter";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
 import { NCGTransferredEventObserver } from "../../src/observers/nine-chronicles";
 import { WebClient as SlackWebClient } from "@slack/web-api";
+import { OpenSearchClient } from "../../src/opensearch-client";
 import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../../src/policies/address-ban";
@@ -17,6 +17,16 @@ jest.mock("@slack/web-api", () => {
                 chat: {
                     postMessage: jest.fn()
                 },
+            };
+        })
+    }
+});
+
+jest.mock("../../src/opensearch-client", () => {
+    return {
+        OpenSearchClient: jest.fn(() => {
+            return {
+                to_opensearch: jest.fn()
             };
         })
     }
@@ -41,6 +51,13 @@ describe(NCGTransferredEventObserver.name, () => {
         chat: {
             postMessage: ReturnType<typeof jest.fn>
         }
+    };
+
+    const mockOpenSearchClient = new OpenSearchClient(
+        "https://www.random-url.com",
+        "auth"
+    ) as OpenSearchClient & {
+        to_opensearch: ReturnType<typeof jest.fn>
     };
 
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
@@ -68,7 +85,7 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockOpenSearchClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         beforeEach(() => {
@@ -424,7 +441,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
         }
 
-        it("slack message - snapshot", async () => {
+        it("slack/opensearch message - snapshot", async () => {
             mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValue(0);
 
             await observer.notify({
@@ -441,10 +458,11 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         })
 
-        it("slack refund error message - snapshot", async () => {
+        it("slack/opensearch refund error message - snapshot", async () => {
             mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
                 throw new Error("mockNcgTransfer.transfer error");
             });
@@ -463,10 +481,11 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
 
-        it("slack object error message - snapshot", async () => {
+        it("slack/opensearch object error message - snapshot", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce(() => {
                 throw {
                     code: -32000,
@@ -488,10 +507,11 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
 
-        it("slack ethereum transfer error message - snapshot", async () => {
+        it("slack/opensearch ethereum transfer error message - snapshot", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce((address, amount) => {
                 throw new Error("mockWrappedNcgMinter.mint error");
             });
@@ -510,6 +530,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
 
@@ -536,7 +557,7 @@ describe(NCGTransferredEventObserver.name, () => {
         });
 
         // Try to catch cases when others, not object and error, were thrown.
-        it("slack string error message - snapshot", async () => {
+        it("slack/opensearch string error message - snapshot", async () => {
             mockWrappedNcgMinter.mint.mockRejectedValueOnce("error message");
 
             await observer.notify({
@@ -553,6 +574,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
     })
