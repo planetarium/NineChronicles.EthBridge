@@ -2,12 +2,12 @@ import axios from "axios";
 import { URL } from "url";
 
 export class OpenSearchClient {
-    private readonly _opensearchEndpoint: URL;
+    private readonly _opensearchEndpoint: string;
     private readonly _opensearchAuth: string;
     private readonly _opensearchIndex: string = "9c-eth-bridge";
 
     constructor(opensearchEndpoint: string, opensearchAuth: string) {
-        this._opensearchEndpoint = new URL(opensearchEndpoint);
+        this._opensearchEndpoint = opensearchEndpoint;
         this._opensearchAuth = opensearchAuth;
     }
 

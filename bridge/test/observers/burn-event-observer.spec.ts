@@ -46,7 +46,7 @@ describe(EthereumBurnEventObserver.name, () => {
     };
 
     const mockOpenSearchClient = new OpenSearchClient(
-        "https://search-onboarding-portal-w4jkbwm35tgx2nwv27chhumzqa.us-east-2.es.amazonaws.com",
+        "https://www.random-url.com",
         "auth"
     ) as OpenSearchClient & {
         to_opensearch: ReturnType<typeof jest.fn>
