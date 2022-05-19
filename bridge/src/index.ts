@@ -26,6 +26,7 @@ import { AddressBanPolicy } from "./policies/address-ban";
 import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePolicy } from "./policies/gas-price";
 import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
+import { SlackMessageSender } from "./slack-message-sender";
 
 consoleStamp(console);
 
@@ -148,12 +149,13 @@ process.on("uncaughtException", console.error);
         "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
     ]);
 
-    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackWebClient, opensearchClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
+    const slackMessageSender = new SlackMessageSender(slackWebClient, "#nine-chronicles-bridge-bot");
+    const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackMessageSender, opensearchClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
     const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
-    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackWebClient, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackMessageSender, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
         maximum: MAXIMUM_NCG,
         minimum: MINIMUM_NCG,
     }, addressBanPolicy, integration);

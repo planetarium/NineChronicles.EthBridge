@@ -4,26 +4,26 @@ import { EventData } from 'web3-eth-contract';
 import { TransactionLocation } from "../types/transaction-location";
 import { BurnEventResult } from "../types/burn-event-result";
 import { INCGTransfer } from "../interfaces/ncg-transfer";
-import { WebClient as SlackWebClient } from "@slack/web-api";
 import { OpenSearchClient } from "../opensearch-client";
 import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { UnwrappedEvent } from "../messages/unwrapped-event";
 import Decimal from "decimal.js";
 import { UnwrappingFailureEvent } from "../messages/unwrapping-failure-event";
 import { Integration } from "../integrations";
+import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 
 export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHash, events: (EventData & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
-    private readonly _slackWebClient: SlackWebClient;
     private readonly _opensearchClient: OpenSearchClient;
+    private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _explorerUrl: string;
     private readonly _etherscanUrl: string;
     private readonly _integration: Integration;
 
-    constructor(ncgTransfer: INCGTransfer, slackWebClient: SlackWebClient, opensearchClient: OpenSearchClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, integration: Integration) {
+    constructor(ncgTransfer: INCGTransfer, slackMessageSender: ISlackMessageSender, opensearchClient: OpenSearchClient, monitorStateStore: IMonitorStateStore, explorerUrl: string, etherscanUrl: string, integration: Integration) {
         this._ncgTransfer = ncgTransfer;
-        this._slackWebClient = slackWebClient;
+        this._slackMessageSender = slackMessageSender;
         this._opensearchClient = opensearchClient;
         this._monitorStateStore = monitorStateStore;
         this._explorerUrl = explorerUrl;
@@ -48,10 +48,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(recipient, amountString, transactionHash);
 
                 await this._monitorStateStore.store("ethereum", { blockHash, txId: transactionHash });
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, nineChroniclesTxId, transactionHash).render()
-                });
+                await this._slackMessageSender.sendMessage(new UnwrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient, amountString, nineChroniclesTxId, transactionHash).render());
                 await this._opensearchClient.to_opensearch("info", {
                     content: "wNCG -> NCG request success",
                     libplanetTxId: nineChroniclesTxId,
@@ -62,10 +59,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new UnwrappingFailureEvent(this._etherscanUrl, sender, recipient, amountString, transactionHash, String(e)).render()
-                });
+                await this._slackMessageSender.sendMessage(new UnwrappingFailureEvent(this._etherscanUrl, sender, recipient, amountString, transactionHash, String(e)).render());
                 await this._opensearchClient.to_opensearch("error", {
                     content: "wNCG -> NCG request failure",
                     cause: String(e),

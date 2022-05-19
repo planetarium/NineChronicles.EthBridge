@@ -3,12 +3,12 @@ import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IWrappedNCGMinter } from "../../src/interfaces/wrapped-ncg-minter";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
 import { NCGTransferredEventObserver } from "../../src/observers/nine-chronicles";
-import { WebClient as SlackWebClient } from "@slack/web-api";
 import { OpenSearchClient } from "../../src/opensearch-client";
 import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../../src/policies/address-ban";
 import { Integration } from "../../src/integrations";
+import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -47,10 +47,8 @@ describe(NCGTransferredEventObserver.name, () => {
         }),
     };
 
-    const mockSlackWebClient = new SlackWebClient() as SlackWebClient & {
-        chat: {
-            postMessage: ReturnType<typeof jest.fn>
-        }
+    const mockSlackMessageSender: jest.Mocked<ISlackMessageSender> = {
+        sendMessage: jest.fn(),
     };
 
     const mockOpenSearchClient = new OpenSearchClient(
@@ -86,7 +84,7 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockOpenSearchClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackMessageSender, mockOpenSearchClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         beforeEach(() => {
@@ -460,7 +458,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         })
 
         it("slack/opensearch refund error message - snapshot", async () => {
@@ -483,7 +481,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch object error message - snapshot", async () => {
@@ -509,7 +507,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch ethereum transfer error message - snapshot", async () => {
@@ -532,7 +530,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("pagerduty ethereum transfer error message - snapshot", async () => {
@@ -576,7 +574,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
     })
 })
