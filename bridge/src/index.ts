@@ -50,6 +50,7 @@ process.on("uncaughtException", console.error);
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
+    const SLACK_CHANNEL_NAME: string = Configuration.get("SLACK_CHANNEL_NAME", false) || "#nine-chronicles-bridge-bot";
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
     const SENTRY_DSN: string | undefined = Configuration.get("SENTRY_DSN", false);
@@ -144,7 +145,7 @@ process.on("uncaughtException", console.error);
         "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
     ]);
 
-    const slackMessageSender = new SlackMessageSender(slackWebClient, "#nine-chronicles-bridge-bot");
+    const slackMessageSender = new SlackMessageSender(slackWebClient, SLACK_CHANNEL_NAME);
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackMessageSender, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
