@@ -3,7 +3,6 @@ import { NCGTransferredEvent } from "../types/ncg-transferred-event";
 import { INCGTransfer } from "../interfaces/ncg-transfer";
 import { isAddress } from "web3-utils";
 import { IWrappedNCGMinter } from "../interfaces/wrapped-ncg-minter";
-import { WebClient as SlackWebClient } from "@slack/web-api";
 import { IMonitorStateStore } from "../interfaces/monitor-state-store";
 import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
@@ -15,6 +14,7 @@ import { WrappingRetryIgnoreEvent } from "../messages/wrapping-retry-ignore-even
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
+import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -31,7 +31,7 @@ interface LimitationPolicy {
 export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
     private readonly _ncgTransfer: INCGTransfer;
     private readonly _wrappedNcgTransfer: IWrappedNCGMinter;
-    private readonly _slackWebClient: SlackWebClient;
+    private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _exchangeHistoryStore: IExchangeHistoryStore;
     private readonly _explorerUrl: string;
@@ -45,10 +45,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
     private readonly _integration: Integration;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackWebClient: SlackWebClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackMessageSender: ISlackMessageSender, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
-        this._slackWebClient = slackWebClient;
+        this._slackMessageSender = slackMessageSender;
         this._monitorStateStore = monitorStateStore;
         this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
@@ -72,8 +72,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 }
 
                 if (await this._exchangeHistoryStore.exist(txId)) {
-                    this._slackWebClient.chat.postMessage({
-                        channel: "#nine-chronicles-bridge-bot",
+                    this._slackMessageSender.sendMessage({
                         ...new WrappingRetryIgnoreEvent(txId).render()
                     });
                     continue;
@@ -110,10 +109,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 if (isInvalidTx) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
-                    await this._slackWebClient.chat.postMessage({
-                        channel: "#nine-chronicles-bridge-bot",
-                        ...new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The memo(${recipient}) is invalid.`).render(),
-                    });
+                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The memo(${recipient}) is invalid.`).render());
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     continue;
                 }
@@ -125,10 +121,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 if (lessThanMinimum) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`);
-                    await this._slackWebClient.chat.postMessage({
-                        channel: "#nine-chronicles-bridge-bot",
-                        ...new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The amount(${amountString}) is less than ${this._limitationPolicy.minimum}`).render(),
-                    });
+                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The amount(${amountString}) is less than ${this._limitationPolicy.minimum}`).render());
                     console.log(`The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`, nineChroniclesTxId);
                     continue;
                 }
@@ -136,10 +129,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 // NOTE x.cmp(y) returns -1, means x < y.
                 if (alreadyExchangedUptoMaximum) {
                     const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`);
-                    await this._slackWebClient.chat.postMessage({
-                        channel: "#nine-chronicles-bridge-bot",
-                        ...new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`).render(),
-                    });
+                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`).render());
                     console.log(`${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
                     continue;
                 }
@@ -151,10 +141,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     // Should equal with amount - limitedAmount
                     refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum).toString();
                     refundTxId = await this._ncgTransfer.transfer(sender, refundAmount, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
-                    await this._slackWebClient.chat.postMessage({
-                        channel: "#nine-chronicles-bridge-bot",
-                        ...new RefundEvent(this._explorerUrl, sender, txId, amount, refundTxId, new Decimal(refundAmount), `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`).render(),
-                    });
+                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, refundTxId, new Decimal(refundAmount), `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`).render());
                     console.log(`${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
                 }
 
@@ -181,10 +168,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 }
 
                 console.log("Receipt", transactionHash);
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient!, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render()
-                });
+                await this._slackMessageSender.sendMessage(new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient!, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render());
             } catch (e) {
                 console.log("EERRRR", e)
                 let errorMessage: string;
@@ -195,10 +179,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 }
 
                 // TODO: it should be replaced with `Integration` Slack implementation.
-                await this._slackWebClient.chat.postMessage({
-                    channel: "#nine-chronicles-bridge-bot",
-                    ...new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, errorMessage).render()
-                });
+                await this._slackMessageSender.sendMessage(new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, errorMessage).render());
                 await this._integration.error("Unexpected error during wrapping NCG", {
                     errorMessage,
                     sender,

@@ -1,11 +1,11 @@
 import { EventData } from 'web3-eth-contract';
 import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
-import { WebClient as SlackWebClient } from "@slack/web-api";
 import { TxId } from "../../src/types/txid";
 import { EthereumBurnEventObserver } from "../../src/observers/burn-event-observer";
 import { TransactionLocation } from '../../src/types/transaction-location';
 import { Integration } from '../../src/integrations';
+import { ISlackMessageSender } from '../../src/interfaces/slack-message-sender';
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -28,10 +28,8 @@ describe(EthereumBurnEventObserver.name, () => {
         transfer: jest.fn().mockResolvedValue("TX-HASH"),
     };
 
-    const mockSlackWebClient = new SlackWebClient() as SlackWebClient & {
-        chat: {
-            postMessage: ReturnType<typeof jest.fn>
-        }
+    const mockSlackMessageSender: jest.Mocked<ISlackMessageSender> = {
+        sendMessage: jest.fn(),
     };
 
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
@@ -43,7 +41,7 @@ describe(EthereumBurnEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
+    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackMessageSender, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -135,7 +133,7 @@ describe(EthereumBurnEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         })
 
         it("slack 9c transfer error message - snapshot", async () => {
@@ -169,7 +167,7 @@ describe(EthereumBurnEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("pagerduty 9c transfer error message - snapshot", async () => {
