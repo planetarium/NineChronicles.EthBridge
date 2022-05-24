@@ -1,0 +1,16 @@
+version: '3'
+services:
+  9c-headless:
+    image: planetariumhq/ninechronicles-headless:git-57ab72f2d81f0abefbb11602250b1e306f93bda1
+    command:
+      - "--app-protocol-version=1000/5616aAE462952937f72c64180310d56E2DBE51F6/MEQCICpMk84Aw51KDop882iA5YC6PJpMTjoIEWnMpC8hDQljAiBrxmUFKv1oHf0og+HrwJ2qIZ7e9aHcHmRp.pmycKJ8JA=="
+      - "--network-type=default"
+      - "--host=localhost"
+      - "--graphql-server"
+      - "--graphql-port=8808"
+      - "--store-type=rocksdb"
+      - "--store-path=/tmp"
+      - "--miner-private-key=e803887ad70b94fc7bece28e7b7f36807aa6241b177035c38bbbaac7183a7c1b"  # Address = 0x2cBaDf26574756119cF705289C33710F27443767
+      - "-G=https://download.nine-chronicles.com/empty-genesis-block"
+    ports:
+      - 8808:8808

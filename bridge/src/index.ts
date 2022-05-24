@@ -115,7 +115,7 @@ process.on("uncaughtException", console.error);
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
-    });
+    }, KMS_PROVIDER_ENDPOINT);
     const derivedAddress = "0x" + web3.utils.keccak256("0x" + Buffer.from(KMS_PROVIDER_PUBLIC_KEY, "base64").toString("hex").slice(2)).slice(26);
     if (kmsAddress.toLowerCase() !== derivedAddress.toLowerCase()) {
         throw Error("KMS_PROVIDER_PUBLIC_KEY variable seems invalid because it doesn't match to address from KMS.");
