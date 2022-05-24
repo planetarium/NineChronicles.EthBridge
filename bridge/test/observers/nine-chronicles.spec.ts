@@ -9,6 +9,7 @@ import { TxId } from "../../src/types/txid";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../../src/policies/address-ban";
 import { Integration } from "../../src/integrations";
+import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -37,10 +38,8 @@ describe(NCGTransferredEventObserver.name, () => {
         }),
     };
 
-    const mockSlackWebClient = new SlackWebClient() as SlackWebClient & {
-        chat: {
-            postMessage: ReturnType<typeof jest.fn>
-        }
+    const mockSlackMessageSender: jest.Mocked<ISlackMessageSender> = {
+        sendMessage: jest.fn(),
     };
 
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
@@ -68,7 +67,7 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackWebClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackMessageSender, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         beforeEach(() => {
@@ -441,7 +440,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         })
 
         it("slack refund error message - snapshot", async () => {
@@ -463,7 +462,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack object error message - snapshot", async () => {
@@ -488,7 +487,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack ethereum transfer error message - snapshot", async () => {
@@ -510,7 +509,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("pagerduty ethereum transfer error message - snapshot", async () => {
@@ -553,7 +552,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
+            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
         });
     })
 })

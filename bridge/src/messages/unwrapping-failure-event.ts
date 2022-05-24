@@ -2,6 +2,7 @@ import { ChatPostMessageArguments } from "@slack/web-api";
 import { combineUrl, Message } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
+import { ForceOmit } from "../types/force-omit";
 
 export class UnwrappingFailureEvent implements Message {
     private readonly _url: string;
@@ -26,7 +27,7 @@ export class UnwrappingFailureEvent implements Message {
         this._error = error;
     }
 
-    render(): Partial<ChatPostMessageArguments> {
+    render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
             text: "wNCG → NCG event failed.",
             attachments: [
