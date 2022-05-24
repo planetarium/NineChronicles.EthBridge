@@ -40,6 +40,7 @@ process.on("uncaughtException", console.error);
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
     const KMS_PROVIDER_KEY_ID: string = Configuration.get("KMS_PROVIDER_KEY_ID");
     const KMS_PROVIDER_REGION: string = Configuration.get("KMS_PROVIDER_REGION");
+    const KMS_PROVIDER_ENDPOINT: string = Configuration.get("KMS_PROVIDER_ENDPOINT");
     const KMS_PROVIDER_AWS_ACCESSKEY: string = Configuration.get("KMS_PROVIDER_AWS_ACCESSKEY");
     const KMS_PROVIDER_AWS_SECRETKEY: string = Configuration.get("KMS_PROVIDER_AWS_SECRETKEY");
     const KMS_PROVIDER_PUBLIC_KEY: string = Configuration.get("KMS_PROVIDER_PUBLIC_KEY");
@@ -85,7 +86,8 @@ process.on("uncaughtException", console.error);
       credential: {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY
-      }
+      },
+      endpoint: KMS_PROVIDER_ENDPOINT,
     });
     const web3 = new Web3(kmsProvider);
     const wNCGToken: ContractDescription = {
