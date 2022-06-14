@@ -15,7 +15,23 @@ Array [
 ]
 `;
 
-exports[`EthereumBurnEventObserver notify slack 9c transfer error message - snapshot 1`] = `
+exports[`EthereumBurnEventObserver notify slack/opensearch 9c transfer error message - snapshot 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "1.00",
+      "cause": "Error: mockNcgTransfer.transfer error",
+      "content": "wNCG -> NCG request failure",
+      "ethereumTxId": "TX-ID",
+      "recipient": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`EthereumBurnEventObserver notify slack/opensearch 9c transfer error message - snapshot 2`] = `
 Array [
   Array [
     Object {
@@ -55,7 +71,23 @@ Array [
 ]
 `;
 
-exports[`EthereumBurnEventObserver notify slack message - snapshot 1`] = `
+exports[`EthereumBurnEventObserver notify slack/opensearch message - snapshot 1`] = `
+Array [
+  Array [
+    "info",
+    Object {
+      "amount": "1.00",
+      "content": "wNCG -> NCG request success",
+      "ethereumTxId": "TX-ID",
+      "libplanetTxId": "TX-HASH",
+      "recipient": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`EthereumBurnEventObserver notify slack/opensearch message - snapshot 2`] = `
 Array [
   Array [
     Object {

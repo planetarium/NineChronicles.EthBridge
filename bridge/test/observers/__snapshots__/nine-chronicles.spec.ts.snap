@@ -15,7 +15,23 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack ethereum transfer error message - snapshot 1`] = `
+exports[`NCGTransferredEventObserver notify slack/opensearch ethereum transfer error message - snapshot 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "100.23",
+      "cause": "Error: mockWrappedNcgMinter.mint error",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack/opensearch ethereum transfer error message - snapshot 2`] = `
 Array [
   Array [
     Object {
@@ -55,7 +71,24 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack message - snapshot 1`] = `
+exports[`NCGTransferredEventObserver notify slack/opensearch message - snapshot 1`] = `
+Array [
+  Array [
+    "info",
+    Object {
+      "amount": "99.23",
+      "content": "NCG -> wNCG request success",
+      "ethereumTxId": "TRANSACTION-HASH",
+      "fee": "1",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack/opensearch message - snapshot 2`] = `
 Array [
   Array [
     Object {
@@ -99,7 +132,23 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack object error message - snapshot 1`] = `
+exports[`NCGTransferredEventObserver notify slack/opensearch object error message - snapshot 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "100.23",
+      "cause": "{\\"code\\":-32000,\\"message\\":\\"err: max fee per gas less than block base fee: address 0x9093dd96c4bb6b44A9E0A522e2DE49641F146223, maxFeePerGas: 300000000000 baseFee: 305545815494 (supplied gas 11118348)\\"}",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x0000000000000000000000000000000000000001",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack/opensearch object error message - snapshot 2`] = `
 Array [
   Array [
     Object {
@@ -139,7 +188,23 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack refund error message - snapshot 1`] = `
+exports[`NCGTransferredEventObserver notify slack/opensearch refund error message - snapshot 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "1.23",
+      "cause": "Error: mockNcgTransfer.transfer error",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x0000000000000000000000000000000000000000",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack/opensearch refund error message - snapshot 2`] = `
 Array [
   Array [
     Object {
@@ -179,7 +244,23 @@ Array [
 ]
 `;
 
-exports[`NCGTransferredEventObserver notify slack string error message - snapshot 1`] = `
+exports[`NCGTransferredEventObserver notify slack/opensearch string error message - snapshot 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "1.23",
+      "cause": "Invalid 9c transaction ID",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x0000000000000000000000000000000000000000",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify slack/opensearch string error message - snapshot 2`] = `
 Array [
   Array [
     Object {
