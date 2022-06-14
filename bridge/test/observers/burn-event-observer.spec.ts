@@ -2,6 +2,7 @@ import { EventData } from 'web3-eth-contract';
 import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
 import { WebClient as SlackWebClient } from "@slack/web-api";
+import { OpenSearchClient } from "../../src/opensearch-client";
 import { TxId } from "../../src/types/txid";
 import { EthereumBurnEventObserver } from "../../src/observers/burn-event-observer";
 import { TransactionLocation } from '../../src/types/transaction-location';
@@ -14,6 +15,16 @@ jest.mock("@slack/web-api", () => {
                 chat: {
                     postMessage: jest.fn()
                 },
+            };
+        })
+    }
+});
+
+jest.mock("../../src/opensearch-client", () => {
+    return {
+        OpenSearchClient: jest.fn(() => {
+            return {
+                to_opensearch: jest.fn()
             };
         })
     }
@@ -34,6 +45,13 @@ describe(EthereumBurnEventObserver.name, () => {
         }
     };
 
+    const mockOpenSearchClient = new OpenSearchClient(
+        "https://www.random-url.com",
+        "auth"
+    ) as OpenSearchClient & {
+        to_opensearch: ReturnType<typeof jest.fn>
+    };
+
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
         load: jest.fn(),
         store: jest.fn(),
@@ -43,7 +61,7 @@ describe(EthereumBurnEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackWebClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
+    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackWebClient, mockOpenSearchClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -108,7 +126,7 @@ describe(EthereumBurnEventObserver.name, () => {
             ]);
         });
 
-        it("slack message - snapshot", async () => {
+        it("slack/opensearch message - snapshot", async () => {
             await observer.notify({
                 blockHash: "BLOCK-HASH",
                 events: [
@@ -135,10 +153,11 @@ describe(EthereumBurnEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         })
 
-        it("slack 9c transfer error message - snapshot", async () => {
+        it("slack/opensearch 9c transfer error message - snapshot", async () => {
             mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
                 throw new Error("mockNcgTransfer.transfer error");
             });
@@ -169,6 +188,7 @@ describe(EthereumBurnEventObserver.name, () => {
                 ],
             });
 
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackWebClient.chat.postMessage.mock.calls).toMatchSnapshot();
         });
 

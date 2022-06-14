@@ -2,6 +2,17 @@
 
 This application relays between `wNCG` on [Ethereum] and `NCG` on Nine Chronicles network.
 
+## Prerequisite
+
+```
+$ node --version
+v18.1.0
+
+# Python 2 should be installed and alias via python
+$ python --version
+Python 2.7.18
+```
+
 ## Installation
 
 ```
@@ -18,6 +29,16 @@ npm run build
 
 ```
 npm test
+```
+
+### To run a single test
+
+```
+# Insatll Yarn
+$ npm install --global yarn
+
+# Run via yarn jest
+$ yarn jest test/observers/burn-event-observer.spec.ts
 ```
 
 ## Run
