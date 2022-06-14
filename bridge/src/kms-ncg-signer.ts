@@ -46,10 +46,10 @@ function bigintToNodeBuffer(bi: bigint) {
 export class KMSNCGSigner {
   private readonly keyId: string;
   private readonly client: KMSClient;
-    constructor(region: string, keyId: string, credential?: AwsCredential) {
+    constructor(region: string, keyId: string, credential?: AwsCredential, endpoint?: string) {
       this.keyId = keyId;
 
-      this.client = new KMSClient({ region, credentials: credential });
+      this.client = new KMSClient({ region, credentials: credential, endpoint });
     }
 
     public async sign(digest: Buffer): Promise<Buffer> {
