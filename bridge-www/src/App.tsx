@@ -8,6 +8,7 @@ import { Contract } from "web3-eth-contract";
 import { wNCGAbi } from "./wrapped-ncg-token";
 import Decimal from "decimal.js";
 import { AccountSelect } from './components/AccountSelect';
+import { TextInput } from './components/TextInput';
 
 declare global {
   interface Window {
@@ -73,9 +74,9 @@ function App() {
           : <WrappedNcgBalance address={account} balanceOf={(address: string) => contract.methods.balanceOf(address).call()} />
       }
       <hr/>
-      Amount : <input type="text" value={amount} onChange={event => { setAmount(event.target.value) }}/>
+      Amount : <TextInput onChange={setAmount}/>
       <br/>
-      To : <input type="text" value={ncAddress} onChange={event => { setNcAddress(event.target.value) }}/>
+      To : <TextInput onChange={setNcAddress}/>
       <br/>
       {
         contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
