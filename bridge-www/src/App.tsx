@@ -59,12 +59,12 @@ function App() {
   console.log(contract, contractAddress, accounts, account, amount)
   return (
     <div className="App">
-      Contract Address : <TextField value={contractAddress} onChange={setContractAddress}/>
+      <TextField label={'Contract Address'} value={contractAddress} onChange={setContractAddress}/>
       <br />
-      Choose Address : {
+      {
         accounts === null
           ? <b>🕑</b>
-          : <AccountSelect accounts={accounts} onChange={setAccount} />
+          : <AccountSelect accounts={accounts} onChange={setAccount} label={"Choose Address"} />
       }
       <br />
       Your wNCG :
@@ -74,9 +74,9 @@ function App() {
           : <WrappedNcgBalance address={account} balanceOf={(address: string) => contract.methods.balanceOf(address).call()} />
       }
       <hr/>
-      Amount : <TextField onChange={setAmount}/>
+      <TextField label={'Amount'} onChange={setAmount}/>
       <br/>
-      To : <TextField onChange={setNcAddress}/>
+      <TextField label={'To'} onChange={setNcAddress}/>
       <br/>
       {
         contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
