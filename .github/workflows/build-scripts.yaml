@@ -2,11 +2,11 @@ name: build scripts
 on:
   push:
     paths:
-    - /scripts/**/*
+    - scripts/**/*
 
   pull_request:
     paths:
-    - /scripts/**/*
+    - scripts/**/*
 
 jobs:
   build-scripts:
