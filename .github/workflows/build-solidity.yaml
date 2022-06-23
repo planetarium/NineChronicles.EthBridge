@@ -1,0 +1,21 @@
+name: build solidity
+on:
+  push:
+    paths:
+    - /contracts/**/*
+
+  pull_request:
+    paths:
+    - /contracts/**/*
+
+jobs:
+  build-solidity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: npm install
+        working-directory: contracts
+      - run: npm run build
+        working-directory: contracts
+      - run: npm run lint
+        working-directory: contracts

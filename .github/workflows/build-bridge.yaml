@@ -1,0 +1,32 @@
+name: build bridge
+on:
+  push:
+    paths:
+    - /bridge/**/*
+
+  pull_request:
+    paths:
+    - /bridge/**/*
+
+jobs:
+  build-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - run: npm install
+        working-directory: ./bridge
+      - run: npx tsc
+        working-directory: ./bridge
+      - run: npm run coverage
+        working-directory: ./bridge
+      - run: bash <(curl -s https://codecov.io/bash)
+        name: codecov
+        working-directory: ./bridge
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
