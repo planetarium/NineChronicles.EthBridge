@@ -2,11 +2,11 @@ name: build bridge-www
 on:
   push:
     paths:
-    - /bridge-www/**/*
+    - bridge-www/**/*
 
   pull_request:
     paths:
-    - /bridge-www/**/*
+    - bridge-www/**/*
 
 jobs:
   build-bridge-www:
