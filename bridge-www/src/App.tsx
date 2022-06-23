@@ -59,7 +59,7 @@ function App() {
   console.log(contract, contractAddress, accounts, account, amount)
   return (
     <div className="App">
-      Contract Address : <input type="text" value={contractAddress} onChange={event => setContractAddress(event.target.value)} />
+      Contract Address : <TextInput value={contractAddress} onChange={setContractAddress}/>
       <br />
       Choose Address : {
         accounts === null
