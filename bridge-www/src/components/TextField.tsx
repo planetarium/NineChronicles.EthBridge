@@ -3,7 +3,7 @@ export interface TextInputProps {
     value?: string,
 }
 
-export const TextInput: React.FC<TextInputProps> = ({ onChange, ...others }) => {
+export const TextField: React.FC<TextInputProps> = ({ onChange, ...others }) => {
     return (
         <input type="text" onChange={event => { onChange(event.target.value) }} {...others} />
     )
