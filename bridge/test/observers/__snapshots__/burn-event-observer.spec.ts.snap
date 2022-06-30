@@ -20,7 +20,7 @@ Array [
   Array [
     "error",
     Object {
-      "amount": "1.00",
+      "amount": 1,
       "cause": "Error: mockNcgTransfer.transfer error",
       "content": "wNCG -> NCG request failure",
       "ethereumTxId": "TX-ID",
@@ -76,7 +76,7 @@ Array [
   Array [
     "info",
     Object {
-      "amount": "1.00",
+      "amount": 1,
       "content": "wNCG -> NCG request success",
       "ethereumTxId": "TX-ID",
       "libplanetTxId": "TX-HASH",

@@ -76,10 +76,10 @@ Array [
   Array [
     "info",
     Object {
-      "amount": "99.23",
+      "amount": 99.23,
       "content": "NCG -> wNCG request success",
       "ethereumTxId": "TRANSACTION-HASH",
-      "fee": "1",
+      "fee": 1,
       "libplanetTxId": "TX-ID",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
@@ -249,7 +249,7 @@ Array [
   Array [
     "error",
     Object {
-      "amount": "1.23",
+      "amount": 1.23,
       "cause": "Invalid 9c transaction ID",
       "content": "NCG -> wNCG request failure",
       "libplanetTxId": "TX-ID",

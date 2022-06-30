@@ -131,7 +131,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         libplanetTxId: txId,
                         sender: sender,
                         recipient: recipient,
-                        amount: amountString,
+                        amount: amount.toNumber(),
                     });
                     console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
                     continue;
@@ -154,7 +154,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         libplanetTxId: txId,
                         sender: sender,
                         recipient: recipient,
-                        amount: amountString,
+                        amount: amount.toNumber(),
                     });
                     console.log(`The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`, nineChroniclesTxId);
                     continue;
@@ -173,7 +173,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         libplanetTxId: txId,
                         sender: sender,
                         recipient: recipient,
-                        amount: amountString,
+                        amount: amount.toNumber(),
                     });
                     console.log(`${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
                     continue;
@@ -184,8 +184,9 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 if (overflowedExchangeAmount) {
                     // Should equal with amount - limitedAmount
-                    refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum).toString();
-                    refundTxId = await this._ncgTransfer.transfer(sender, refundAmount, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
+                    const refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum);
+                    const refundAmountString = refundAmount.toString();
+                    refundTxId = await this._ncgTransfer.transfer(sender, refundAmountString, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
                     await this._slackWebClient.chat.postMessage({
                         channel: "#nine-chronicles-bridge-bot",
                         ...new RefundEvent(this._explorerUrl, sender, txId, amount, refundTxId, new Decimal(refundAmount), `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`).render(),
@@ -195,10 +196,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
                         libplanetTxId: txId,
                         refundTxId: refundTxId,
-                        refundAmount: refundAmount,
+                        refundAmount: refundAmount.toNumber(),
                         sender: sender,
                         recipient: recipient,
-                        amount: amountString,
+                        amount: amount.toNumber(),
                     });
                     console.log(`${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
                 }
@@ -234,10 +235,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     content: "NCG -> wNCG request success",
                     libplanetTxId: txId,
                     ethereumTxId: transactionHash,
-                    fee: fee.toString(),
+                    fee: fee.toNumber(),
                     sender: sender,
                     recipient: recipient,
-                    amount: exchangeAmount.toString(),
+                    amount: exchangeAmount.toNumber(),
                 });
             } catch (e) {
                 console.log("EERRRR", e)
