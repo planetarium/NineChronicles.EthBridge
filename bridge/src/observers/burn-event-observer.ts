@@ -58,7 +58,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                     ethereumTxId: transactionHash,
                     sender: sender,
                     recipient: recipient,
-                    amount: amountString,
+                    amount: amount.toNumber(),
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
@@ -72,7 +72,7 @@ export class EthereumBurnEventObserver implements IObserver<{ blockHash: BlockHa
                     ethereumTxId: transactionHash,
                     sender: sender,
                     recipient: recipient,
-                    amount: amountString,
+                    amount: amount.toNumber(),
                 });
                 await this._integration.error("Unexpected error during unwrapping NCG", {
                     errorMessage: String(e),
