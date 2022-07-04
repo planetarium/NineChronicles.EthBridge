@@ -4,11 +4,12 @@ import { URL } from "url";
 export class OpenSearchClient {
     private readonly _opensearchEndpoint: string;
     private readonly _opensearchAuth: string;
-    private readonly _opensearchIndex: string = "9c-eth-bridge";
+    private readonly _opensearchIndex: string;
 
-    constructor(opensearchEndpoint: string, opensearchAuth: string) {
+    constructor(opensearchEndpoint: string, opensearchAuth: string, opensearchIndex: string) {
         this._opensearchEndpoint = opensearchEndpoint;
         this._opensearchAuth = opensearchAuth;
+        this._opensearchIndex = opensearchIndex;
     }
 
     async to_opensearch(level = "info", msg = {}, timeout = 3000) {

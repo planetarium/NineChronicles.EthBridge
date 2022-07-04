@@ -53,6 +53,7 @@ process.on("uncaughtException", console.error);
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const OPENSEARCH_ENDPOINT: string = Configuration.get("OPENSEARCH_ENDPOINT");
     const OPENSEARCH_AUTH: string = Configuration.get("OPENSEARCH_AUTH");
+    const OPENSEARCH_INDEX: string = Configuration.get("OPENSEARCH_INDEX", false) || "9c-eth-bridge";
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
     const SENTRY_DSN: string | undefined = Configuration.get("SENTRY_DSN", false);
@@ -78,7 +79,7 @@ process.on("uncaughtException", console.error);
     const monitorStateStore: IMonitorStateStore = await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
     const exchangeHistoryStore: IExchangeHistoryStore = await Sqlite3ExchangeHistoryStore.open(EXCHANGE_HISTORY_STORE_PATH);
     const slackWebClient = new WebClient(SLACK_WEB_TOKEN);
-    const opensearchClient = new OpenSearchClient(OPENSEARCH_ENDPOINT, OPENSEARCH_AUTH);
+    const opensearchClient = new OpenSearchClient(OPENSEARCH_ENDPOINT, OPENSEARCH_AUTH, OPENSEARCH_INDEX);
 
     const GRAPHQL_REQUEST_RETRY = 5;
     const headlessGraphQLCLient = new HeadlessGraphQLClient(GRAPHQL_API_ENDPOINT, GRAPHQL_REQUEST_RETRY);

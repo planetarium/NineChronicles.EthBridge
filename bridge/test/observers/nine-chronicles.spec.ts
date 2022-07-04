@@ -55,7 +55,8 @@ describe(NCGTransferredEventObserver.name, () => {
 
     const mockOpenSearchClient = new OpenSearchClient(
         "https://www.random-url.com",
-        "auth"
+        "auth",
+        "9c-eth-bridge"
     ) as OpenSearchClient & {
         to_opensearch: ReturnType<typeof jest.fn>
     };
