@@ -1,6 +1,6 @@
 import Web3 from "web3";
 import { init } from "@sentry/node";
-import { KmsProvider } from "@planetarium/aws-kms-provider";
+import { KmsProvider } from "aws-kms-provider";
 
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { EthereumBurnEventMonitor } from "./monitors/ethereum-burn-event-monitor";

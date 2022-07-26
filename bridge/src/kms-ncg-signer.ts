@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { AwsCredential } from "@planetarium/aws-kms-provider";
+import { AwsCredential } from "aws-kms-provider";
 import {
   KMSClient,
   SignCommand,
