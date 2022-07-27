@@ -1,4 +1,4 @@
-import { randomId } from "../random";
+import { Input } from "@nextui-org/react";
 
 export interface TextInputProps {
     onChange: (value: string) => void,
@@ -7,11 +7,9 @@ export interface TextInputProps {
 }
 
 export const TextField: React.FC<TextInputProps> = ({ onChange, label, ...others }) => {
-    const id = randomId();
     return (
         <div>
-            <label htmlFor={id}>{label}</label>
-            <input id={id} type="text" onChange={event => { onChange(event.target.value) }} {...others} />
+            <Input labelLeft={label} onChange={event => { onChange(event.target.value) }} {...others} />
         </div>
     )
 }
