@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import React, { useEffect, useState } from "react";
+import { Text } from "@nextui-org/react";
 
 export interface WrappedNcgBalanceProps {
     address: string;
@@ -15,8 +16,8 @@ export const WrappedNcgBalance: React.FC<WrappedNcgBalanceProps> = ({ address, b
     console.log(address, balanceOf, balance);
 
     if (balance === null) {
-        return <b>🕑</b>
+        return <Text>🕑</Text>
     } else {
-        return <b>{new Decimal(balance).div(new Decimal(10).pow(18)).toString()}</b>;
+        return <Text weight="bold">{new Decimal(balance).div(new Decimal(10).pow(18)).toString()}</Text>;
     }
 }

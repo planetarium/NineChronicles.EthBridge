@@ -9,6 +9,7 @@ import { wNCGAbi } from "./wrapped-ncg-token";
 import Decimal from "decimal.js";
 import { AccountSelect } from './components/AccountSelect';
 import { TextField } from './components/TextField';
+import { Button, Text } from "@nextui-org/react";
 
 declare global {
   interface Window {
@@ -20,11 +21,33 @@ function App() {
   const [web3, setWeb3] = useState<Web3 | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<string[] | null>(null);
-  const [contractAddress, setContractAddress] = useState<string>("0x5686b17ada75d682ea8a8103edbea77e86d909f4");
+  const [chainId, setChainId] = useState<number | null>(null);
+  const contractAddress = useMemo<string>(() => {
+    if (chainId === 1) {
+      return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
+    } else if (chainId === 3) {
+      return "0x5686b17ada75d682ea8a8103edbea77e86d909f4";
+    } else {
+      return "";
+    }
+  }, [chainId]);
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
-  const amountInEthereum = useMemo<Decimal>(() => new Decimal(amount || "0").mul(new Decimal(10).pow(18)), [amount]);
+  const amountInEthereum = useMemo<Decimal | null>(() => {
+    try {
+      return new Decimal(amount || "0").mul(new Decimal(10).pow(18))
+    } catch {
+      return null;
+    }
+  }, [amount]);
+
+  function handleChainChanged(...args: unknown[]) {
+    if (args.length === 1 && typeof args[0] === "string") {
+      setChainId(parseInt(args[0].replace("0x", ""), 16));
+    }
+  }
+
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
@@ -47,44 +70,43 @@ function App() {
       window.ethereum.on("accountsChanged", (accounts) => {
         loadAccounts(web3);
       });
+      window.ethereum.request({ method: 'eth_chainId' }).then(chainId => {
+        handleChainChanged(chainId);
+      });
+      window.ethereum.on('chainChanged', handleChainChanged);
       loadAccounts(web3);
     }
   }, []);
 
-
   if (web3 === null) {
-    return <h1>Maybe MetaMask doesn't exist. 😥</h1>;
+    return <Text h1 css={{
+      textGradient: "45deg, $purple600 -20%, $blue600 50%",
+    }}>Maybe MetaMask doesn't exist. 😥</Text>;
   }
 
   console.log(contract, contractAddress, accounts, account, amount)
   return (
     <div className="App">
-      <TextField label={'Contract Address'} value={contractAddress} onChange={setContractAddress}/>
-      <br />
+      <TextField label={'Contract Address'} value={contractAddress} readOnly/>
       {
         accounts === null
-          ? <b>🕑</b>
+          ? <Text>🕑</Text>
           : <AccountSelect accounts={accounts} onChange={setAccount} label={"Choose Address"} />
       }
-      <br />
-      Your wNCG :
-      {
+      <Text>Your wNCG : {
         contract === null || account === null
-          ? <b>🕑</b>
+          ? <Text>🕑</Text>
           : <WrappedNcgBalance address={account} balanceOf={(address: string) => contract.methods.balanceOf(address).call()} />
-      }
-      <hr/>
+      }</Text>
       <TextField label={'Amount'} onChange={setAmount}/>
-      <br/>
       <TextField label={'To'} onChange={setNcAddress}/>
-      <br/>
       {
-        contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
-          ? <b>Fill corret values</b>
-          : <button onClick={event => {
+        contract === null || account === null || amountInEthereum === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+          ? <Text weight={"bold"}>Fill corret values</Text>
+          : <Button onClick={event => {
             event.preventDefault();            
             contract.methods.burn(web3.utils.toBN(amountInEthereum.toString()), ncAddress).send({ from: account }).then(console.debug)
-          }}>Burn</button>
+          }}>Burn</Button>
       }
     </div>
   );
