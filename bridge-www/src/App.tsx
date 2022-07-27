@@ -20,7 +20,16 @@ function App() {
   const [web3, setWeb3] = useState<Web3 | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<string[] | null>(null);
-  const [contractAddress, setContractAddress] = useState<string>("0x5686b17ada75d682ea8a8103edbea77e86d909f4");
+  const [chainId, setChainId] = useState<number | null>(null);
+  const contractAddress = useMemo<string>(() => {
+    if (chainId === 1) {
+      return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
+    } else if (chainId === 3) {
+      return "0x5686b17ada75d682ea8a8103edbea77e86d909f4";
+    } else {
+      return "";
+    }
+  }, [chainId]);
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
@@ -31,6 +40,11 @@ function App() {
       return null;
     }
   }, [amount]);
+
+  function handleChainChanged(...args: unknown[]) {
+    console.log(args);
+  }
+
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
@@ -53,6 +67,12 @@ function App() {
       window.ethereum.on("accountsChanged", (accounts) => {
         loadAccounts(web3);
       });
+      window.ethereum.request({ method: 'eth_chainId' }).then(chainId => {
+        if (typeof chainId === "string") {
+          setChainId(parseInt(chainId.replace("0x", ""), 16));
+        }
+      });
+      window.ethereum.on('chainChanged', handleChainChanged);
       loadAccounts(web3);
     }
   }, []);
@@ -65,7 +85,7 @@ function App() {
   console.log(contract, contractAddress, accounts, account, amount)
   return (
     <div className="App">
-      <TextField label={'Contract Address'} value={contractAddress} onChange={setContractAddress}/>
+      <TextField label={'Contract Address'} value={contractAddress} readOnly/>
       <br />
       {
         accounts === null
