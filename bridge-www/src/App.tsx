@@ -24,7 +24,13 @@ function App() {
   const [ncAddress, setNcAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("0");
   const validContractAddress = useMemo<boolean>(() => isAddress(contractAddress), [contractAddress]);
-  const amountInEthereum = useMemo<Decimal>(() => new Decimal(amount || "0").mul(new Decimal(10).pow(18)), [amount]);
+  const amountInEthereum = useMemo<Decimal | null>(() => {
+    try {
+      return new Decimal(amount || "0").mul(new Decimal(10).pow(18))
+    } catch {
+      return null;
+    }
+  }, [amount]);
   const contract = useMemo<Contract | null>(() => web3 !== null && validContractAddress
     ? new web3.eth.Contract(wNCGAbi, contractAddress)
     : null,
@@ -79,7 +85,7 @@ function App() {
       <TextField label={'To'} onChange={setNcAddress}/>
       <br/>
       {
-        contract === null || account === null || amount === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+        contract === null || account === null || amountInEthereum === null || amountInEthereum.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
           ? <b>Fill corret values</b>
           : <button onClick={event => {
             event.preventDefault();            
