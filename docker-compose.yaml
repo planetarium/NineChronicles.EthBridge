@@ -7,10 +7,11 @@ services:
       - "--network-type=default"
       - "--host=localhost"
       - "--graphql-server"
-      - "--graphql-port=8808"
+      - "--graphql-port=5000"
       - "--store-type=rocksdb"
       - "--store-path=/tmp"
+      - "--no-cors"
       - "--miner-private-key=e803887ad70b94fc7bece28e7b7f36807aa6241b177035c38bbbaac7183a7c1b"  # Address = 0x2cBaDf26574756119cF705289C33710F27443767
       - "-G=https://download.nine-chronicles.com/empty-genesis-block"
     ports:
-      - 8808:8808
+      - 5000:5000
