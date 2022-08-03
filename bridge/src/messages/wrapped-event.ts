@@ -3,6 +3,7 @@ import { WrappingEvent } from "./wrapping-event";
 import { Address } from "../types/address";
 import { TxId } from "../types/txid";
 import Decimal from "decimal.js";
+import { ForceOmit } from "../types/force-omit";
 
 export class WrappedEvent extends WrappingEvent {
     private readonly _sender: Address;
@@ -38,7 +39,7 @@ export class WrappedEvent extends WrappingEvent {
         this._refundTxId = refundTxId;
     }
 
-    render(): Partial<ChatPostMessageArguments> {
+    render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         const refundFields = this._refundAmount !== null && this._refundTxId !== null
             ? [
                  {

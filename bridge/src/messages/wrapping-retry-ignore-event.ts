@@ -1,5 +1,6 @@
 import { ChatPostMessageArguments } from "@slack/web-api";
 import { Message } from ".";
+import { ForceOmit } from "../types/force-omit";
 import { TxId } from "../types/txid";
 
 export class WrappingRetryIgnoreEvent implements Message {
@@ -9,7 +10,7 @@ export class WrappingRetryIgnoreEvent implements Message {
         this._txId = txId;
     }
 
-    render(): Partial<ChatPostMessageArguments> {
+    render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
             text: "NCG → wNCG event already seems executed so it skipped.",
             attachments: [

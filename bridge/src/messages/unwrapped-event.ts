@@ -2,6 +2,7 @@ import { ChatPostMessageArguments } from "@slack/web-api";
 import { WrappingEvent } from "./wrapping-event";
 import { Address } from "../types/address";
 import { TxId } from "../types/txid";
+import { ForceOmit } from "../types/force-omit";
 
 export class UnwrappedEvent extends WrappingEvent {
     private readonly _sender: Address;
@@ -28,7 +29,7 @@ export class UnwrappedEvent extends WrappingEvent {
         this._ethereumTransactionHash = ethereumTransactionHash;
     }
 
-    render(): Partial<ChatPostMessageArguments> {
+    render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
             text: "wNCG → NCG event occurred.",
             attachments: [

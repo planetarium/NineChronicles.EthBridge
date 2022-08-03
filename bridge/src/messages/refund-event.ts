@@ -3,6 +3,7 @@ import { Message, combineUrl } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
 import { Decimal } from "decimal.js";
+import { ForceOmit } from "../types/force-omit";
 
 export class RefundEvent implements Message {
     private readonly _sender: Address;
@@ -31,7 +32,7 @@ export class RefundEvent implements Message {
         this._reason = reason;
     }
 
-    render(): Partial<ChatPostMessageArguments> {
+    render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
             text: "NCG refund event occurred.",
             attachments: [

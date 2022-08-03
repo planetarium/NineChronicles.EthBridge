@@ -3,6 +3,7 @@ import { Message } from ".";
 import { TxId } from "../types/txid";
 import { URL } from "url";
 import { join, resolve } from "path";
+import { ForceOmit } from "../types/force-omit";
 
 export abstract class WrappingEvent implements Message {
     private readonly _explorerUrl: string;
@@ -13,7 +14,7 @@ export abstract class WrappingEvent implements Message {
         this._etherscanUrl = etherscanUrl;
     }
 
-    abstract render(): Partial<ChatPostMessageArguments>;
+    abstract render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel">;
 
     protected toExplorerUrl(txId: TxId): string {
         return this.combineUrl(this._explorerUrl, `/transaction/?${txId}`);
