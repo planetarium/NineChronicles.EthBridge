@@ -11,6 +11,10 @@ v18.1.0
 # Python 2 should be installed and alias via python
 $ python --version
 Python 2.7.18
+
+# SQLite3 should be installed because it uses SQLite3 as database.
+$ command -v sqlite3
+/usr/bin/sqlite3
 ```
 
 ## Installation
