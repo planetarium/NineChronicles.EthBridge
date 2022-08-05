@@ -27,6 +27,7 @@ import { GasPriceLimitPolicy, GasPricePolicies, GasPriceTipPolicy, IGasPricePoli
 import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
 import { SlackMessageSender } from "./slack-message-sender";
+import { TimeoutObserver } from "./observers/timeout-observer";
 
 consoleStamp(console);
 
@@ -153,7 +154,9 @@ process.on("uncaughtException", console.error);
     const slackMessageSender = new SlackMessageSender(slackWebClient, SLACK_CHANNEL_NAME);
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(ncgKmsTransfer, slackMessageSender, opensearchClient, monitorStateStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, integration);
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(web3, wNCGToken, await monitorStateStore.load("ethereum"), CONFIRMATIONS);
+    const ethereumTimeoutObserver = new TimeoutObserver(integration, 5 * 60 * 1000, "ethereum");
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
+    ethereumBurnEventMonitor.attach(ethereumTimeoutObserver);
 
     const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackMessageSender, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
@@ -161,7 +164,9 @@ process.on("uncaughtException", console.error);
         minimum: MINIMUM_NCG,
     }, addressBanPolicy, integration);
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(await monitorStateStore.load("nineChronicles"), headlessGraphQLCLient, kmsAddress);
+    const nineChroniclesTimeoutObserver = new TimeoutObserver(integration, 5 * 60 * 1000, "nine-chronicles");
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
+    nineChroniclesMonitor.attach(nineChroniclesTimeoutObserver);
 
     ethereumBurnEventMonitor.run();
     nineChroniclesMonitor.run();
