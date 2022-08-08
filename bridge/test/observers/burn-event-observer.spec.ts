@@ -1,33 +1,33 @@
-import { EventData } from 'web3-eth-contract';
+import { EventData } from "web3-eth-contract";
 import { INCGTransfer } from "../../src/interfaces/ncg-transfer";
 import { IMonitorStateStore } from "../../src/interfaces/monitor-state-store";
 import { OpenSearchClient } from "../../src/opensearch-client";
 import { TxId } from "../../src/types/txid";
 import { EthereumBurnEventObserver } from "../../src/observers/burn-event-observer";
-import { TransactionLocation } from '../../src/types/transaction-location';
-import { Integration } from '../../src/integrations';
-import { ISlackMessageSender } from '../../src/interfaces/slack-message-sender';
+import { TransactionLocation } from "../../src/types/transaction-location";
+import { Integration } from "../../src/integrations";
+import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 
 jest.mock("@slack/web-api", () => {
     return {
         WebClient: jest.fn(() => {
             return {
                 chat: {
-                    postMessage: jest.fn()
+                    postMessage: jest.fn(),
                 },
             };
-        })
-    }
+        }),
+    };
 });
 
 jest.mock("../../src/opensearch-client", () => {
     return {
         OpenSearchClient: jest.fn(() => {
             return {
-                to_opensearch: jest.fn()
+                to_opensearch: jest.fn(),
             };
-        })
-    }
+        }),
+    };
 });
 
 describe(EthereumBurnEventObserver.name, () => {
@@ -48,7 +48,7 @@ describe(EthereumBurnEventObserver.name, () => {
         "auth",
         "9c-eth-bridge"
     ) as OpenSearchClient & {
-        to_opensearch: ReturnType<typeof jest.fn>
+        to_opensearch: ReturnType<typeof jest.fn>;
     };
 
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
@@ -60,7 +60,15 @@ describe(EthereumBurnEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new EthereumBurnEventObserver(mockNcgTransfer, mockSlackMessageSender, mockOpenSearchClient, mockMonitorStateStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", mockIntegration);
+    const observer = new EthereumBurnEventObserver(
+        mockNcgTransfer,
+        mockSlackMessageSender,
+        mockOpenSearchClient,
+        mockMonitorStateStore,
+        "https://explorer.libplanet.io/9c-internal",
+        "https://ropsten.etherscan.io",
+        mockIntegration
+    );
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -69,15 +77,22 @@ describe(EthereumBurnEventObserver.name, () => {
                 events: [],
             });
 
-            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("ethereum", {
-                blockHash: "BLOCK-HASH",
-                txId: null,
-            });
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                "ethereum",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: null,
+                }
+            );
         });
 
         it("should post slack message every events", async () => {
             const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
-            function makeEvent(ncgRecipient: string, amount: number, txId: TxId): (EventData & TransactionLocation) {
+            function makeEvent(
+                ncgRecipient: string,
+                amount: number,
+                txId: TxId
+            ): EventData & TransactionLocation {
                 return {
                     blockHash: "BLOCK-HASH",
                     address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
@@ -95,9 +110,9 @@ describe(EthereumBurnEventObserver.name, () => {
                     returnValues: {
                         _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
                         _to: ncgRecipient,
-                        amount: amount
-                    }
-                }
+                        amount: amount,
+                    },
+                };
             }
 
             const events = [
@@ -112,10 +127,13 @@ describe(EthereumBurnEventObserver.name, () => {
                 events,
             });
 
-            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("ethereum", {
-                blockHash: "BLOCK-HASH",
-                txId: "TX-D",
-            });
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                "ethereum",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-D",
+                }
+            );
 
             expect(mockNcgTransfer.transfer.mock.calls).toEqual([
                 [ncgRecipient, "1.00", "TX-A"],
@@ -144,22 +162,29 @@ describe(EthereumBurnEventObserver.name, () => {
                         transactionHash: "TX-ID",
                         txId: "TX-ID",
                         returnValues: {
-                            _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            _sender:
+                                "0x2734048eC2892d111b4fbAB224400847544FC872",
                             _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                            amount: 1000000000000000000
-                        }
-                    }
+                            amount: 1000000000000000000,
+                        },
+                    },
                 ],
             });
 
-            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
-        })
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
+            expect(
+                mockSlackMessageSender.sendMessage.mock.calls
+            ).toMatchSnapshot();
+        });
 
         it("slack/opensearch 9c transfer error message - snapshot", async () => {
-            mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
-                throw new Error("mockNcgTransfer.transfer error");
-            });
+            mockNcgTransfer.transfer.mockImplementationOnce(
+                (address, amount, memo) => {
+                    throw new Error("mockNcgTransfer.transfer error");
+                }
+            );
 
             await observer.notify({
                 blockHash: "BLOCK-HASH",
@@ -179,22 +204,29 @@ describe(EthereumBurnEventObserver.name, () => {
                         transactionHash: "TX-ID",
                         txId: "TX-ID",
                         returnValues: {
-                            _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            _sender:
+                                "0x2734048eC2892d111b4fbAB224400847544FC872",
                             _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                            amount: 1000000000000000000
-                        }
-                    }
+                            amount: 1000000000000000000,
+                        },
+                    },
                 ],
             });
 
-            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
-            expect(mockSlackMessageSender.sendMessage.mock.calls).toMatchSnapshot();
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
+            expect(
+                mockSlackMessageSender.sendMessage.mock.calls
+            ).toMatchSnapshot();
         });
 
         it("pagerduty 9c transfer error message - snapshot", async () => {
-            mockNcgTransfer.transfer.mockImplementationOnce((address, amount, memo) => {
-                throw new Error("mockNcgTransfer.transfer error");
-            });
+            mockNcgTransfer.transfer.mockImplementationOnce(
+                (address, amount, memo) => {
+                    throw new Error("mockNcgTransfer.transfer error");
+                }
+            );
 
             await observer.notify({
                 blockHash: "BLOCK-HASH",
@@ -214,15 +246,16 @@ describe(EthereumBurnEventObserver.name, () => {
                         transactionHash: "TX-ID",
                         txId: "TX-ID",
                         returnValues: {
-                            _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            _sender:
+                                "0x2734048eC2892d111b4fbAB224400847544FC872",
                             _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
-                            amount: 1000000000000000000
-                        }
-                    }
+                            amount: 1000000000000000000,
+                        },
+                    },
                 ],
             });
 
             expect(mockIntegration.error.mock.calls).toMatchSnapshot();
         });
-    })
-})
+    });
+});

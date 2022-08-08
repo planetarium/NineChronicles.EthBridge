@@ -7,7 +7,10 @@ import { TransactionLocation } from "../../src/types/transaction-location";
 
 jest.useFakeTimers();
 
-async function existsAsync<T>(array: Array<T>, predicate: (value: T) => Promise<boolean>): Promise<boolean> {
+async function existsAsync<T>(
+    array: Array<T>,
+    predicate: (value: T) => Promise<boolean>
+): Promise<boolean> {
     for (const element of array) {
         if (await predicate(element)) {
             return true;
@@ -20,10 +23,12 @@ async function existsAsync<T>(array: Array<T>, predicate: (value: T) => Promise<
 describe("NineChroniclesTransferredEventMonitor", () => {
     const mockHeadlessGraphQLClient: jest.Mocked<IHeadlessGraphQLClient> = {
         endpoint: "http://localhost:23061/graphql",
-        getBlockIndex: jest.fn(h => Promise.resolve(parseInt(h))),
+        getBlockIndex: jest.fn((h) => Promise.resolve(parseInt(h))),
         getTipIndex: jest.fn(),
-        getBlockHash: jest.fn(n => Promise.resolve(n.toString())),
-        getNCGTransferredEvents: jest.fn().mockResolvedValue(Promise.resolve([])),
+        getBlockHash: jest.fn((n) => Promise.resolve(n.toString())),
+        getNCGTransferredEvents: jest
+            .fn()
+            .mockResolvedValue(Promise.resolve([])),
         getNextTxNonce: jest.fn(),
         transfer: jest.fn(),
         attachSignature: jest.fn(),
@@ -31,8 +36,13 @@ describe("NineChroniclesTransferredEventMonitor", () => {
         stageTx: jest.fn(),
     };
 
-    const mockObserver: jest.Mocked<IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }>> = {
-        notify: jest.fn()
+    const mockObserver: jest.Mocked<
+        IObserver<{
+            blockHash: BlockHash;
+            events: (NCGTransferredEvent & TransactionLocation)[];
+        }>
+    > = {
+        notify: jest.fn(),
     };
 
     describe("loop", () => {
@@ -46,16 +56,22 @@ describe("NineChroniclesTransferredEventMonitor", () => {
             }
 
             it(`should yield ${multipleOf50} events`, async () => {
-                const monitor = new NineChroniclesTransferredEventMonitor(null, mockHeadlessGraphQLClient, "");
+                const monitor = new NineChroniclesTransferredEventMonitor(
+                    null,
+                    mockHeadlessGraphQLClient,
+                    ""
+                );
 
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0);
-                console.log(mockHeadlessGraphQLClient.getBlockHash(0))
+                console.log(mockHeadlessGraphQLClient.getBlockHash(0));
 
                 monitor.attach(mockObserver);
                 monitor.run();
 
                 for (let i = 1; i <= multipleOf50; ++i) {
-                    mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(i);
+                    mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(
+                        i
+                    );
                 }
 
                 while (mockObserver.notify.mock.calls.length < multipleOf50) {
@@ -64,7 +80,9 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 }
 
                 expect(mockObserver.notify).toHaveBeenCalled();
-                expect(mockObserver.notify.mock.calls.length).toEqual(multipleOf50);
+                expect(mockObserver.notify.mock.calls.length).toEqual(
+                    multipleOf50
+                );
                 expect(mockObserver.notify.mock.calls[0][0]).toEqual({
                     blockHash: expect.any(String),
                     events: expect.any(Array),
@@ -80,24 +98,37 @@ describe("NineChroniclesTransferredEventMonitor", () => {
             }
 
             it(`should not yield any events until ${indexUnder50}`, async () => {
-                const monitor = new NineChroniclesTransferredEventMonitor(null, mockHeadlessGraphQLClient, "");
+                const monitor = new NineChroniclesTransferredEventMonitor(
+                    null,
+                    mockHeadlessGraphQLClient,
+                    ""
+                );
 
                 mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0);
-                console.log(mockHeadlessGraphQLClient.getBlockHash(0))
+                console.log(mockHeadlessGraphQLClient.getBlockHash(0));
 
                 monitor.attach(mockObserver);
                 monitor.run();
 
                 for (let i = 1; i <= indexUnder50; ++i) {
-                    mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(i);
+                    mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(
+                        i
+                    );
                 }
 
-                while (!await existsAsync(mockHeadlessGraphQLClient.getTipIndex.mock.results, async value => await value.value === indexUnder50)) {
+                while (
+                    !(await existsAsync(
+                        mockHeadlessGraphQLClient.getTipIndex.mock.results,
+                        async (value) => (await value.value) === indexUnder50
+                    ))
+                ) {
                     jest.runAllTimers();
                     await Promise.resolve();
                 }
 
-                expect(mockHeadlessGraphQLClient.getTipIndex).toHaveReturnedWith(Promise.resolve(indexUnder50));
+                expect(
+                    mockHeadlessGraphQLClient.getTipIndex
+                ).toHaveReturnedWith(Promise.resolve(indexUnder50));
                 expect(mockObserver.notify).not.toHaveBeenCalled();
                 expect(mockObserver.notify.mock.calls.length).toEqual(0);
 
@@ -106,9 +137,21 @@ describe("NineChroniclesTransferredEventMonitor", () => {
         }
 
         for (const { latestTxId, txIds, expectedTxIds } of [
-            { latestTxId: "TX-A", txIds: ["TX-A", "TX-B", "TX-C"], expectedTxIds: ["TX-B", "TX-C"] },
-            { latestTxId: "TX-B", txIds: ["TX-A", "TX-B", "TX-C"], expectedTxIds: ["TX-C"] },
-            { latestTxId: "TX-C", txIds: ["TX-A", "TX-B", "TX-C"], expectedTxIds: [] },
+            {
+                latestTxId: "TX-A",
+                txIds: ["TX-A", "TX-B", "TX-C"],
+                expectedTxIds: ["TX-B", "TX-C"],
+            },
+            {
+                latestTxId: "TX-B",
+                txIds: ["TX-A", "TX-B", "TX-C"],
+                expectedTxIds: ["TX-C"],
+            },
+            {
+                latestTxId: "TX-C",
+                txIds: ["TX-A", "TX-B", "TX-C"],
+                expectedTxIds: [],
+            },
         ]) {
             it(`should skip until ${latestTxId} transaction in ${txIds}`, async () => {
                 function makeNcgTransferredEvent(txId: string) {
@@ -122,10 +165,19 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                     };
                 }
 
-                mockHeadlessGraphQLClient.getNCGTransferredEvents.mockResolvedValueOnce(Promise.resolve(txIds.map(makeNcgTransferredEvent)));
-                mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+                mockHeadlessGraphQLClient.getNCGTransferredEvents.mockResolvedValueOnce(
+                    Promise.resolve(txIds.map(makeNcgTransferredEvent))
+                );
+                mockHeadlessGraphQLClient.getTipIndex
+                    .mockResolvedValueOnce(0)
+                    .mockResolvedValueOnce(1)
+                    .mockResolvedValueOnce(2);
 
-                const monitor = new NineChroniclesTransferredEventMonitor({ blockHash: "0", txId: latestTxId }, mockHeadlessGraphQLClient, "");
+                const monitor = new NineChroniclesTransferredEventMonitor(
+                    { blockHash: "0", txId: latestTxId },
+                    mockHeadlessGraphQLClient,
+                    ""
+                );
                 monitor.attach(mockObserver);
                 monitor.run();
 
@@ -138,7 +190,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 expect(mockObserver.notify.mock.calls.length).toEqual(1);
                 expect(mockObserver.notify.mock.calls[0][0]).toEqual({
                     blockHash: expect.any(String),
-                    events: expectedTxIds.map(x => {
+                    events: expectedTxIds.map((x) => {
                         return {
                             txId: x,
                             blockHash: expect.any(String),
@@ -147,7 +199,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                             sender: expect.any(String),
                             amount: expect.any(String),
                         };
-                    })
+                    }),
                 });
 
                 monitor.stop();

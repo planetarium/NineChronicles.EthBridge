@@ -21,8 +21,8 @@ export class RefundEvent implements Message {
         requestAmount: Decimal,
         refundTxId: TxId,
         refundAmount: Decimal,
-        reason: string)
-    {
+        reason: string
+    ) {
         this._sender = sender;
         this._refundTxId = refundTxId;
         this._refundAmount = refundAmount;
@@ -37,7 +37,7 @@ export class RefundEvent implements Message {
             text: "NCG refund event occurred.",
             attachments: [
                 {
-                    author_name: 'Bridge Event',
+                    author_name: "Bridge Event",
                     color: "#42f5aa",
                     fields: [
                         {
@@ -50,7 +50,10 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Request transaction",
-                            value: combineUrl(this._explorerUrl, `transaction?${this._requestTxId}`),
+                            value: combineUrl(
+                                this._explorerUrl,
+                                `transaction?${this._requestTxId}`
+                            ),
                         },
                         {
                             title: "Request Amount",
@@ -58,16 +61,19 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Refund transaction",
-                            value: combineUrl(this._explorerUrl, `transaction?${this._refundTxId}`),
+                            value: combineUrl(
+                                this._explorerUrl,
+                                `transaction?${this._refundTxId}`
+                            ),
                         },
                         {
                             title: "Refund Amount",
                             value: this._refundAmount.toString(),
                         },
                     ],
-                    fallback: `Refund NCG ${this._refundAmount} in ${this._requestAmount} to ${this._sender}`
-                }
-            ]
-        }
+                    fallback: `Refund NCG ${this._refundAmount} in ${this._requestAmount} to ${this._sender}`,
+                },
+            ],
+        };
     }
 }

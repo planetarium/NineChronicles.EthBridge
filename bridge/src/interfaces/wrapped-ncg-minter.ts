@@ -1,5 +1,5 @@
 import { TransactionReceipt } from "web3-core";
-import Decimal from "decimal.js"
+import Decimal from "decimal.js";
 
 /**
  * A minter of {@link wrapped-ncg-token.ts#wNCGToken | Wrapped NCG} to Ethereum network.

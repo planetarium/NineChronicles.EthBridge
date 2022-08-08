@@ -5,9 +5,11 @@ import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 
 function delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-        setTimeout(() => { resolve() }, ms);
-    })
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve();
+        }, ms);
+    });
 }
 
 interface GraphQLRequestBody {
@@ -69,7 +71,10 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return data.data.chainQuery.blockQuery.block.hash;
     }
 
-    async getNCGTransferredEvents(blockHash: string, recipient: string | null = null): Promise<NCGTransferredEvent[]> {
+    async getNCGTransferredEvents(
+        blockHash: string,
+        recipient: string | null = null
+    ): Promise<NCGTransferredEvent[]> {
         const query = `query GetNCGTransferEvents($blockHash: ByteString!, $recipient: Address!)
         { transferNCGHistories(blockHash: $blockHash, recipient: $recipient) { blockHash txId sender recipient amount memo } }`;
         const { data } = await this.graphqlRequest({
@@ -81,7 +86,12 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return data.data.transferNCGHistories;
     }
 
-    async transfer(recipient: string, amount: string, txNonce: number, memo: string | null): Promise<TxId> {
+    async transfer(
+        recipient: string,
+        amount: string,
+        txNonce: number,
+        memo: string | null
+    ): Promise<TxId> {
         const query = `mutation TransferGold($recipient: Address!, $amount: String!, $txNonce: Long!, $memo: String)
         { transfer(recipient: $recipient, amount: $amount, txNonce: $txNonce, memo: $memo) }`;
         const response = await this.graphqlRequest({
@@ -92,22 +102,27 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
                 amount,
                 txNonce,
                 memo,
-            }});
+            },
+        });
 
         return response.data.data.transfer;
     }
 
     async getNextTxNonce(address: string): Promise<number> {
-        const query = "query GetNextTxNonce($address: Address!) { nextTxNonce(address: $address) } ";
+        const query =
+            "query GetNextTxNonce($address: Address!) { nextTxNonce(address: $address) } ";
         const response = await this.graphqlRequest({
             operationName: "GetNextTxNonce",
             query,
-            variables: { address, }
+            variables: { address },
         });
 
         return response.data.data.nextTxNonce;
     }
-    async createUnsignedTx(plainValue: string, publicKey: string): Promise<string> {
+    async createUnsignedTx(
+        plainValue: string,
+        publicKey: string
+    ): Promise<string> {
         const query = `query CreateUnsignedTx($publicKey: String!, $plainValue: String!)
         {
           transaction {
@@ -117,13 +132,16 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         const response = await this.graphqlRequest({
             operationName: "CreateUnsignedTx",
             query,
-            variables: { publicKey, plainValue }
+            variables: { publicKey, plainValue },
         });
 
         return response.data.data.transaction.createUnsignedTx;
-      }
+    }
 
-    async attachSignature(unsignedTransaction: string, signature: string): Promise<string> {
+    async attachSignature(
+        unsignedTransaction: string,
+        signature: string
+    ): Promise<string> {
         const query = `query AttachSignature($unsignedTransaction: String!, $signature: String!)
         {
           transaction {
@@ -133,7 +151,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         const response = await this.graphqlRequest({
             operationName: "AttachSignature",
             query,
-            variables: { unsignedTransaction, signature }
+            variables: { unsignedTransaction, signature },
         });
 
         return response.data.data.transaction.attachSignature;
@@ -150,17 +168,19 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return response.data.data.stageTx;
     }
 
-    private async graphqlRequest(body: GraphQLRequestBody, retry: number = this._maxRetry): Promise<AxiosResponse> {
+    private async graphqlRequest(
+        body: GraphQLRequestBody,
+        retry: number = this._maxRetry
+    ): Promise<AxiosResponse> {
         try {
-            const response = await axios.post(this._apiEndpoint, body,
-            {
+            const response = await axios.post(this._apiEndpoint, body, {
                 headers: {
                     "Content-Type": "application/json",
                 },
             });
 
             return response;
-        } catch(error) {
+        } catch (error) {
             console.error(`Retrying left ${retry - 1}... error:`, error);
             if (retry > 0) {
                 await delay(500);
@@ -170,6 +190,5 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
 
             throw error;
         }
-
     }
 }

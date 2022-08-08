@@ -25,7 +25,7 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
             tx_id TEXT
         )`;
         return new Promise((resolve, error) => {
-            database.run(CREATE_TABLE_QUERY, e => {
+            database.run(CREATE_TABLE_QUERY, (e) => {
                 if (e) {
                     error();
                 } else {
@@ -35,19 +35,32 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
         });
     }
 
-    store(network: string, transactionLocation: TransactionLocation): Promise<void> {
+    store(
+        network: string,
+        transactionLocation: TransactionLocation
+    ): Promise<void> {
         this.checkClosed();
 
-        const run: (sql: string, params: any[]) => Promise<void> = promisify(this._database.run.bind(this._database));
+        const run: (sql: string, params: any[]) => Promise<void> = promisify(
+            this._database.run.bind(this._database)
+        );
         return run(
             "INSERT OR REPLACE INTO monitor_states(network, block_hash, tx_id) VALUES (?, ?, ?)",
-            [network, transactionLocation.blockHash, transactionLocation.txId]);
+            [network, transactionLocation.blockHash, transactionLocation.txId]
+        );
     }
 
     async load(network: string): Promise<TransactionLocation | null> {
         this.checkClosed();
-        const get: (sql: string, params: any[]) => Promise<{ block_hash: string, tx_id: string } | undefined > = promisify(this._database.get.bind(this._database));
-        const row = await get("SELECT block_hash, tx_id FROM monitor_states WHERE network = ?", [network]);
+        const get: (
+            sql: string,
+            params: any[]
+        ) => Promise<{ block_hash: string; tx_id: string } | undefined> =
+            promisify(this._database.get.bind(this._database));
+        const row = await get(
+            "SELECT block_hash, tx_id FROM monitor_states WHERE network = ?",
+            [network]
+        );
 
         if (row === undefined) {
             return null;
@@ -65,7 +78,9 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
 
     private checkClosed(): void {
         if (this.closed) {
-            throw new Error("This internal SQLite3 database is already closed.");
+            throw new Error(
+                "This internal SQLite3 database is already closed."
+            );
         }
     }
 }

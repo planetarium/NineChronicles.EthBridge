@@ -9,7 +9,7 @@ import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
 import { WrappedEvent } from "../messages/wrapped-event";
 import { RefundEvent } from "../messages/refund-event";
-import Decimal from "decimal.js"
+import Decimal from "decimal.js";
 import { WrappingFailureEvent } from "../messages/wrapping-failure-event";
 import { WrappingRetryIgnoreEvent } from "../messages/wrapping-retry-ignore-event";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
@@ -22,15 +22,25 @@ import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 function isValidAddress(address: string): boolean {
-    return address.startsWith("0x") && isAddress(address) && address !== ZERO_ADDRESS;
+    return (
+        address.startsWith("0x") &&
+        isAddress(address) &&
+        address !== ZERO_ADDRESS
+    );
 }
 
 interface LimitationPolicy {
-    maximum: number,
-    minimum: number,
-};
+    maximum: number;
+    minimum: number;
+}
 
-export class NCGTransferredEventObserver implements IObserver<{ blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }> {
+export class NCGTransferredEventObserver
+    implements
+        IObserver<{
+            blockHash: BlockHash;
+            events: (NCGTransferredEvent & TransactionLocation)[];
+        }>
+{
     private readonly _ncgTransfer: INCGTransfer;
     private readonly _wrappedNcgTransfer: IWrappedNCGMinter;
     private readonly _opensearchClient: OpenSearchClient;
@@ -48,7 +58,20 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
     private readonly _integration: Integration;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackMessageSender: ISlackMessageSender, opensearchClient: OpenSearchClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
+    constructor(
+        ncgTransfer: INCGTransfer,
+        wrappedNcgTransfer: IWrappedNCGMinter,
+        slackMessageSender: ISlackMessageSender,
+        opensearchClient: OpenSearchClient,
+        monitorStateStore: IMonitorStateStore,
+        exchangeHistoryStore: IExchangeHistoryStore,
+        explorerUrl: string,
+        etherscanUrl: string,
+        exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy,
+        limitationPolicy: LimitationPolicy,
+        addressBanPolicy: IAddressBanPolicy,
+        integration: Integration
+    ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -63,11 +86,20 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         this._integration = integration;
     }
 
-    async notify(data: { blockHash: BlockHash, events: (NCGTransferredEvent & TransactionLocation)[] }): Promise<void> {
+    async notify(data: {
+        blockHash: BlockHash;
+        events: (NCGTransferredEvent & TransactionLocation)[];
+    }): Promise<void> {
         const { blockHash, events } = data;
 
         let recorded = false;
-        for (const { blockHash, txId, sender, amount: amountString, memo: recipient, } of events) {
+        for (const {
+            blockHash,
+            txId,
+            sender,
+            amount: amountString,
+            memo: recipient,
+        } of events) {
             try {
                 console.log("Process NineChronicles transaction", txId);
 
@@ -77,7 +109,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 if (await this._exchangeHistoryStore.exist(txId)) {
                     this._slackMessageSender.sendMessage({
-                        ...new WrappingRetryIgnoreEvent(txId).render()
+                        ...new WrappingRetryIgnoreEvent(txId).render(),
                     });
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
@@ -94,21 +126,42 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
                 const maximum = new Decimal(this._limitationPolicy.maximum);
-                const transferredAmountInLast24Hours = new Decimal(await this._exchangeHistoryStore.transferredAmountInLast24Hours("nineChronicles", sender));
-                const maxExchangableAmount = maximum.sub(transferredAmountInLast24Hours);
-                const limitedAmount: Decimal = Decimal.min(maxExchangableAmount, amount);
+                const transferredAmountInLast24Hours = new Decimal(
+                    await this._exchangeHistoryStore.transferredAmountInLast24Hours(
+                        "nineChronicles",
+                        sender
+                    )
+                );
+                const maxExchangableAmount = maximum.sub(
+                    transferredAmountInLast24Hours
+                );
+                const limitedAmount: Decimal = Decimal.min(
+                    maxExchangableAmount,
+                    amount
+                );
 
                 const lessThanMinimum = amount.cmp(minimum) === -1;
-                const alreadyExchangedUptoMaximum = transferredAmountInLast24Hours.cmp(maximum) >= 0;
-                const overflowedExchangeAmount = !alreadyExchangedUptoMaximum && transferredAmountInLast24Hours.add(amount).cmp(maximum) === 1;
+                const alreadyExchangedUptoMaximum =
+                    transferredAmountInLast24Hours.cmp(maximum) >= 0;
+                const overflowedExchangeAmount =
+                    !alreadyExchangedUptoMaximum &&
+                    transferredAmountInLast24Hours.add(amount).cmp(maximum) ===
+                        1;
 
-                const isInvalidRecipient = recipient === null || !isValidAddress(recipient);
+                const isInvalidRecipient =
+                    recipient === null || !isValidAddress(recipient);
                 const isInvalidAmount = !amount.isFinite() || amount.isNaN();
                 const isInvalidTx = isInvalidRecipient || isInvalidAmount;
 
-                const isExchangableTx = !isInvalidTx && !lessThanMinimum && !alreadyExchangedUptoMaximum
+                const isExchangableTx =
+                    !isInvalidTx &&
+                    !lessThanMinimum &&
+                    !alreadyExchangedUptoMaximum;
 
-                await this._monitorStateStore.store("nineChronicles", { blockHash, txId });
+                await this._monitorStateStore.store("nineChronicles", {
+                    blockHash,
+                    txId,
+                });
                 recorded = true;
                 await this._exchangeHistoryStore.put({
                     network: "nineChronicles",
@@ -120,8 +173,22 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 });
 
                 if (isInvalidTx) {
-                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, "I'm bridge and you should transfer with memo, valid ethereum address to receive.");
-                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The memo(${recipient}) is invalid.`).render());
+                    const nineChroniclesTxId = await this._ncgTransfer.transfer(
+                        sender,
+                        amountString,
+                        "I'm bridge and you should transfer with memo, valid ethereum address to receive."
+                    );
+                    await this._slackMessageSender.sendMessage(
+                        new RefundEvent(
+                            this._explorerUrl,
+                            sender,
+                            txId,
+                            amount,
+                            nineChroniclesTxId,
+                            amount,
+                            `The memo(${recipient}) is invalid.`
+                        ).render()
+                    );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
                         cause: "Invalid 9c transaction ID",
@@ -130,18 +197,37 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         recipient: recipient,
                         amount: amount.toNumber(),
                     });
-                    console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
+                    console.log(
+                        "Valid memo doesn't exist so refund NCG. The transaction's id is",
+                        nineChroniclesTxId
+                    );
                     continue;
                 }
 
                 if (amount.eq(0)) {
-                    console.log("It doesn't need any operation because amount is 0.");
+                    console.log(
+                        "It doesn't need any operation because amount is 0."
+                    );
                     continue;
                 }
 
                 if (lessThanMinimum) {
-                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`);
-                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `The amount(${amountString}) is less than ${this._limitationPolicy.minimum}`).render());
+                    const nineChroniclesTxId = await this._ncgTransfer.transfer(
+                        sender,
+                        amountString,
+                        `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
+                    );
+                    await this._slackMessageSender.sendMessage(
+                        new RefundEvent(
+                            this._explorerUrl,
+                            sender,
+                            txId,
+                            amount,
+                            nineChroniclesTxId,
+                            amount,
+                            `The amount(${amountString}) is less than ${this._limitationPolicy.minimum}`
+                        ).render()
+                    );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
                         cause: `Less than minimum transferable amount (${this._limitationPolicy.minimum})`,
@@ -150,14 +236,31 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         recipient: recipient,
                         amount: amount.toNumber(),
                     });
-                    console.log(`The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`, nineChroniclesTxId);
+                    console.log(
+                        `The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`,
+                        nineChroniclesTxId
+                    );
                     continue;
                 }
 
                 // NOTE x.cmp(y) returns -1, means x < y.
                 if (alreadyExchangedUptoMaximum) {
-                    const nineChroniclesTxId = await this._ncgTransfer.transfer(sender, amountString, `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`);
-                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, nineChroniclesTxId, amount, `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`).render());
+                    const nineChroniclesTxId = await this._ncgTransfer.transfer(
+                        sender,
+                        amountString,
+                        `I'm bridge and you can exchange until ${this._limitationPolicy.maximum} for 24 hours.`
+                    );
+                    await this._slackMessageSender.sendMessage(
+                        new RefundEvent(
+                            this._explorerUrl,
+                            sender,
+                            txId,
+                            amount,
+                            nineChroniclesTxId,
+                            amount,
+                            `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`
+                        ).render()
+                    );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
                         cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
@@ -166,7 +269,10 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         recipient: recipient,
                         amount: amount.toNumber(),
                     });
-                    console.log(`${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`, nineChroniclesTxId);
+                    console.log(
+                        `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`,
+                        nineChroniclesTxId
+                    );
                     continue;
                 }
 
@@ -175,10 +281,26 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
 
                 if (overflowedExchangeAmount) {
                     // Should equal with amount - limitedAmount
-                    const refundAmount = transferredAmountInLast24Hours.add(amount).sub(maximum);
+                    const refundAmount = transferredAmountInLast24Hours
+                        .add(amount)
+                        .sub(maximum);
                     const refundAmountString = refundAmount.toString();
-                    refundTxId = await this._ncgTransfer.transfer(sender, refundAmountString, `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`);
-                    await this._slackMessageSender.sendMessage(new RefundEvent(this._explorerUrl, sender, txId, amount, refundTxId, new Decimal(refundAmount), `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`).render());
+                    refundTxId = await this._ncgTransfer.transfer(
+                        sender,
+                        refundAmountString,
+                        `I'm bridge and you should transfer less NCG than ${this._limitationPolicy.maximum}.`
+                    );
+                    await this._slackMessageSender.sendMessage(
+                        new RefundEvent(
+                            this._explorerUrl,
+                            sender,
+                            txId,
+                            amount,
+                            refundTxId,
+                            new Decimal(refundAmount),
+                            `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`
+                        ).render()
+                    );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
                         cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
@@ -189,16 +311,24 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                         recipient: recipient,
                         amount: amount.toNumber(),
                     });
-                    console.log(`${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
+                    console.log(
+                        `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`,
+                        refundTxId
+                    );
                 }
 
-                const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee(sender);
+                const exchangeFeeRatio =
+                    this._exchangeFeeRatioPolicy.getFee(sender);
                 if (exchangeFeeRatio === false) {
-                    throw new Error(`Failed to get exchange fee ratio for ${sender}`);
+                    throw new Error(
+                        `Failed to get exchange fee ratio for ${sender}`
+                    );
                 }
 
                 // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
-                const fee = new Decimal(limitedAmount.mul(exchangeFeeRatio).toFixed(2));
+                const fee = new Decimal(
+                    limitedAmount.mul(exchangeFeeRatio).toFixed(2)
+                );
                 const exchangeAmount = limitedAmount.sub(fee);
                 const ethereumExchangeAmount = exchangeAmount.mul(decimals);
 
@@ -207,20 +337,45 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 console.log("exchangeAmount", exchangeAmount);
 
                 // FIXME: Hard-coded.
-                let transactionHash
+                let transactionHash;
                 // https://explorer.libplanet.io/9c-main/block/?52573abd5e04d933a84f171745ce39c1d3e17cefe8aab12f62172f7710a3bd01
-                if(blockHash === "52573abd5e04d933a84f171745ce39c1d3e17cefe8aab12f62172f7710a3bd01") {
-                  transactionHash = "0x79eb4190dddc6f25807e6f6fc8c4311e45e5882463ecaf5c07c85fe8bc4b3760";
-                // https://explorer.libplanet.io/9c-main/block/?4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c
-                } else if(blockHash === "4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c") {
-                  transactionHash = "0xc60146f55fd24323de2e2efbd66743317ac9601aa648daf9d78069661635c306";
+                if (
+                    blockHash ===
+                    "52573abd5e04d933a84f171745ce39c1d3e17cefe8aab12f62172f7710a3bd01"
+                ) {
+                    transactionHash =
+                        "0x79eb4190dddc6f25807e6f6fc8c4311e45e5882463ecaf5c07c85fe8bc4b3760";
+                    // https://explorer.libplanet.io/9c-main/block/?4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c
+                } else if (
+                    blockHash ===
+                    "4a3e74ffb45a317085c5bde76159069db42ff04d45f62d64cbac4ac1e5ec503c"
+                ) {
+                    transactionHash =
+                        "0xc60146f55fd24323de2e2efbd66743317ac9601aa648daf9d78069661635c306";
                 } else {
-                  const { transactionHash: txHash } = await this._wrappedNcgTransfer.mint(recipient!, ethereumExchangeAmount);
-                  transactionHash = txHash;
+                    const { transactionHash: txHash } =
+                        await this._wrappedNcgTransfer.mint(
+                            recipient!,
+                            ethereumExchangeAmount
+                        );
+                    transactionHash = txHash;
                 }
 
                 console.log("Receipt", transactionHash);
-                await this._slackMessageSender.sendMessage(new WrappedEvent(this._explorerUrl, this._etherscanUrl, sender, recipient!, exchangeAmount.toString(), txId, transactionHash, fee, refundAmount, refundTxId).render());
+                await this._slackMessageSender.sendMessage(
+                    new WrappedEvent(
+                        this._explorerUrl,
+                        this._etherscanUrl,
+                        sender,
+                        recipient!,
+                        exchangeAmount.toString(),
+                        txId,
+                        transactionHash,
+                        fee,
+                        refundAmount,
+                        refundTxId
+                    ).render()
+                );
                 await this._opensearchClient.to_opensearch("info", {
                     content: "NCG -> wNCG request success",
                     libplanetTxId: txId,
@@ -231,7 +386,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     amount: exchangeAmount.toNumber(),
                 });
             } catch (e) {
-                console.log("EERRRR", e)
+                console.log("EERRRR", e);
                 let errorMessage: string;
                 if (e instanceof Error) {
                     errorMessage = String(e);
@@ -240,7 +395,16 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                 }
 
                 // TODO: it should be replaced with `Integration` Slack implementation.
-                await this._slackMessageSender.sendMessage(new WrappingFailureEvent(this._explorerUrl, sender, String(recipient), amountString, txId, errorMessage).render());
+                await this._slackMessageSender.sendMessage(
+                    new WrappingFailureEvent(
+                        this._explorerUrl,
+                        sender,
+                        String(recipient),
+                        amountString,
+                        txId,
+                        errorMessage
+                    ).render()
+                );
                 await this._opensearchClient.to_opensearch("error", {
                     content: "NCG -> wNCG request failure",
                     cause: errorMessage,
@@ -249,18 +413,24 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     recipient: recipient,
                     amount: amountString,
                 });
-                await this._integration.error("Unexpected error during wrapping NCG", {
-                    errorMessage,
-                    sender,
-                    recipient,
-                    txId,
-                    amountString,
-                });
+                await this._integration.error(
+                    "Unexpected error during wrapping NCG",
+                    {
+                        errorMessage,
+                        sender,
+                        recipient,
+                        txId,
+                        amountString,
+                    }
+                );
             }
         }
 
         if (!recorded) {
-            await this._monitorStateStore.store("nineChronicles", { blockHash, txId: null });
+            await this._monitorStateStore.store("nineChronicles", {
+                blockHash,
+                txId: null,
+            });
         }
     }
 }

@@ -21,7 +21,7 @@ export class ZeroExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
     private readonly _address: Address;
 
     constructor(address: Address) {
-        this._address = address
+        this._address = address;
     }
 
     getFee(address: string): Decimal | false {

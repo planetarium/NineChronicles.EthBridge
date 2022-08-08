@@ -1,5 +1,5 @@
 import Web3 from "web3";
-import { Contract, EventData } from 'web3-eth-contract';
+import { Contract, EventData } from "web3-eth-contract";
 import { TriggerableMonitor } from "./triggerable-monitor";
 import { ContractDescription } from "../types/contract-description";
 import { TransactionLocation } from "../types/transaction-location";
@@ -12,16 +12,26 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
 
-    constructor(web3: Web3, contractDescription: ContractDescription, latestTransactionLocation: TransactionLocation | null, confirmations: number) {
+    constructor(
+        web3: Web3,
+        contractDescription: ContractDescription,
+        latestTransactionLocation: TransactionLocation | null,
+        confirmations: number
+    ) {
         super(latestTransactionLocation);
 
         this._web3 = web3;
-        this._contract = new this._web3.eth.Contract(contractDescription.abi, contractDescription.address);
+        this._contract = new this._web3.eth.Contract(
+            contractDescription.abi,
+            contractDescription.address
+        );
         this._contractDescription = contractDescription;
         this._confirmations = confirmations;
     }
     protected async processRemains(transactionLocation: TransactionLocation) {
-        const blockIndex = await this.getBlockIndex(transactionLocation.blockHash);
+        const blockIndex = await this.getBlockIndex(
+            transactionLocation.blockHash
+        );
         const events = await this.getEvents(blockIndex);
         const returnEvents = [];
         let skip: boolean = true;
@@ -36,7 +46,15 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
             }
         }
 
-        return { nextBlockIndex: blockIndex + this._confirmations, remainedEvents: [{ blockHash: transactionLocation.blockHash, events: returnEvents }] };
+        return {
+            nextBlockIndex: blockIndex + this._confirmations,
+            remainedEvents: [
+                {
+                    blockHash: transactionLocation.blockHash,
+                    events: returnEvents,
+                },
+            ],
+        };
     }
 
     protected triggerredBlocks(blockIndex: number): number[] {
@@ -64,18 +82,19 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
 
     protected async getEvents(blockIndex: number) {
         // 0xc3599666213715dfabdf658c56a97b9adfad2cd9689690c70c79b20bc61940c9
-        const BURN_EVENT_HASH = Web3.utils.sha3("Burn(address,bytes32,uint256)");
-        const pastEvents = await this._contract
-            .getPastEvents(BURN_EVENT_NAME, {
-                address: this._contractDescription.address,
-                topics: [BURN_EVENT_HASH],
-                fromBlock: blockIndex,
-                toBlock: blockIndex,
-            });
-        return pastEvents.map(x => {
+        const BURN_EVENT_HASH = Web3.utils.sha3(
+            "Burn(address,bytes32,uint256)"
+        );
+        const pastEvents = await this._contract.getPastEvents(BURN_EVENT_NAME, {
+            address: this._contractDescription.address,
+            topics: [BURN_EVENT_HASH],
+            fromBlock: blockIndex,
+            toBlock: blockIndex,
+        });
+        return pastEvents.map((x) => {
             return {
                 txId: x.transactionHash,
-                ...x
+                ...x,
             };
         });
     }

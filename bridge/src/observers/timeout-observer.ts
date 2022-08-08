@@ -8,7 +8,11 @@ export class TimeoutObserver implements IObserver<unknown> {
     private readonly _integration: Integration;
     private readonly _nodeKind: "nine-chronicles" | "ethereum";
 
-    constructor(integration: Integration, timeoutMilliseconds: number, nodeKind: "nine-chronicles" | "ethereum") {
+    constructor(
+        integration: Integration,
+        timeoutMilliseconds: number,
+        nodeKind: "nine-chronicles" | "ethereum"
+    ) {
         this._integration = integration;
         this._timeoutMilliseconds = timeoutMilliseconds;
         this._nodeKind = nodeKind;
