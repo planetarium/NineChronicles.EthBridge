@@ -9,6 +9,7 @@ import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-sto
 import { IAddressBanPolicy } from "../../src/policies/address-ban";
 import { Integration } from "../../src/integrations";
 import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
+import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -64,7 +65,7 @@ describe(NCGTransferredEventObserver.name, () => {
         store: jest.fn(),
     };
 
-    const exchangeFeeRatio = new Decimal(0.01);
+    const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(new Decimal(0.01));
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
@@ -84,7 +85,7 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackMessageSender, mockOpenSearchClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatio, limitationPolicy, addressBanPolicy, mockIntegration);
+    const observer = new NCGTransferredEventObserver(mockNcgTransfer, mockWrappedNcgMinter, mockSlackMessageSender, mockOpenSearchClient, mockMonitorStateStore, mockExchangeHistoryStore, "https://explorer.libplanet.io/9c-internal", "https://ropsten.etherscan.io", exchangeFeeRatioPolicy, limitationPolicy, addressBanPolicy, mockIntegration);
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
         beforeEach(() => {

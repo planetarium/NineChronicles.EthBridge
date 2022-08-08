@@ -16,6 +16,7 @@ import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
+import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -41,13 +42,13 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
     /**
      * The fee ratio requried to exchange. This should be float value like 0.01.
      */
-    private readonly _exchangeFeeRatio: Decimal;
+    private readonly _exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy;
     private readonly _limitationPolicy: LimitationPolicy;
     private readonly _addressBanPolicy: IAddressBanPolicy;
 
     private readonly _integration: Integration;
 
-    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackMessageSender: ISlackMessageSender, opensearchClient: OpenSearchClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatio: Decimal, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
+    constructor(ncgTransfer: INCGTransfer, wrappedNcgTransfer: IWrappedNCGMinter, slackMessageSender: ISlackMessageSender, opensearchClient: OpenSearchClient, monitorStateStore: IMonitorStateStore, exchangeHistoryStore: IExchangeHistoryStore, explorerUrl: string, etherscanUrl: string, exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy, limitationPolicy: LimitationPolicy, addressBanPolicy: IAddressBanPolicy, integration: Integration) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -56,7 +57,7 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
         this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
         this._etherscanUrl = etherscanUrl;
-        this._exchangeFeeRatio = exchangeFeeRatio;
+        this._exchangeFeeRatioPolicy = exchangeFeeRatioPolicy;
         this._limitationPolicy = limitationPolicy;
         this._addressBanPolicy = addressBanPolicy;
         this._integration = integration;
@@ -191,8 +192,13 @@ export class NCGTransferredEventObserver implements IObserver<{ blockHash: Block
                     console.log(`${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`, refundTxId);
                 }
 
+                const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee(sender);
+                if (exchangeFeeRatio === false) {
+                    throw new Error(`Failed to get exchange fee ratio for ${sender}`);
+                }
+
                 // If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
-                const fee = new Decimal(limitedAmount.mul(this._exchangeFeeRatio).toFixed(2));
+                const fee = new Decimal(limitedAmount.mul(exchangeFeeRatio).toFixed(2));
                 const exchangeAmount = limitedAmount.sub(fee);
                 const ethereumExchangeAmount = exchangeAmount.mul(decimals);
 
