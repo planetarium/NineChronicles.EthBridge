@@ -1,25 +1,18 @@
-import {
-    ChatPostMessageResponse,
-    WebClient,
-} from "@slack/web-api";
+import { ChatPostMessageResponse } from "@slack/web-api";
 import { ISlackMessageSender } from "./interfaces/slack-message-sender";
 import { Message } from "./messages";
+import { ISlackChannel } from "./slack-channel";
 
 export class SlackMessageSender implements ISlackMessageSender {
-    private readonly _webClient: WebClient;
-    private readonly _channel: string;
+    private readonly _channel: ISlackChannel;
 
-    constructor(webClient: WebClient, channel: string) {
-        this._webClient = webClient;
+    constructor(channel: ISlackChannel) {
         this._channel = channel;
     }
 
     async sendMessage<T extends Message>(
         message: T
     ): Promise<ChatPostMessageResponse> {
-        return this._webClient.chat.postMessage({
-            channel: this._channel,
-            ...message.render(),
-        });
+        return this._channel.sendMessage(message.render());
     }
 }
