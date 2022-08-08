@@ -38,6 +38,7 @@ import {
     FixedExchangeFeeRatioPolicy,
     ZeroExchangeFeeRatioPolicy,
 } from "./policies/exchange-fee-ratio";
+import { SlackChannel } from "./slack-channel";
 
 consoleStamp(console);
 
@@ -247,10 +248,8 @@ process.on("uncaughtException", console.error);
         "0xa86E321048C397C0f7f23C65B1EE902AFE24644e",
     ]);
 
-    const slackMessageSender = new SlackMessageSender(
-        slackWebClient,
-        SLACK_CHANNEL_NAME
-    );
+    const slackChannel = new SlackChannel(slackWebClient, SLACK_CHANNEL_NAME);
+    const slackMessageSender = new SlackMessageSender(slackChannel);
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(
         ncgKmsTransfer,
         slackMessageSender,

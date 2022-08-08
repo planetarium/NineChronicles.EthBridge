@@ -90,7 +90,7 @@ export class EthereumBurnEventObserver
                         amountString,
                         nineChroniclesTxId,
                         transactionHash
-                    ).render()
+                    )
                 );
                 await this._opensearchClient.to_opensearch("info", {
                     content: "wNCG -> NCG request success",
@@ -110,7 +110,7 @@ export class EthereumBurnEventObserver
                         amountString,
                         transactionHash,
                         String(e)
-                    ).render()
+                    )
                 );
                 await this._opensearchClient.to_opensearch("error", {
                     content: "wNCG -> NCG request failure",
