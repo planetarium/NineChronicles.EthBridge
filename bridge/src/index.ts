@@ -28,6 +28,7 @@ import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
 import { SlackMessageSender } from "./slack-message-sender";
 import { TimeoutObserver } from "./observers/timeout-observer";
+import { ExchnageFeePolicies, FixedExchangeFeeRatioPolicy, ZeroExchangeFeeRatioPolicy } from "./policies/exchange-fee-ratio";
 
 consoleStamp(console);
 
@@ -75,6 +76,8 @@ process.on("uncaughtException", console.error);
     const PAGERDUTY_ROUTING_KEY: string = Configuration.get("PAGERDUTY_ROUTING_KEY", true, "string");;
 
     const STAGE_HEADLESSES: string[] = Configuration.get("STAGE_HEADLESSES").split(",");
+
+    const ZERO_EXCHANGE_FEE_RATIO_ADDRESSES: string[] = Configuration.get("ZERO_EXCHANGE_FEE_ADDRESSES", false, "string")?.split(",") || [];
 
     const CONFIRMATIONS = 10;
 
@@ -158,8 +161,12 @@ process.on("uncaughtException", console.error);
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
     ethereumBurnEventMonitor.attach(ethereumTimeoutObserver);
 
-    const ncgExchangeFeeRatio = new Decimal(0.01);  // 1%
-    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackMessageSender, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatio, {
+    const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
+        ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(address => new ZeroExchangeFeeRatioPolicy(address)),
+        new FixedExchangeFeeRatioPolicy(new Decimal(0.01))
+    ]);
+
+    const ncgTransferredEventObserver = new NCGTransferredEventObserver(ncgKmsTransfer, minter, slackMessageSender, opensearchClient, monitorStateStore, exchangeHistoryStore, EXPLORER_ROOT_URL, ETHERSCAN_ROOT_URL, ncgExchangeFeeRatioPolicy, {
         maximum: MAXIMUM_NCG,
         minimum: MINIMUM_NCG,
     }, addressBanPolicy, integration);
