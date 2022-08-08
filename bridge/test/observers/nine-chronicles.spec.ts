@@ -10,6 +10,8 @@ import { IAddressBanPolicy } from "../../src/policies/address-ban";
 import { Integration } from "../../src/integrations";
 import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
+import { ISlackChannel } from "../../src/slack-channel";
+import { SlackMessageSender } from "../../src/slack-message-sender";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -48,9 +50,12 @@ describe(NCGTransferredEventObserver.name, () => {
         }),
     };
 
-    const mockSlackMessageSender: jest.Mocked<ISlackMessageSender> = {
+    const mockSlackChannel: jest.Mocked<ISlackChannel> = {
         sendMessage: jest.fn(),
     };
+    const mockSlackMessageSender: ISlackMessageSender = new SlackMessageSender(
+        mockSlackChannel
+    );
 
     const mockOpenSearchClient = new OpenSearchClient(
         "https://www.random-url.com",
@@ -571,9 +576,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch refund error message - snapshot", async () => {
@@ -600,9 +603,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch object error message - snapshot", async () => {
@@ -631,9 +632,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch ethereum transfer error message - snapshot", async () => {
@@ -660,9 +659,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("pagerduty ethereum transfer error message - snapshot", async () => {
@@ -710,9 +707,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
     });
 });

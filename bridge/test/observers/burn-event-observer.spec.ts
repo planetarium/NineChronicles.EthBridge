@@ -7,6 +7,8 @@ import { EthereumBurnEventObserver } from "../../src/observers/burn-event-observ
 import { TransactionLocation } from "../../src/types/transaction-location";
 import { Integration } from "../../src/integrations";
 import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
+import { SlackMessageSender } from "../../src/slack-message-sender";
+import { ISlackChannel } from "../../src/slack-channel";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -39,9 +41,12 @@ describe(EthereumBurnEventObserver.name, () => {
         transfer: jest.fn().mockResolvedValue("TX-HASH"),
     };
 
-    const mockSlackMessageSender: jest.Mocked<ISlackMessageSender> = {
+    const mockSlackChannel: jest.Mocked<ISlackChannel> = {
         sendMessage: jest.fn(),
     };
+    const mockSlackMessageSender: ISlackMessageSender = new SlackMessageSender(
+        mockSlackChannel
+    );
 
     const mockOpenSearchClient = new OpenSearchClient(
         "https://www.random-url.com",
@@ -174,9 +179,7 @@ describe(EthereumBurnEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("slack/opensearch 9c transfer error message - snapshot", async () => {
@@ -216,9 +219,7 @@ describe(EthereumBurnEventObserver.name, () => {
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
-            expect(
-                mockSlackMessageSender.sendMessage.mock.calls
-            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
         it("pagerduty 9c transfer error message - snapshot", async () => {
