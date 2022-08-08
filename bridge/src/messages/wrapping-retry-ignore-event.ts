@@ -15,7 +15,7 @@ export class WrappingRetryIgnoreEvent implements Message {
             text: "NCG → wNCG event already seems executed so it skipped.",
             attachments: [
                 {
-                    author_name: 'Bridge Warning',
+                    author_name: "Bridge Warning",
                     color: "#ffcc00",
                     fields: [
                         {
@@ -23,9 +23,9 @@ export class WrappingRetryIgnoreEvent implements Message {
                             value: this._txId,
                         },
                     ],
-                    fallback: `NCG → wNCG event already seems executed so it skipped.`
-                }
-            ]
-        }
+                    fallback: `NCG → wNCG event already seems executed so it skipped.`,
+                },
+            ],
+        };
     }
 }

@@ -1,6 +1,6 @@
-import { AbiItem } from 'web3-utils';
+import { AbiItem } from "web3-utils";
 
 export interface ContractDescription {
-    abi: AbiItem | AbiItem[],
-    address: string,
-};
+    abi: AbiItem | AbiItem[];
+    address: string;
+}

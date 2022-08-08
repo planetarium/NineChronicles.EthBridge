@@ -1,11 +1,11 @@
 import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
 import { INCGTransfer } from "./interfaces/ncg-transfer";
 import { TxId } from "./types/txid";
-import { Mutex } from 'async-mutex';
+import { Mutex } from "async-mutex";
 import { encode } from "bencodex";
 import web3 from "web3";
 import crypto from "crypto";
-import { KMSNCGSigner } from "./kms-ncg-signer"
+import { KMSNCGSigner } from "./kms-ncg-signer";
 import { Address } from "./types/address";
 import Decimal from "decimal.js";
 
@@ -29,7 +29,13 @@ export class NCGKMSTransfer implements INCGTransfer {
      * @param minters A list of minters' addresses.
      * @param kmsSigner A signer to sign transaction
      */
-    constructor(headlessGraphQLCLients: IHeadlessGraphQLClient[], address: Address, publicKey: string, minters: [Address], kmsSigner: KMSNCGSigner) {
+    constructor(
+        headlessGraphQLCLients: IHeadlessGraphQLClient[],
+        address: Address,
+        publicKey: string,
+        minters: [Address],
+        kmsSigner: KMSNCGSigner
+    ) {
         this._headlessGraphQLCLients = headlessGraphQLCLients;
         this._address = address;
         this._publicKey = publicKey;
@@ -42,7 +48,11 @@ export class NCGKMSTransfer implements INCGTransfer {
         return this._headlessGraphQLCLients[0];
     }
 
-    async transfer(address: string, amount: string, memo: string | null): Promise<TxId> {
+    async transfer(
+        address: string,
+        amount: string,
+        memo: string | null
+    ): Promise<TxId> {
         // If 0.01 came as `amount`, expect 1.
         // If 50.00 came as `amount`, expect 5000.
         // If 50.011 came as `amount`, expect 5001.
@@ -56,33 +66,58 @@ export class NCGKMSTransfer implements INCGTransfer {
                     amount: [
                         {
                             decimalPlaces: Buffer.from([0x02]),
-                            minters: this._minters.map(x => Buffer.from(web3.utils.hexToBytes(x))),
-                            ticker: 'NCG'
+                            minters: this._minters.map((x) =>
+                                Buffer.from(web3.utils.hexToBytes(x))
+                            ),
+                            ticker: "NCG",
                         },
-                        ncgAmount
+                        ncgAmount,
                     ],
                     ...(memo === null ? {} : { memo }),
                     recipient: Buffer.from(web3.utils.hexToBytes(address)),
-                    sender: Buffer.from(web3.utils.hexToBytes(this._address))
-                }
+                    sender: Buffer.from(web3.utils.hexToBytes(this._address)),
+                },
             };
-            const unsignedTx = await this.headlessGraphQLClient.createUnsignedTx(encode(plainValue).toString('base64'), this._publicKey);
-            const unsignedTxId = crypto.createHash('sha256').update(unsignedTx, 'base64').digest();
+            const unsignedTx =
+                await this.headlessGraphQLClient.createUnsignedTx(
+                    encode(plainValue).toString("base64"),
+                    this._publicKey
+                );
+            const unsignedTxId = crypto
+                .createHash("sha256")
+                .update(unsignedTx, "base64")
+                .digest();
             const sign = await this._signer.sign(unsignedTxId);
-            const base64Sign = sign.toString('base64');
-            const tx = await this.headlessGraphQLClient.attachSignature(unsignedTx, base64Sign);
-            const stageResults = await Promise.all(this._headlessGraphQLCLients.map(client => client.stageTx(tx).then(success => {
-                console.log(`It was ${success} to stage ${tx} to ${client.endpoint} endpoint`);
-                return success;
-            }).catch(error => {
-                console.error(error);
-                return false;
-            })));
+            const base64Sign = sign.toString("base64");
+            const tx = await this.headlessGraphQLClient.attachSignature(
+                unsignedTx,
+                base64Sign
+            );
+            const stageResults = await Promise.all(
+                this._headlessGraphQLCLients.map((client) =>
+                    client
+                        .stageTx(tx)
+                        .then((success) => {
+                            console.log(
+                                `It was ${success} to stage ${tx} to ${client.endpoint} endpoint`
+                            );
+                            return success;
+                        })
+                        .catch((error) => {
+                            console.error(error);
+                            return false;
+                        })
+                )
+            );
             const successAtLeastOne = stageResults.reduce((a, b) => a || b);
             if (!successAtLeastOne) {
-                throw new Error('Failed to stage transaction');
+                throw new Error("Failed to stage transaction");
             }
-            const txId = crypto.createHash('sha256').update(tx, 'base64').digest().toString("hex");
+            const txId = crypto
+                .createHash("sha256")
+                .update(tx, "base64")
+                .digest()
+                .toString("hex");
             return txId;
         });
     }

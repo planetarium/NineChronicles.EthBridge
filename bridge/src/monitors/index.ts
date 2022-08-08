@@ -1,7 +1,10 @@
 import { BlockHash } from "../types/block-hash";
 import { IObserver } from "../observers";
 
-type IMonitorObserver<TEvent> = IObserver<{ blockHash: BlockHash, events: TEvent[] }>;
+type IMonitorObserver<TEvent> = IObserver<{
+    blockHash: BlockHash;
+    events: TEvent[];
+}>;
 
 export abstract class Monitor<TEvent> {
     private readonly _observers: Map<Symbol, IMonitorObserver<TEvent>>;
@@ -26,12 +29,15 @@ export abstract class Monitor<TEvent> {
         this.running = false;
     }
 
-    abstract loop(): AsyncIterableIterator<{ blockHash: string, events: TEvent[] }>;
+    abstract loop(): AsyncIterableIterator<{
+        blockHash: string;
+        events: TEvent[];
+    }>;
 
     private async startMonitoring(): Promise<void> {
         const loop = this.loop();
         while (this.running) {
-            const { value }  = await loop.next();
+            const { value } = await loop.next();
             for (const observer of this._observers.values()) {
                 await observer.notify(value);
             }

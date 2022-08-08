@@ -20,7 +20,7 @@ export class PagerDutyIntegration implements Integration {
                     summary: summary,
                     custom_details: error,
                 },
-            }
+            },
         });
     }
 }

@@ -21,6 +21,8 @@ jobs:
             ${{ runner.os }}-node-
       - run: npm install
         working-directory: ./bridge
+      - run: yarn prettier --check src test
+        working-directory: ./bridge
       - run: npx tsc
         working-directory: ./bridge
       - run: npm run coverage

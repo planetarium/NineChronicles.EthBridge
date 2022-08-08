@@ -18,7 +18,8 @@ describe(NCGKMSTransfer.name, () => {
         stageTx: jest.fn(),
     };
     const mockAddress = "0x0000000000000000000000000000000000000000";
-    const mockPublicKey = "BB/RQoardpERFnzxZs05Tj0Lq2gpyOGJUZ4nn6Oq1XnlkPRq1LN5HQqPdIOgYV73MbaSfW+VwPVpbtf/ViX51OE=";
+    const mockPublicKey =
+        "BB/RQoardpERFnzxZs05Tj0Lq2gpyOGJUZ4nn6Oq1XnlkPRq1LN5HQqPdIOgYV73MbaSfW+VwPVpbtf/ViX51OE=";
     const mockNcgMinterAddress = "0x99DF57BF45240C8a87615B0C884007501395d526";
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "TEST_KMS_PROVIDER_KEY_ID"
@@ -37,7 +38,10 @@ describe(NCGKMSTransfer.name, () => {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
     });
-    const headlessGraphQLCLient = new HeadlessGraphQLClient(Configuration.get("TEST_GRAPHQL_API_ENDPOINT"), 5);
+    const headlessGraphQLCLient = new HeadlessGraphQLClient(
+        Configuration.get("TEST_GRAPHQL_API_ENDPOINT"),
+        5
+    );
     const ncgKmsTransfer = new NCGKMSTransfer(
         [headlessGraphQLCLient],
         mockAddress,

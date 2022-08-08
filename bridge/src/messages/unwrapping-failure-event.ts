@@ -18,7 +18,8 @@ export class UnwrappingFailureEvent implements Message {
         recipient: Address,
         amount: string,
         txId: TxId,
-        error: string) {
+        error: string
+    ) {
         this._url = url;
         this._sender = sender;
         this._recipient = recipient;
@@ -32,7 +33,7 @@ export class UnwrappingFailureEvent implements Message {
             text: "wNCG → NCG event failed.",
             attachments: [
                 {
-                    author_name: 'Bridge Error',
+                    author_name: "Bridge Error",
                     color: "#ff0033",
                     fields: [
                         {
@@ -49,16 +50,16 @@ export class UnwrappingFailureEvent implements Message {
                         },
                         {
                             title: "amount",
-                            value: this._amount
+                            value: this._amount,
                         },
                         {
                             title: "error",
-                            value: this._error
-                        }
+                            value: this._error,
+                        },
                     ],
-                    fallback: `wNCG ${this._sender} → NCG ${this._recipient} failed`
-                }
-            ]
-        }
+                    fallback: `wNCG ${this._sender} → NCG ${this._recipient} failed`,
+                },
+            ],
+        };
     }
 }

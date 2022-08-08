@@ -25,7 +25,7 @@ export class WrappedEvent extends WrappingEvent {
         ethereumTransactionHash: string,
         fee: Decimal,
         refundAmount: string | null,
-        refundTxId: TxId | null,
+        refundTxId: TxId | null
     ) {
         super(explorerUrl, etherscanUrl);
 
@@ -40,23 +40,24 @@ export class WrappedEvent extends WrappingEvent {
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
-        const refundFields = this._refundAmount !== null && this._refundTxId !== null
-            ? [
-                 {
-                     title: "refund amount",
-                     value: this._refundAmount,
-                 },
-                 {
-                     title: "refund transaction",
-                     value: this.toExplorerUrl(this._refundTxId),
-                 },
-             ]
-             : [];
+        const refundFields =
+            this._refundAmount !== null && this._refundTxId !== null
+                ? [
+                      {
+                          title: "refund amount",
+                          value: this._refundAmount,
+                      },
+                      {
+                          title: "refund transaction",
+                          value: this.toExplorerUrl(this._refundTxId),
+                      },
+                  ]
+                : [];
         return {
             text: "NCG → wNCG event occurred.",
             attachments: [
                 {
-                    author_name: 'Bridge Event',
+                    author_name: "Bridge Event",
                     color: "#42f5aa",
                     fields: [
                         {
@@ -65,7 +66,9 @@ export class WrappedEvent extends WrappingEvent {
                         },
                         {
                             title: "Ethereum network transaction",
-                            value: this.toEtherscanUrl(this._ethereumTransactionHash),
+                            value: this.toEtherscanUrl(
+                                this._ethereumTransactionHash
+                            ),
                         },
                         {
                             title: "sender (NineChronicles)",
@@ -77,17 +80,17 @@ export class WrappedEvent extends WrappingEvent {
                         },
                         {
                             title: "amount",
-                            value: this._exchangeAmount
+                            value: this._exchangeAmount,
                         },
                         {
                             title: "fee",
-                            value: this._fee.toString()
+                            value: this._fee.toString(),
                         },
-                        ...refundFields
+                        ...refundFields,
                     ],
-                    fallback: `NCG ${this._sender} → wNCG ${this._recipient}`
-                }
-            ]
-        }
+                    fallback: `NCG ${this._sender} → wNCG ${this._recipient}`,
+                },
+            ],
+        };
     }
 }

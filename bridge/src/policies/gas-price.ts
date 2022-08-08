@@ -30,7 +30,7 @@ export class GasPricePolicies implements IGasPricePolicy {
 
         return gasPrice;
     }
-};
+}
 
 export class GasPriceLimitPolicy implements IGasPricePolicy {
     private readonly _maximumGasPrice: Decimal;
@@ -42,4 +42,4 @@ export class GasPriceLimitPolicy implements IGasPricePolicy {
     calculateGasPrice(gasPrice: Decimal): Decimal {
         return Decimal.min(gasPrice, this._maximumGasPrice);
     }
-};
+}

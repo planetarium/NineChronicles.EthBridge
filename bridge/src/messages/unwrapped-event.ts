@@ -34,7 +34,7 @@ export class UnwrappedEvent extends WrappingEvent {
             text: "wNCG → NCG event occurred.",
             attachments: [
                 {
-                    author_name: 'Bridge Event',
+                    author_name: "Bridge Event",
                     color: "#42f5aa",
                     fields: [
                         {
@@ -43,7 +43,9 @@ export class UnwrappedEvent extends WrappingEvent {
                         },
                         {
                             title: "Ethereum network transaction",
-                            value: this.toEtherscanUrl(this._ethereumTransactionHash),
+                            value: this.toEtherscanUrl(
+                                this._ethereumTransactionHash
+                            ),
                         },
                         {
                             title: "sender (Ethereum)",
@@ -55,12 +57,12 @@ export class UnwrappedEvent extends WrappingEvent {
                         },
                         {
                             title: "amount",
-                            value: this._amount
-                        }
+                            value: this._amount,
+                        },
                     ],
-                    fallback: `wNCG ${this._sender} → NCG ${this._recipient}`
-                }
-            ]
-        }
+                    fallback: `wNCG ${this._sender} → NCG ${this._recipient}`,
+                },
+            ],
+        };
     }
 }

@@ -19,13 +19,17 @@ describe(NCGTransfer.name, () => {
 
     describe(NCGTransfer.prototype.transfer.name, () => {
         it("should transfer", async () => {
-            await ncgTransfer.transfer("0x1111111111111111111111111111111111111111", "1.12", null);
+            await ncgTransfer.transfer(
+                "0x1111111111111111111111111111111111111111",
+                "1.12",
+                null
+            );
             expect(mockHeadlessGraphQlClient.transfer).toHaveBeenCalledWith(
                 "0x1111111111111111111111111111111111111111",
                 "1.12",
                 0,
                 null
-            )
+            );
         });
     });
 });
