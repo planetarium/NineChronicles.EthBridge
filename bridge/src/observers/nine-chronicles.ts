@@ -108,9 +108,9 @@ export class NCGTransferredEventObserver
                 }
 
                 if (await this._exchangeHistoryStore.exist(txId)) {
-                    this._slackMessageSender.sendMessage({
-                        ...new WrappingRetryIgnoreEvent(txId).render(),
-                    });
+                    this._slackMessageSender.sendMessage(
+                        new WrappingRetryIgnoreEvent(txId)
+                    );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
                         cause: "Exchange history exist",
@@ -187,7 +187,7 @@ export class NCGTransferredEventObserver
                             nineChroniclesTxId,
                             amount,
                             `The memo(${recipient}) is invalid.`
-                        ).render()
+                        )
                     );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
@@ -226,7 +226,7 @@ export class NCGTransferredEventObserver
                             nineChroniclesTxId,
                             amount,
                             `The amount(${amountString}) is less than ${this._limitationPolicy.minimum}`
-                        ).render()
+                        )
                     );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
@@ -259,7 +259,7 @@ export class NCGTransferredEventObserver
                             nineChroniclesTxId,
                             amount,
                             `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}.`
-                        ).render()
+                        )
                     );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
@@ -299,7 +299,7 @@ export class NCGTransferredEventObserver
                             refundTxId,
                             new Decimal(refundAmount),
                             `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}`
-                        ).render()
+                        )
                     );
                     this._opensearchClient.to_opensearch("error", {
                         content: "NCG -> wNCG request failure",
@@ -374,7 +374,7 @@ export class NCGTransferredEventObserver
                         fee,
                         refundAmount,
                         refundTxId
-                    ).render()
+                    )
                 );
                 await this._opensearchClient.to_opensearch("info", {
                     content: "NCG -> wNCG request success",
@@ -403,7 +403,7 @@ export class NCGTransferredEventObserver
                         amountString,
                         txId,
                         errorMessage
-                    ).render()
+                    )
                 );
                 await this._opensearchClient.to_opensearch("error", {
                     content: "NCG -> wNCG request failure",

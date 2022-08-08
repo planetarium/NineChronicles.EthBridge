@@ -1,9 +1,9 @@
 import {
-    ChatPostMessageArguments,
     ChatPostMessageResponse,
     WebClient,
 } from "@slack/web-api";
 import { ISlackMessageSender } from "./interfaces/slack-message-sender";
+import { Message } from "./messages";
 
 export class SlackMessageSender implements ISlackMessageSender {
     private readonly _webClient: WebClient;
@@ -14,12 +14,12 @@ export class SlackMessageSender implements ISlackMessageSender {
         this._channel = channel;
     }
 
-    async sendMessage(
-        message: Omit<ChatPostMessageArguments, "channel">
+    async sendMessage<T extends Message>(
+        message: T
     ): Promise<ChatPostMessageResponse> {
         return this._webClient.chat.postMessage({
             channel: this._channel,
-            ...message,
+            ...message.render(),
         });
     }
 }
