@@ -19,13 +19,13 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - run: npm install
+      - run: yarn install
         working-directory: ./bridge
       - run: yarn prettier --check src test
         working-directory: ./bridge
-      - run: npx tsc
+      - run: yarn tsc
         working-directory: ./bridge
-      - run: npm run coverage
+      - run: yarn run coverage
         working-directory: ./bridge
       - run: bash <(curl -s https://codecov.io/bash)
         name: codecov
