@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: npm install
+      - run: yarn install
         working-directory: contracts
-      - run: npm run build
+      - run: yarn run build
         working-directory: contracts
-      - run: npm run lint
+      - run: yarn run lint
         working-directory: contracts
