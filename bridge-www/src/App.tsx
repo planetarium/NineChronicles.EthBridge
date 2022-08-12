@@ -26,7 +26,7 @@ function App() {
     if (chainId === 1) {
       return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
     } else if (chainId === 3) {
-      return "0x5686b17ada75d682ea8a8103edbea77e86d909f4";
+      return "0xeaa982f3424338598738c496153e55b1df11f625";
     } else {
       return "";
     }
