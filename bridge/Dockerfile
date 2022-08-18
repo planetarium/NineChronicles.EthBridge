@@ -1,11 +1,11 @@
-FROM node:14.17 AS build-env
+FROM node:16.17 AS build-env
 
 COPY . /build
 WORKDIR /build
 RUN yarn
 RUN yarn tsc --project tsconfig.production.json
 
-FROM node:14.17-alpine
+FROM node:16.17-alpine
 
 COPY --from=build-env /build/dist /app
 COPY --from=build-env /build/node_modules /app/node_modules
