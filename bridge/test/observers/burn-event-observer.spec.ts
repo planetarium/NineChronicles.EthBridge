@@ -71,6 +71,8 @@ describe(EthereumBurnEventObserver.name, () => {
         mockOpenSearchClient,
         mockMonitorStateStore,
         "https://explorer.libplanet.io/9c-internal",
+        "https://9cscan.com",
+        false,
         "https://ropsten.etherscan.io",
         mockIntegration
     );

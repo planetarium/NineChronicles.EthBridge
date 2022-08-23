@@ -24,6 +24,8 @@ export class EthereumBurnEventObserver
     private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _explorerUrl: string;
+    private readonly _ncscanUrl: string | undefined;
+    private readonly _useNcscan: boolean;
     private readonly _etherscanUrl: string;
     private readonly _integration: Integration;
 
@@ -33,6 +35,8 @@ export class EthereumBurnEventObserver
         opensearchClient: OpenSearchClient,
         monitorStateStore: IMonitorStateStore,
         explorerUrl: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         etherscanUrl: string,
         integration: Integration
     ) {
@@ -41,6 +45,8 @@ export class EthereumBurnEventObserver
         this._opensearchClient = opensearchClient;
         this._monitorStateStore = monitorStateStore;
         this._explorerUrl = explorerUrl;
+        this._ncscanUrl = ncscanUrl;
+        this._useNcscan = useNcscan;
         this._etherscanUrl = etherscanUrl;
         this._integration = integration;
     }
@@ -84,6 +90,8 @@ export class EthereumBurnEventObserver
                 await this._slackMessageSender.sendMessage(
                     new UnwrappedEvent(
                         this._explorerUrl,
+                        this._ncscanUrl,
+                        this._useNcscan,
                         this._etherscanUrl,
                         sender,
                         recipient,

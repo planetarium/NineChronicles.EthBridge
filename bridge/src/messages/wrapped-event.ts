@@ -17,6 +17,8 @@ export class WrappedEvent extends WrappingEvent {
 
     constructor(
         explorerUrl: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         etherscanUrl: string,
         sender: Address,
         recipient: Address,
@@ -27,7 +29,7 @@ export class WrappedEvent extends WrappingEvent {
         refundAmount: string | null,
         refundTxId: TxId | null
     ) {
-        super(explorerUrl, etherscanUrl);
+        super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
         this._sender = sender;
         this._recipient = recipient;

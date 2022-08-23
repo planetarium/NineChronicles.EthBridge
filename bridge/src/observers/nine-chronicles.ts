@@ -48,6 +48,8 @@ export class NCGTransferredEventObserver
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _exchangeHistoryStore: IExchangeHistoryStore;
     private readonly _explorerUrl: string;
+    private readonly _ncscanUrl: string | undefined;
+    private readonly _useNcscan: boolean;
     private readonly _etherscanUrl: string;
     /**
      * The fee ratio requried to exchange. This should be float value like 0.01.
@@ -66,6 +68,8 @@ export class NCGTransferredEventObserver
         monitorStateStore: IMonitorStateStore,
         exchangeHistoryStore: IExchangeHistoryStore,
         explorerUrl: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         etherscanUrl: string,
         exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy,
         limitationPolicy: LimitationPolicy,
@@ -79,6 +83,8 @@ export class NCGTransferredEventObserver
         this._monitorStateStore = monitorStateStore;
         this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
+        this._ncscanUrl = ncscanUrl;
+        this._useNcscan = useNcscan;
         this._etherscanUrl = etherscanUrl;
         this._exchangeFeeRatioPolicy = exchangeFeeRatioPolicy;
         this._limitationPolicy = limitationPolicy;
@@ -181,6 +187,8 @@ export class NCGTransferredEventObserver
                     await this._slackMessageSender.sendMessage(
                         new RefundEvent(
                             this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
                             sender,
                             txId,
                             amount,
@@ -220,6 +228,8 @@ export class NCGTransferredEventObserver
                     await this._slackMessageSender.sendMessage(
                         new RefundEvent(
                             this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
                             sender,
                             txId,
                             amount,
@@ -253,6 +263,8 @@ export class NCGTransferredEventObserver
                     await this._slackMessageSender.sendMessage(
                         new RefundEvent(
                             this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
                             sender,
                             txId,
                             amount,
@@ -293,6 +305,8 @@ export class NCGTransferredEventObserver
                     await this._slackMessageSender.sendMessage(
                         new RefundEvent(
                             this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
                             sender,
                             txId,
                             amount,
@@ -365,6 +379,8 @@ export class NCGTransferredEventObserver
                 await this._slackMessageSender.sendMessage(
                     new WrappedEvent(
                         this._explorerUrl,
+                        this._ncscanUrl,
+                        this._useNcscan,
                         this._etherscanUrl,
                         sender,
                         recipient!,
@@ -398,6 +414,8 @@ export class NCGTransferredEventObserver
                 await this._slackMessageSender.sendMessage(
                     new WrappingFailureEvent(
                         this._explorerUrl,
+                        this._ncscanUrl,
+                        this._useNcscan,
                         sender,
                         String(recipient),
                         amountString,

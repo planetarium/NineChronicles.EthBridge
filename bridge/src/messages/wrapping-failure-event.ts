@@ -3,9 +3,12 @@ import { combineUrl, Message } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
 import { ForceOmit } from "../types/force-omit";
+import { combineNcExplorerUrl } from "./utils";
 
 export class WrappingFailureEvent implements Message {
     private readonly _url: string;
+    private readonly _ncscanUrl: string | undefined;
+    private readonly _useNcscan: boolean;
     private readonly _sender: Address;
     private readonly _recipient: Address;
     private readonly _txId: TxId;
@@ -14,6 +17,8 @@ export class WrappingFailureEvent implements Message {
 
     constructor(
         url: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         sender: Address,
         recipient: Address,
         amount: string,
@@ -21,6 +26,8 @@ export class WrappingFailureEvent implements Message {
         error: string
     ) {
         this._url = url;
+        this._ncscanUrl = ncscanUrl;
+        this._useNcscan = useNcscan;
         this._sender = sender;
         this._recipient = recipient;
         this._amount = amount;
@@ -38,9 +45,11 @@ export class WrappingFailureEvent implements Message {
                     fields: [
                         {
                             title: "9c network transaction",
-                            value: combineUrl(
+                            value: combineNcExplorerUrl(
                                 this._url,
-                                `/transaction?${this._txId}`
+                                this._ncscanUrl,
+                                this._useNcscan,
+                                this._txId
                             ),
                         },
                         {

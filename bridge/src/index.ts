@@ -91,6 +91,15 @@ process.on("uncaughtException", console.error);
         Configuration.get("SLACK_CHANNEL_NAME", false) ||
         "#nine-chronicles-bridge-bot";
     const EXPLORER_ROOT_URL: string = Configuration.get("EXPLORER_ROOT_URL");
+    const NCSCAN_URL: string | undefined = Configuration.get(
+        "NCSCAN_URL",
+        false
+    );
+    const USE_NCSCAN_URL: boolean = Configuration.get(
+        "USE_NCSCAN_URL",
+        false,
+        "boolean"
+    );
     const ETHERSCAN_ROOT_URL: string = Configuration.get("ETHERSCAN_ROOT_URL");
     const SENTRY_DSN: string | undefined = Configuration.get(
         "SENTRY_DSN",
@@ -256,6 +265,8 @@ process.on("uncaughtException", console.error);
         opensearchClient,
         monitorStateStore,
         EXPLORER_ROOT_URL,
+        NCSCAN_URL,
+        USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         integration
     );
@@ -288,6 +299,8 @@ process.on("uncaughtException", console.error);
         monitorStateStore,
         exchangeHistoryStore,
         EXPLORER_ROOT_URL,
+        NCSCAN_URL,
+        USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         ncgExchangeFeeRatioPolicy,
         {

@@ -98,7 +98,7 @@ Array [
           "fields": Array [
             Object {
               "title": "9c network transaction",
-              "value": "https://explorer.libplanet.io/9c-internal/transaction/?TX-HASH",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-HASH",
             },
             Object {
               "title": "Ethereum network transaction",

@@ -102,6 +102,8 @@ describe(NCGTransferredEventObserver.name, () => {
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",
+        "https://9cscan.com",
+        false,
         "https://ropsten.etherscan.io",
         exchangeFeeRatioPolicy,
         limitationPolicy,

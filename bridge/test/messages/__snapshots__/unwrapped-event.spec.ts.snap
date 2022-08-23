@@ -10,7 +10,7 @@ Object {
       "fields": Array [
         Object {
           "title": "9c network transaction",
-          "value": "https://explorer.libplanet.io/9c-internal/transaction/?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
         },
         Object {
           "title": "Ethereum network transaction",
