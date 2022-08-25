@@ -18,7 +18,11 @@ export function combineNcExplorerUrl(
     }
 }
 
-export function combineUrl(base: string, path: string, query: string | undefined): string {
+export function combineUrl(
+    base: string,
+    path: string,
+    query: string | undefined
+): string {
     const url = new URL(base);
     url.pathname = join(url.pathname, path);
     url.search = query || "";

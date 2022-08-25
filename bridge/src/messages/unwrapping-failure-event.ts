@@ -39,7 +39,11 @@ export class UnwrappingFailureEvent implements Message {
                     fields: [
                         {
                             title: "Ethereum transaction",
-                            value: combineUrl(this._url, `/tx/${this._txId}`, undefined),
+                            value: combineUrl(
+                                this._url,
+                                `/tx/${this._txId}`,
+                                undefined
+                            ),
                         },
                         {
                             title: "sender (Ethereum)",
