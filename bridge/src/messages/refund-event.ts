@@ -1,5 +1,5 @@
 import { ChatPostMessageArguments } from "@slack/web-api";
-import { Message, combineUrl } from ".";
+import { Message } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
 import { Decimal } from "decimal.js";

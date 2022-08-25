@@ -6,11 +6,3 @@ import { ForceOmit } from "../types/force-omit";
 export interface Message {
     render(): ForceOmit<ChatPostMessageArguments, "channel">;
 }
-
-export function combineUrl(base: string, addition: string): string {
-    const [path, query] = addition.split("?");
-    const url = new URL(base);
-    url.pathname = join(url.pathname, path);
-    url.search = `?${query || ""}`;
-    return url.toString();
-}
