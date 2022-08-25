@@ -36,6 +36,6 @@ export abstract class WrappingEvent implements Message {
     }
 
     protected toEtherscanUrl(transactionHash: string): string {
-        return combineUrl(this._etherscanUrl, `/tx/${transactionHash}`);
+        return combineUrl(this._etherscanUrl, `/tx/${transactionHash}`, undefined);
     }
 }

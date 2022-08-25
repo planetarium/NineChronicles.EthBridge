@@ -12,16 +12,15 @@ export function combineNcExplorerUrl(
             throw new Error("ncscanUrl is undefined");
         }
 
-        return combineUrl(ncscanUrl, `/tx/${txId}`);
+        return combineUrl(ncscanUrl, `/tx/${txId}`, undefined);
     } else {
-        return combineUrl(explorerUrl, `/transaction?${txId}`);
+        return combineUrl(explorerUrl, "/transaction", txId);
     }
 }
 
-export function combineUrl(base: string, addition: string): string {
-    const [path, query] = addition.split("?");
+export function combineUrl(base: string, path: string, query: string | undefined): string {
     const url = new URL(base);
     url.pathname = join(url.pathname, path);
-    url.search = `?${query || ""}`; // FIXME: remove ? when not required.
+    url.search = query || "";
     return url.toString();
 }

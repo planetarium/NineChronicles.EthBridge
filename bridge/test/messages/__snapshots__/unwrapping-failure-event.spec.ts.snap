@@ -10,7 +10,7 @@ Object {
       "fields": Array [
         Object {
           "title": "Ethereum transaction",
-          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7?",
+          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7",
         },
         Object {
           "title": "sender (Ethereum)",

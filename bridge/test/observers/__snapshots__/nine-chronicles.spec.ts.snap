@@ -103,7 +103,7 @@ Array [
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH?",
+              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH",
             },
             Object {
               "title": "sender (NineChronicles)",
