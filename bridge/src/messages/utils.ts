@@ -12,17 +12,13 @@ export function combineNcExplorerUrl(
             throw new Error("ncscanUrl is undefined");
         }
 
-        return combineUrl(ncscanUrl, `/tx/${txId}`, undefined);
+        return combineUrl(ncscanUrl, `/tx/${txId}`);
     } else {
         return combineUrl(explorerUrl, "/transaction", txId);
     }
 }
 
-export function combineUrl(
-    base: string,
-    path: string,
-    query: string | undefined
-): string {
+export function combineUrl(base: string, path: string, query?: string): string {
     const url = new URL(base);
     url.pathname = join(url.pathname, path);
     url.search = query || "";
