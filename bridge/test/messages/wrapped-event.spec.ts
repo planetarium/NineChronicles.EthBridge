@@ -5,6 +5,8 @@ describe("WrappedEvent", () => {
     describe("render", () => {
         it("snapshot", () => {
             const EXPLORER_URL = "https://explorer.libplanet.io/9c-internal";
+            const NCSCAN_URL = "https://9cscan.com";
+            const USE_NCSCAN_URL = false;
             const ETHERSCAN_URL = "https://ropsten.etherscan.io";
             const SENDER = "0xCbfC996ad185c61a031f40CeeE80a055e6D83005";
             const RECIPIENT = "0xDac65eCE9CB3E7a538773e08DE31F973233F064f";
@@ -17,6 +19,8 @@ describe("WrappedEvent", () => {
             expect(
                 new WrappedEvent(
                     EXPLORER_URL,
+                    NCSCAN_URL,
+                    USE_NCSCAN_URL,
                     ETHERSCAN_URL,
                     SENDER,
                     RECIPIENT,
@@ -32,6 +36,8 @@ describe("WrappedEvent", () => {
 
         it("snapshot with refund", () => {
             const EXPLORER_URL = "https://explorer.libplanet.io/9c-internal";
+            const NCSCAN_URL = "https://9cscan.com";
+            const USE_NCSCAN_URL = false;
             const ETHERSCAN_URL = "https://ropsten.etherscan.io";
             const SENDER = "0xCbfC996ad185c61a031f40CeeE80a055e6D83005";
             const RECIPIENT = "0xDac65eCE9CB3E7a538773e08DE31F973233F064f";
@@ -47,6 +53,8 @@ describe("WrappedEvent", () => {
             expect(
                 new WrappedEvent(
                     EXPLORER_URL,
+                    NCSCAN_URL,
+                    USE_NCSCAN_URL,
                     ETHERSCAN_URL,
                     SENDER,
                     RECIPIENT,

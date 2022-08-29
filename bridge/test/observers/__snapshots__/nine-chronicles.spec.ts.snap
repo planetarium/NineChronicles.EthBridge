@@ -99,11 +99,11 @@ Array [
           "fields": Array [
             Object {
               "title": "9c network transaction",
-              "value": "https://explorer.libplanet.io/9c-internal/transaction/?TX-ID",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH?",
+              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH",
             },
             Object {
               "title": "sender (NineChronicles)",

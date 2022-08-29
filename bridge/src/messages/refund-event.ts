@@ -1,9 +1,10 @@
 import { ChatPostMessageArguments } from "@slack/web-api";
-import { Message, combineUrl } from ".";
+import { Message } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
 import { Decimal } from "decimal.js";
 import { ForceOmit } from "../types/force-omit";
+import { combineNcExplorerUrl } from "./utils";
 
 export class RefundEvent implements Message {
     private readonly _sender: Address;
@@ -12,10 +13,14 @@ export class RefundEvent implements Message {
     private readonly _refundTxId: TxId;
     private readonly _refundAmount: Decimal;
     private readonly _explorerUrl: string;
+    private readonly _ncscanUrl: string | undefined;
+    private readonly _useNcscan: boolean;
     private readonly _reason: string;
 
     constructor(
         explorerUrl: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         sender: Address,
         requestTxId: TxId,
         requestAmount: Decimal,
@@ -29,6 +34,8 @@ export class RefundEvent implements Message {
         this._requestTxId = requestTxId;
         this._requestAmount = requestAmount;
         this._explorerUrl = explorerUrl;
+        this._ncscanUrl = ncscanUrl;
+        this._useNcscan = useNcscan;
         this._reason = reason;
     }
 
@@ -50,9 +57,11 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Request transaction",
-                            value: combineUrl(
+                            value: combineNcExplorerUrl(
                                 this._explorerUrl,
-                                `transaction?${this._requestTxId}`
+                                this._ncscanUrl,
+                                this._useNcscan,
+                                this._requestTxId
                             ),
                         },
                         {
@@ -61,9 +70,11 @@ export class RefundEvent implements Message {
                         },
                         {
                             title: "Refund transaction",
-                            value: combineUrl(
+                            value: combineNcExplorerUrl(
                                 this._explorerUrl,
-                                `transaction?${this._refundTxId}`
+                                this._ncscanUrl,
+                                this._useNcscan,
+                                this._refundTxId
                             ),
                         },
                         {

@@ -43,7 +43,7 @@ Array [
           "fields": Array [
             Object {
               "title": "Ethereum transaction",
-              "value": "https://ropsten.etherscan.io/tx/TX-ID?",
+              "value": "https://ropsten.etherscan.io/tx/TX-ID",
             },
             Object {
               "title": "sender (Ethereum)",
@@ -98,11 +98,11 @@ Array [
           "fields": Array [
             Object {
               "title": "9c network transaction",
-              "value": "https://explorer.libplanet.io/9c-internal/transaction/?TX-HASH",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-HASH",
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TX-ID?",
+              "value": "https://ropsten.etherscan.io/tx/TX-ID",
             },
             Object {
               "title": "sender (Ethereum)",

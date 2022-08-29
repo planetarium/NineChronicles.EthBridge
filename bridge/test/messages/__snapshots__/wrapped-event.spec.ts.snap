@@ -10,11 +10,11 @@ Object {
       "fields": Array [
         Object {
           "title": "9c network transaction",
-          "value": "https://explorer.libplanet.io/9c-internal/transaction/?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
         },
         Object {
           "title": "Ethereum network transaction",
-          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7?",
+          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7",
         },
         Object {
           "title": "sender (NineChronicles)",
@@ -49,11 +49,11 @@ Object {
       "fields": Array [
         Object {
           "title": "9c network transaction",
-          "value": "https://explorer.libplanet.io/9c-internal/transaction/?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
         },
         Object {
           "title": "Ethereum network transaction",
-          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7?",
+          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7",
         },
         Object {
           "title": "sender (NineChronicles)",
@@ -77,7 +77,7 @@ Object {
         },
         Object {
           "title": "refund transaction",
-          "value": "https://explorer.libplanet.io/9c-internal/transaction/?a3cd151aa0cb24b3e692f433b857f08bd347dad0d2d6ca3666f26420b8b8d096",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?a3cd151aa0cb24b3e692f433b857f08bd347dad0d2d6ca3666f26420b8b8d096",
         },
       ],
     },

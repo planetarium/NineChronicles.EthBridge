@@ -13,6 +13,8 @@ export class UnwrappedEvent extends WrappingEvent {
 
     constructor(
         explorerUrl: string,
+        ncscanUrl: string | undefined,
+        useNcscan: boolean,
         etherscanUrl: string,
         sender: Address,
         recipient: Address,
@@ -20,7 +22,7 @@ export class UnwrappedEvent extends WrappingEvent {
         nineChroniclesTxId: TxId,
         ethereumTransactionHash: string
     ) {
-        super(explorerUrl, etherscanUrl);
+        super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
         this._sender = sender;
         this._recipient = recipient;

@@ -1,8 +1,9 @@
 import { ChatPostMessageArguments } from "@slack/web-api";
-import { combineUrl, Message } from ".";
+import { Message } from ".";
 import { TxId } from "../types/txid";
 import { Address } from "../types/address";
 import { ForceOmit } from "../types/force-omit";
+import { combineUrl } from "./utils";
 
 export class UnwrappingFailureEvent implements Message {
     private readonly _url: string;
@@ -38,7 +39,11 @@ export class UnwrappingFailureEvent implements Message {
                     fields: [
                         {
                             title: "Ethereum transaction",
-                            value: combineUrl(this._url, `/tx/${this._txId}`),
+                            value: combineUrl(
+                                this._url,
+                                `/tx/${this._txId}`,
+                                undefined
+                            ),
                         },
                         {
                             title: "sender (Ethereum)",
