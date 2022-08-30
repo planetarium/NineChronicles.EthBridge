@@ -23,6 +23,36 @@ def _map(value: Optional[T], mapper: Callable[[T], U]) -> Optional[U]:
     return None
 
 
+def _parse_network_type(nc_tx: str) -> NetworkType:
+    """
+    Returns NetworkType from nine chronicles transaction url.
+    It supports libplanet-explorer, 9cscan.
+    """
+
+    url = urllib3.util.url.parse_url(nc_tx)
+    if url.hostname == "explorer.libplanet.io":
+        return url.path.split("/")[1]
+    elif url.hostname == "9cscan.com":
+        return NetworkType.MAINNET
+
+
+def _parse_nc_txid(nc_tx: str) -> TxId:
+    """
+    Returns TxId from nine chronicles transaction url.
+    It supports libplanet-explorer, 9cscan.
+    """
+
+    url = urllib3.util.url.parse_url(nc_tx)
+    if url.hostname == "explorer.libplanet.io":
+        return TxId(url.query)
+    elif url.hostname == "9cscan.com":
+        fst, snd = url.path.strip("/").split("/")  # strip with the first '/'
+        if fst == "tx":
+            return TxId(snd)
+        
+        raise ValueError(nc_tx)
+
+
 def _first_from_fields(
     fields: Sequence[_Field], title: str, comparer: Callable[[str, str], bool]
 ) -> Optional[str]:
@@ -72,8 +102,8 @@ def _parse_refund_event_slack_response(message: SlackResponse) -> Optional[Refun
 
     address: Address = Address(fields["Address"])
     reason: str = fields["Reason"]
-    request_txid = urllib3.util.url.parse_url(fields["Request transaction"].replace("<", "").replace(">", "")).query
-    refund_txid = urllib3.util.url.parse_url(fields["Refund transaction"].replace("<", "").replace(">", "")).query
+    request_txid = _parse_nc_txid(fields["Request transaction"].replace("<", "").replace(">", ""))
+    refund_txid = _parse_nc_txid(fields["Refund transaction"].replace("<", "").replace(">", ""))
     request_amount = float(fields["Request Amount"])
     refund_amount = float(fields["Refund Amount"])
     return RefundEvent(
@@ -96,12 +126,12 @@ def _parse_wrapping_event(ts: str, fields: dict[str, str]) -> WrappingEvent:
     nc_tx = fields["9c network transaction"].replace("<", "").replace(">", "")
     eth_tx = fields["Ethereum network transaction"].replace("<", "").replace(">", "")
 
-    refund_txid: Optional[TxId] = _map(fields.get("refund transaction"), lambda x: TxId(urllib3.util.url.parse_url(x.replace("<", "").replace(">", "")).query))
+    refund_txid: Optional[TxId] = _map(fields.get("refund transaction"), lambda x: _parse_nc_txid(x.replace("<", "").replace(">", "")))
     refund_amount = _map(fields.get("refund amount"), float)
 
-    nc_txid: TxId = TxId(urllib3.util.url.parse_url(nc_tx).query)
+    nc_txid: TxId = _parse_nc_txid(nc_tx)
 
-    network_type = NetworkType(urllib3.util.url.parse_url(nc_tx).path.split("/")[1])
+    network_type = NetworkType(_parse_network_type(nc_tx))
     eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
 
     return WrappingEvent(
@@ -123,9 +153,9 @@ def _parse_wrapping_failure_event(ts: str, fields: dict[str, str]) -> WrappingFa
     amount: float = float(fields["amount"])
 
     nc_tx = fields["9c network transaction"].replace("<", "").replace(">", "")
-    nc_txid: TxId = TxId(urllib3.util.url.parse_url(nc_tx).query)
+    nc_txid: TxId = _parse_nc_txid(nc_tx)
 
-    network_type = NetworkType(urllib3.util.url.parse_url(nc_tx).path.split("/")[1])
+    network_type = NetworkType(_parse_network_type(nc_tx))
 
     return WrappingFailureEvent(
         network_type,
@@ -144,9 +174,9 @@ def _parse_unwrapping_event(ts: str, fields: dict[str, str]) -> UnwrappingEvent:
     nc_tx = fields["9c network transaction"].replace("<", "").replace(">", "")
     eth_tx = fields["Ethereum network transaction"].replace("<", "").replace(">", "")
 
-    nc_txid: TxId = TxId(urllib3.util.url.parse_url(nc_tx).query)
+    nc_txid: TxId = _parse_nc_txid(nc_tx)
 
-    network_type = NetworkType(urllib3.util.url.parse_url(nc_tx).path.split("/")[1])
+    network_type = NetworkType(_parse_network_type(nc_tx))
     eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
 
     return UnwrappingEvent(
