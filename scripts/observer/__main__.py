@@ -3,7 +3,7 @@ import optparse
 import time
 import datetime
 import sys
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Callable, Coroutine, Optional
 import asyncio
 
 import code
@@ -69,7 +69,7 @@ while True:
     cursor = response["response_metadata"]["next_cursor"]
 
 
-Handler = Callable[[Any], Awaitable[None]]
+Handler = Callable[[Any], Coroutine[Any, Any, None]]
 handlers = dict[type, list[Handler]]()
 
 

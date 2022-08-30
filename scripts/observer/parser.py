@@ -31,9 +31,16 @@ def _parse_network_type(nc_tx: str) -> NetworkType:
 
     url = urllib3.util.url.parse_url(nc_tx)
     if url.hostname == "explorer.libplanet.io":
-        return url.path.split("/")[1]
+        path = url.path
+        if path is None:
+            raise ValueError(nc_tx)
+        else:
+            return NetworkType(path.split("/")[1])
+
     elif url.hostname == "9cscan.com":
         return NetworkType.MAINNET
+    
+    raise ValueError(nc_tx)
 
 
 def _parse_nc_txid(nc_tx: str) -> TxId:
@@ -43,14 +50,16 @@ def _parse_nc_txid(nc_tx: str) -> TxId:
     """
 
     url = urllib3.util.url.parse_url(nc_tx)
-    if url.hostname == "explorer.libplanet.io":
-        return TxId(url.query)
-    elif url.hostname == "9cscan.com":
-        fst, snd = url.path.strip("/").split("/")  # strip with the first '/'
+    query = url.query
+    path = url.path
+    if url.hostname == "explorer.libplanet.io" and isinstance(query, str):
+        return TxId(query)
+    elif url.hostname == "9cscan.com" and isinstance(path, str):
+        fst, snd = path.strip("/").split("/")  # strip with the first '/'
         if fst == "tx":
-            return TxId(snd)
-        
-        raise ValueError(nc_tx)
+            return TxId(snd)    
+
+    raise ValueError(nc_tx)
 
 
 def _first_from_fields(
@@ -132,7 +141,12 @@ def _parse_wrapping_event(ts: str, fields: dict[str, str]) -> WrappingEvent:
     nc_txid: TxId = _parse_nc_txid(nc_tx)
 
     network_type = NetworkType(_parse_network_type(nc_tx))
-    eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
+
+    eth_tx_url_path = urllib3.util.url.parse_url(eth_tx).path
+    if not isinstance(eth_tx_url_path, str):
+        raise ValueError(eth_tx)
+
+    eth_txid = TxId(eth_tx_url_path.split("/")[-1])
 
     return WrappingEvent(
         network_type,
@@ -177,7 +191,12 @@ def _parse_unwrapping_event(ts: str, fields: dict[str, str]) -> UnwrappingEvent:
     nc_txid: TxId = _parse_nc_txid(nc_tx)
 
     network_type = NetworkType(_parse_network_type(nc_tx))
-    eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
+    
+    eth_tx_url_path = urllib3.util.url.parse_url(eth_tx).path
+    if not isinstance(eth_tx_url_path, str):
+        raise ValueError(eth_tx)
+
+    eth_txid = TxId(eth_tx_url_path.split("/")[-1])
 
     return UnwrappingEvent(
         network_type,
@@ -196,7 +215,12 @@ def _parse_unwrapping_failure_event(ts: str, fields: dict[str, str]) -> Unwrappi
     amount: float = float(fields["amount"])
 
     eth_tx = fields["Ethereum transaction"].replace("<", "").replace(">", "")
-    eth_txid = TxId(urllib3.util.url.parse_url(eth_tx).path.split("/")[-1])
+    
+    eth_tx_url_path = urllib3.util.url.parse_url(eth_tx).path
+    if not isinstance(eth_tx_url_path, str):
+        raise ValueError(eth_tx)
+
+    eth_txid = TxId(eth_tx_url_path.split("/")[-1])
 
     return UnwrappingFailureEvent(
         ts,
