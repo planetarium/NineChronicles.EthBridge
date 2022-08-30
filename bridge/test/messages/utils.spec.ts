@@ -14,9 +14,9 @@ describe(combineUrl.name, () => {
     });
 
     it("without query", () => {
-        expect(
-            combineUrl("https://9cscan.com/", "/tx/TX-ID", undefined)
-        ).toEqual("https://9cscan.com/tx/TX-ID");
+        expect(combineUrl("https://9cscan.com/", "/tx/TX-ID")).toEqual(
+            "https://9cscan.com/tx/TX-ID"
+        );
     });
 });
 
