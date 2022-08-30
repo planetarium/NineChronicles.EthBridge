@@ -1,1 +1,2 @@
 types-requests
+mypy==0.971
