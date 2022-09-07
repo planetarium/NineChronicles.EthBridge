@@ -45,6 +45,20 @@ module.exports = {
       skipDryRun: true, // Skip dry run before migrations? (default: false for public nets )
       networkCheckTimeout: 1000000000,
     },
+    sepolia: {
+      provider: () =>
+        new HDWalletProvider({
+          mnemonic: process.env.MNEMONIC,
+          providerOrUrl: `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+          addressIndex: process.env.MNEMONIC_INDEX,
+        }),
+      network_id: 11155111, // Sepolia's id
+      gas: 5500000,
+      confirmations: 0,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      networkCheckTimeout: 1000000000,
+    },
   },
   compilers: {
     solc: {
