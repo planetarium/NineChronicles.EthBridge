@@ -67,7 +67,9 @@
   },
   "dependencies": {
     "@pagerduty/pdjs": "^2.2.3",
+    "@planetarium/account-aws-kms": "^0.0.2",
     "@planetarium/aws-kms-provider": "0.3.4",
+    "@planetarium/sign": "^0.0.3",
     "@sentry/node": "^6.4.1",
     "@sentry/tracing": "^6.4.1",
     "@slack/web-api": "^6.2.3",
