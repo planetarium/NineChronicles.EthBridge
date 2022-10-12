@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { AwsCredential } from "@planetarium/aws-kms-provider";
-import { KMSClient, SignCommand } from "@aws-sdk/client-kms";
+import { KMSClient } from "@aws-sdk/client-kms";
 import { fromBER, Sequence, Integer } from "asn1js";
 import { bigintToBuf, bufToBigint } from "bigint-conversion";
+import { Account, signTransaction } from "@planetarium/sign";
+import { createAccount } from "@planetarium/account-aws-kms";
 
 function toArrayBuffer(buffer: Buffer) {
     const ab = new ArrayBuffer(buffer.length);
@@ -41,72 +43,24 @@ function bigintToNodeBuffer(bi: bigint) {
 }
 
 export class KMSNCGSigner {
-    private readonly keyId: string;
-    private readonly client: KMSClient;
+    private readonly account: Account;
     constructor(
         region: string,
         keyId: string,
         credential?: AwsCredential,
         endpoint?: string
     ) {
-        this.keyId = keyId;
-
-        this.client = new KMSClient({
-            region,
-            credentials: credential,
-            endpoint,
-        });
+        this.account = createAccount(
+            new KMSClient({
+                region,
+                credentials: credential,
+                endpoint,
+            }),
+            keyId
+        );
     }
 
-    public async sign(digest: Buffer): Promise<Buffer> {
-        const asn1Signature = await this._sign(digest);
-        const { r, s } = parseSignature(asn1Signature);
-        const n = Buffer.from(
-            "/////////////////////rqu3OavSKA7v9JejNA2QUE=",
-            "base64"
-        );
-        const nBigInt = bufToBigint(n);
-        const sBigInt = bufToBigint(s);
-
-        const otherSBigInt = nBigInt - sBigInt;
-        const otherS = bigintToNodeBuffer(otherSBigInt);
-        const sequence = new Sequence();
-        sequence.valueBlock.value.push(
-            // @ts-ignore
-            new Integer({ isHexOnly: true, valueHex: r })
-        );
-        if (sBigInt > otherSBigInt) {
-            sequence.valueBlock.value.push(
-                new Integer({
-                    // @ts-ignore
-                    isHexOnly: true,
-                    valueHex: otherS,
-                }).convertToDER()
-            );
-        } else {
-            sequence.valueBlock.value.push(
-                // @ts-ignore
-                new Integer({ isHexOnly: true, valueHex: s }).convertToDER()
-            );
-        }
-
-        const sequence_buffer = toBuffer(sequence.toBER(false));
-        return sequence_buffer;
-    }
-
-    private async _sign(digest: Buffer) {
-        const command = new SignCommand({
-            KeyId: this.keyId,
-            Message: digest,
-            MessageType: "DIGEST",
-            SigningAlgorithm: "ECDSA_SHA_256",
-        });
-        const response = await this.client.send(command);
-
-        if (!response.Signature) {
-            throw new TypeError("Signature is undefined");
-        }
-
-        return Buffer.from(response.Signature);
+    public async sign(tx: string): Promise<string> {
+        return signTransaction(tx, this.account);
     }
 }

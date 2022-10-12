@@ -80,19 +80,10 @@ export class NCGKMSTransfer implements INCGTransfer {
             };
             const unsignedTx =
                 await this.headlessGraphQLClient.createUnsignedTx(
-                    encode(plainValue).toString("base64"),
+                    encode(plainValue).toString("hex"),
                     this._publicKey
                 );
-            const unsignedTxId = crypto
-                .createHash("sha256")
-                .update(unsignedTx, "base64")
-                .digest();
-            const sign = await this._signer.sign(unsignedTxId);
-            const base64Sign = sign.toString("base64");
-            const tx = await this.headlessGraphQLClient.attachSignature(
-                unsignedTx,
-                base64Sign
-            );
+            const tx = await this._signer.sign(unsignedTx);
             const stageResults = await Promise.all(
                 this._headlessGraphQLCLients.map((client) =>
                     client
