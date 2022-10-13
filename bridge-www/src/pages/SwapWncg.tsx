@@ -20,7 +20,7 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
     } else if (chain?.id === ropsten.id) {
       return "0xeaa982f3424338598738c496153e55b1df11f625";
     } else {
-      return "";
+      return "0x5F2e568E7085Ce18fA7b68e13fd5C04e99F044C4";
     }
   }, [chain]);
 
