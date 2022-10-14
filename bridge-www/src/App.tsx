@@ -1,10 +1,13 @@
 import { useAccount, useConnect } from 'wagmi';
+import { InjectedConnector } from 'wagmi/connectors/injected'
 import ConnectWalletPage from './pages/ConnectWallet';
 import SwapWncgPage from './pages/SwapWncg';
 
 function App() {
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
+  const { connect } = useConnect({
+    connector: new InjectedConnector(),
+  });
 
   if (!isConnected) {    
     return (
