@@ -61,7 +61,7 @@ export class NCGKMSTransfer implements INCGTransfer {
             // FIXME: request unsigned transaction builder API to NineChronicles.Headless developer
             //        and remove these lines.
             const plainValue = {
-                type_id: "transfer_asset2",
+                type_id: "transfer_asset3",
                 values: {
                     amount: [
                         {
@@ -83,20 +83,13 @@ export class NCGKMSTransfer implements INCGTransfer {
                     encode(plainValue).toString("base64"),
                     this._publicKey
                 );
-            const unsignedTxId = crypto
-                .createHash("sha256")
-                .update(unsignedTx, "base64")
-                .digest();
-            const sign = await this._signer.sign(unsignedTxId);
-            const base64Sign = sign.toString("base64");
-            const tx = await this.headlessGraphQLClient.attachSignature(
-                unsignedTx,
-                base64Sign
+            const tx = await this._signer.sign(
+                Buffer.from(unsignedTx, "base64").toString("hex")
             );
             const stageResults = await Promise.all(
                 this._headlessGraphQLCLients.map((client) =>
                     client
-                        .stageTx(tx)
+                        .stageTx(Buffer.from(tx, "hex").toString("base64"))
                         .then((success) => {
                             console.log(
                                 `It was ${success} to stage ${tx} to ${client.endpoint} endpoint`

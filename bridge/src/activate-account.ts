@@ -37,19 +37,13 @@ async function main() {
         ACTION,
         publicKey
     );
-    const unsignedTxId = crypto
-        .createHash("sha256")
-        .update(unsignedTx, "base64")
-        .digest();
-    const signatureBuffer = await kmsNcgSigner.sign(unsignedTxId);
-    const signature = signatureBuffer.toString("base64");
-
-    const signedTx = await headlessGraphQLClient.attachSignature(
-        unsignedTx,
-        signature
+    const signedTx = await kmsNcgSigner.sign(
+        Buffer.from(unsignedTx, "base64").toString("hex")
     );
     console.log(signedTx);
-    await headlessGraphQLClient.stageTx(signedTx);
+    await headlessGraphQLClient.stageTx(
+        Buffer.from(signedTx, "hex").toString("base64")
+    );
 }
 
 main().then(console.log).catch(console.error);

@@ -179,6 +179,8 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
                 },
             });
 
+            if (response.data.errors) throw response.data.errors;
+
             return response;
         } catch (error) {
             console.error(`Retrying left ${retry - 1}... error:`, error);
