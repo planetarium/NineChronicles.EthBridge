@@ -32,7 +32,6 @@ import {
 import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
 import { SlackMessageSender } from "./slack-message-sender";
-import { TimeoutObserver } from "./observers/timeout-observer";
 import {
     ExchnageFeePolicies,
     FixedExchangeFeeRatioPolicy,
@@ -277,13 +276,7 @@ process.on("uncaughtException", console.error);
         await monitorStateStore.load("ethereum"),
         CONFIRMATIONS
     );
-    const ethereumTimeoutObserver = new TimeoutObserver(
-        integration,
-        5 * 60 * 1000,
-        "ethereum"
-    );
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
-    ethereumBurnEventMonitor.attach(ethereumTimeoutObserver);
 
     const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
         ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(
@@ -316,13 +309,7 @@ process.on("uncaughtException", console.error);
         headlessGraphQLCLient,
         kmsAddress
     );
-    const nineChroniclesTimeoutObserver = new TimeoutObserver(
-        integration,
-        5 * 60 * 1000,
-        "nine-chronicles"
-    );
     nineChroniclesMonitor.attach(ncgTransferredEventObserver);
-    nineChroniclesMonitor.attach(nineChroniclesTimeoutObserver);
 
     ethereumBurnEventMonitor.run();
     nineChroniclesMonitor.run();
