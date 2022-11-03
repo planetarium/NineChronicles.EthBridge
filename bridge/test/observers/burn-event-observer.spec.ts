@@ -9,6 +9,7 @@ import { Integration } from "../../src/integrations";
 import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ISlackChannel } from "../../src/slack-channel";
+import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -61,6 +62,12 @@ describe(EthereumBurnEventObserver.name, () => {
         store: jest.fn(),
     };
 
+    const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
+        put: jest.fn(),
+        exist: jest.fn(),
+        transferredAmountInLast24Hours: jest.fn(),
+    };
+
     const mockIntegration: jest.Mocked<Integration> = {
         error: jest.fn(),
     };
@@ -70,6 +77,7 @@ describe(EthereumBurnEventObserver.name, () => {
         mockSlackMessageSender,
         mockOpenSearchClient,
         mockMonitorStateStore,
+        mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",
         "https://9cscan.com",
         false,
@@ -141,6 +149,49 @@ describe(EthereumBurnEventObserver.name, () => {
                     txId: "TX-D",
                 }
             );
+
+            expect(mockExchangeHistoryStore.put.mock.calls).toEqual([
+                [
+                    {
+                        network: "ethereum",
+                        tx_id: "TX-A",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        recipient: ncgRecipient,
+                        timestamp: expect.any(String),
+                        amount: 1,
+                    },
+                ],
+                [
+                    {
+                        network: "ethereum",
+                        tx_id: "TX-B",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        recipient: ncgRecipient,
+                        timestamp: expect.any(String),
+                        amount: 1.2,
+                    },
+                ],
+                [
+                    {
+                        network: "ethereum",
+                        tx_id: "TX-C",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        recipient: ncgRecipient,
+                        timestamp: expect.any(String),
+                        amount: 0.01,
+                    },
+                ],
+                [
+                    {
+                        network: "ethereum",
+                        tx_id: "TX-D",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        recipient: ncgRecipient,
+                        timestamp: expect.any(String),
+                        amount: 3.22,
+                    },
+                ],
+            ]);
 
             expect(mockNcgTransfer.transfer.mock.calls).toEqual([
                 [ncgRecipient, "1.00", "TX-A"],

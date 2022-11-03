@@ -11,6 +11,7 @@ import Decimal from "decimal.js";
 import { UnwrappingFailureEvent } from "../messages/unwrapping-failure-event";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
+import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 
 export class EthereumBurnEventObserver
     implements
@@ -23,6 +24,7 @@ export class EthereumBurnEventObserver
     private readonly _opensearchClient: OpenSearchClient;
     private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
+    private readonly _exchangeHistoryStore: IExchangeHistoryStore;
     private readonly _explorerUrl: string;
     private readonly _ncscanUrl: string | undefined;
     private readonly _useNcscan: boolean;
@@ -34,6 +36,7 @@ export class EthereumBurnEventObserver
         slackMessageSender: ISlackMessageSender,
         opensearchClient: OpenSearchClient,
         monitorStateStore: IMonitorStateStore,
+        exchangeHistoryStore: IExchangeHistoryStore,
         explorerUrl: string,
         ncscanUrl: string | undefined,
         useNcscan: boolean,
@@ -44,6 +47,7 @@ export class EthereumBurnEventObserver
         this._slackMessageSender = slackMessageSender;
         this._opensearchClient = opensearchClient;
         this._monitorStateStore = monitorStateStore;
+        this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
         this._ncscanUrl = ncscanUrl;
         this._useNcscan = useNcscan;
@@ -74,6 +78,15 @@ export class EthereumBurnEventObserver
                 new Decimal(10).pow(18)
             );
             const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
+
+            await this._exchangeHistoryStore.put({
+                network: "ethereum",
+                tx_id: transactionHash,
+                sender,
+                recipient: _to,
+                timestamp: new Date().toISOString(),
+                amount: parseFloat(amountString),
+            });
 
             try {
                 console.log("Process Ethereum transaction", transactionHash);
