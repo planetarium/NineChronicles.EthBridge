@@ -177,6 +177,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
                 headers: {
                     "Content-Type": "application/json",
                 },
+                timeout: 10 * 1000,
             });
 
             if (response.data.errors) throw response.data.errors;
