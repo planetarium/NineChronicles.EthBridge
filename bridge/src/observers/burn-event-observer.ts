@@ -12,6 +12,7 @@ import { UnwrappingFailureEvent } from "../messages/unwrapping-failure-event";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
+import { UnwrappingRetryIgnoreEvent } from "../messages/unwrapping-retry-ignore-event";
 
 export class EthereumBurnEventObserver
     implements
@@ -78,6 +79,21 @@ export class EthereumBurnEventObserver
                 new Decimal(10).pow(18)
             );
             const amountString = amount.toFixed(2, Decimal.ROUND_DOWN);
+
+            if (await this._exchangeHistoryStore.exist(transactionHash)) {
+                this._slackMessageSender.sendMessage(
+                    new UnwrappingRetryIgnoreEvent(transactionHash)
+                );
+                this._opensearchClient.to_opensearch("error", {
+                    content: "wNCG -> NCG request failure",
+                    cause: "Exchange history exist",
+                    ethereumTxId: transactionHash,
+                    sender: sender,
+                    recipient: recipient,
+                    amount: amountString,
+                });
+                continue;
+            }
 
             await this._exchangeHistoryStore.put({
                 network: "ethereum",
