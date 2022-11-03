@@ -17,17 +17,33 @@ export class TimeoutObserver implements IObserver<unknown> {
         this._timeoutMilliseconds = timeoutMilliseconds;
         this._nodeKind = nodeKind;
 
-        this.timer = setTimeout(this.report, this._timeoutMilliseconds);
+        this.timer = setTimeout(
+            this.report,
+            this._timeoutMilliseconds,
+            this._integration,
+            this._nodeKind,
+            this._timeoutMilliseconds
+        );
     }
 
     async notify(data: unknown): Promise<void> {
         clearTimeout(this.timer);
-        this.timer = setTimeout(this.report, this._timeoutMilliseconds);
+        this.timer = setTimeout(
+            this.report,
+            this._timeoutMilliseconds,
+            this._integration,
+            this._nodeKind,
+            this._timeoutMilliseconds
+        );
     }
 
-    private report(): void {
-        this._integration.error(
-            `The observing node (${this._nodeKind}) has not been updated for ${this._timeoutMilliseconds} ms.`,
+    private report(
+        integration: Integration,
+        nodeKind: "nine-chronicles" | "ethereum",
+        timeoutMilliseconds: number
+    ): void {
+        integration.error(
+            `The observing node (${nodeKind}) has not been updated for ${timeoutMilliseconds} ms.`,
             {}
         );
     }
