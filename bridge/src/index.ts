@@ -264,6 +264,7 @@ process.on("uncaughtException", console.error);
         slackMessageSender,
         opensearchClient,
         monitorStateStore,
+        exchangeHistoryStore,
         EXPLORER_ROOT_URL,
         NCSCAN_URL,
         USE_NCSCAN_URL,
