@@ -4,6 +4,8 @@ COPY . /build
 WORKDIR /build
 RUN yarn
 RUN yarn tsc --project tsconfig.production.json
+RUN wget https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.2/napi-v6-linux-musl-x64.tar.gz && tar -xvzf napi-v6-linux-musl-x64.tar.gz
+COPY napi-v6-linux-musl-x64 node_modules/sqlite3/lib/binding
 
 FROM node:16.17-alpine
 
