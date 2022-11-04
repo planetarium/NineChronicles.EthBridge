@@ -108,7 +108,7 @@ export class NCGKMSTransfer implements INCGTransfer {
             }
             const txId = crypto
                 .createHash("sha256")
-                .update(tx, "base64")
+                .update(tx, "hex")
                 .digest()
                 .toString("hex");
             return txId;
