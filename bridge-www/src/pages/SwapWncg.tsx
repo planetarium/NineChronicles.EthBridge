@@ -1,4 +1,4 @@
-import { Button, Text } from "@nextui-org/react";
+import { Button, Container, Row, Spacer, Text } from "@nextui-org/react";
 import Decimal from "decimal.js";
 import { BigNumber } from "ethers";
 import { isAddress } from "ethers/lib/utils";
@@ -20,7 +20,7 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
     } else if (chain?.id === ropsten.id) {
       return "0xeaa982f3424338598738c496153e55b1df11f625";
     } else {
-      return "0x5F2e568E7085Ce18fA7b68e13fd5C04e99F044C4";
+      return "0xad84431776e966400a8aecaf7bd2316a69c54efe";
     }
   }, [chain]);
 
@@ -50,29 +50,44 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
   }, [amount]);
 
   return (
-    <div className="App">
-      <TextField label={'Contract Address'} value={contractAddress} readOnly/>
-      <Text>Your wNCG : {
-        isLoading
-          ? <Text>🕑</Text>
-          : <Text weight="bold" span={true}>{
-                data !== undefined
-                    ? new Decimal(data.value.toString()).div(new Decimal(10).pow(data.decimals)).toString()
-                    : error?.message
-            }</Text>
-      }</Text>
-      <TextField label={'Amount'} onChange={setAmount}/>
-      <TextField label={'To'} onChange={setNcAddress}/>
-      {
-        contract === null || burnAmount === null || burnAmount.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
-          ? <Text weight={"bold"}>Fill corret values</Text>
-          : <Button onClick={event => {
-            event.preventDefault();    
-            console.log(contract);
-            contract.burn(BigNumber.from(burnAmount.toString()), ncAddress + "0".repeat(24)).then(console.debug)
-          }}>Burn</Button>
-      }
-    </div>
+    <Container style={{
+      margin: "30vh 0",
+      minWidth: "100%",
+      overflow: "hidden",
+    }}>
+      <Row justify="center">
+        <Text>Your wNCG : {
+          isLoading
+            ? <Text span={true}>🕑</Text>
+            : <Text weight="bold" span={true}>{
+                  data !== undefined
+                      ? new Decimal(data.value.toString()).div(new Decimal(10).pow(data.decimals)).toString()
+                      : error?.message
+              }</Text>
+        }</Text>
+      </Row>
+      <Spacer />
+      <Spacer />
+      <Row justify="center">
+        <TextField label={'To'} onChange={setNcAddress}/>
+      </Row>
+      <Spacer />
+      <Row justify="center">
+        <TextField label={'Amount'} onChange={setAmount}/>
+      </Row>
+      <Spacer />
+      <Row justify="center">
+        {
+          contract === null || burnAmount === null || burnAmount.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
+            ? <Text weight={"bold"}>Fill corret values</Text>
+            : <Button onClick={event => {
+              event.preventDefault();    
+              console.log(contract);
+              contract.burn(BigNumber.from(burnAmount.toString()), ncAddress + "0".repeat(24)).then(console.debug)
+            }}>Burn</Button>
+        }
+      </Row>
+    </Container>
   );
 }
 

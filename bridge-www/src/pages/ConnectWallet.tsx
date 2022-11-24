@@ -1,4 +1,4 @@
-import { Button } from "@nextui-org/react";
+import { Button, Container, Row, Spacer } from "@nextui-org/react";
 import React from "react"
 
 interface ConnectWalletPageProps {
@@ -7,9 +7,17 @@ interface ConnectWalletPageProps {
 
 const ConnectWalletPage: React.FC<ConnectWalletPageProps> = ({ connect }) => {
     return (
-        <Button onClick={() => connect()}>
-          Connect Wallet
-        </Button>
+        <Container style={{margin: "10vh 10vw"}}>
+            <Row>
+                <h1>MetaMask is not connected.</h1>
+            </Row>
+            <Spacer/>
+            <Row>
+                <Button onClick={() => connect()}>
+                    Connect Wallet
+                </Button>
+            </Row>
+        </Container>
     );
 }
 
