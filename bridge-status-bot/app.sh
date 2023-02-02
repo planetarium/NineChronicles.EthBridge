@@ -53,8 +53,8 @@ TEXT=":notebook: *9c-bridge report*\\n\
 > Currently, there are WNCGs minted manually not through bridge swap process. The total amount is *$MINTED_BALANCE*. So the gap was calculated via:\
 \`\`\`total_supply - $MINTED_BALANCE - ncg_balance\`\`\`\\n
 :wncg: WNCG Total Supply:     *$TOTAL_SUPPLY*\\n\
-:donggeul_01: NCG Balance:                *$GOLD_BALANCE*\\n\
-GAP between :wncg: and :donggeul_01:: *$GAP*
+:ncg: NCG Balance:                *$GOLD_BALANCE*\\n\
+GAP between :wncg: and :ncg:: *$GAP*
 :ether: Ether balance:                *$ETH_BALANCE*\\n"
 
 if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
