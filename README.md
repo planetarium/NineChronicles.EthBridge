@@ -53,6 +53,11 @@ The manual mint transactions are like the below list:
   - Amount: 13,000,000 NCG
   - Backed by:
     - [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]
+- https://etherscan.io/tx/0xe5677a9bc5a4742bfda137e32e0ac8eeaac1d0b5ad442eb2a6a033eb65c16925
+  - Reason: Liquidity Supply Partnership Agreements
+  - Amount: 9,000,000 NCG
+  - Backed by:
+    - [0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]
 
 So you can check them have enough collateral NCGs corresponded to the WNCGs:
 
@@ -62,8 +67,10 @@ So you can check them have enough collateral NCGs corresponded to the WNCGs:
 | 0xebCa4032529221a9BCd3fF3a17C26e7d4f829695 |  5,450,000         |
 | 0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5 |  5,000,000         |
 | 0x310518163256A9642364FDadb0eB2b218cfa86c6 | 30,000,000         |
+| 0xdF81374a4e4853340CCef6485083Cc1ba9100E2B | 9,000,000         |
 
 [0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5]: https://9cscan.com/address/0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5
 [0xebCa4032529221a9BCd3fF3a17C26e7d4f829695]: https://9cscan.com/address/0xebCa4032529221a9BCd3fF3a17C26e7d4f829695
 [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]: https://9cscan.com/address/0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19
 [0x310518163256A9642364FDadb0eB2b218cfa86c6]: https://9cscan.com/address/0x310518163256A9642364FDadb0eB2b218cfa86c6
+[0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]: https://9cscan.com/address/0xdF81374a4e4853340CCef6485083Cc1ba9100E2B
