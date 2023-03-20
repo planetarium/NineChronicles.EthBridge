@@ -45,6 +45,20 @@ module.exports = {
       skipDryRun: true, // Skip dry run before migrations? (default: false for public nets )
       networkCheckTimeout: 1000000000,
     },
+    goerli: {
+      provider: () =>
+        new HDWalletProvider({
+          mnemonic: process.env.MNEMONIC,
+          providerOrUrl: `https://goerli.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+          addressIndex: process.env.MNEMONIC_INDEX,
+        }),
+      network_id: 5, // Goerli's id
+      //gas: 5500000, // # use default gas
+      confirmations: 0,
+      timeoutBlocks: 200,
+      skipDryRun: true,
+      networkCheckTimeout: 1000000000,
+    },
     sepolia: {
       provider: () =>
         new HDWalletProvider({

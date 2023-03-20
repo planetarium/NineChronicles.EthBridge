@@ -5,7 +5,7 @@ import { isAddress } from "ethers/lib/utils";
 import { useState, useMemo } from "react";
 import { erc20ABI, useBalance, useContract, useNetwork, useSigner } from "wagmi";
 import { TextField } from "../components/TextField";
-import { mainnet, ropsten } from 'wagmi/chains'
+import { mainnet, ropsten, goerli } from 'wagmi/chains'
 
 interface SwapWncgPageProps {
     address: string,
@@ -19,6 +19,8 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
       return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
     } else if (chain?.id === ropsten.id) {
       return "0xeaa982f3424338598738c496153e55b1df11f625";
+    } else if (chain?.id === goerli.id) {
+      return "0xafbf2bee0c4803c13436db44509267fa2312ad33";      
     } else {
       return "0xad84431776e966400a8aecaf7bd2316a69c54efe";
     }
