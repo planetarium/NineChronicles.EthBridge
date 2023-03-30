@@ -45,9 +45,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const mockWrappedNcgMinter: jest.Mocked<IWrappedNCGMinter> = {
-        mint: jest.fn().mockResolvedValue({
-            transactionHash: "TRANSACTION-HASH",
-        }),
+        mint: jest.fn().mockResolvedValue("TRANSACTION-HASH"),
     };
 
     const mockSlackChannel: jest.Mocked<ISlackChannel> = {
