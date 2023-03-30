@@ -38,6 +38,12 @@ import {
     ZeroExchangeFeeRatioPolicy,
 } from "./policies/exchange-fee-ratio";
 import { SlackChannel } from "./slack-channel";
+import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
+import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
+import SafeServiceClient from "@safe-global/safe-service-client";
+import { ethers } from "ethers";
+import EthersAdapter from "@safe-global/safe-ethers-lib";
+import Safe from "@safe-global/safe-core-sdk";
 
 consoleStamp(console);
 
@@ -145,6 +151,49 @@ process.on("uncaughtException", console.error);
             "string"
         )?.split(",") || [];
 
+    const USE_SAFE_WRAPPED_NCG_MINTER: boolean = Configuration.get(
+        "USE_SAFE_WRAPPED_NCG_MINTER",
+        false,
+        "boolean"
+    );
+    const SAFE_OWNER_CREDENTIALS: AwsKmsSignerCredentials[] | null =
+        USE_SAFE_WRAPPED_NCG_MINTER
+            ? [1, 2, 3].map((value) => {
+                  return {
+                      region: Configuration.get(
+                          `SAFE_OWNER_${value}_AWS_REGION`,
+                          true,
+                          "string"
+                      ),
+                      accessKeyId: Configuration.get(
+                          `SAFE_OWNER_${value}_AWS_ACCESS_KEY_ID`,
+                          true,
+                          "string"
+                      ),
+                      secretAccessKey: Configuration.get(
+                          `SAFE_OWNER_${value}_AWS_SECRET_ACCESS_KEY`,
+                          true,
+                          "string"
+                      ),
+                      keyId: Configuration.get(
+                          `SAFE_OWNER_${value}_AWS_KEY_ID`,
+                          true,
+                          "string"
+                      ),
+                  };
+              })
+            : null;
+    const SAFE_TX_SERVICE_URL: string | undefined = Configuration.get(
+        "SAFE_TX_SERVICE_URL",
+        USE_SAFE_WRAPPED_NCG_MINTER,
+        "string"
+    );
+    const SAFE_ADDRESS: string | undefined = Configuration.get(
+        "SAFE_ADDRESS",
+        USE_SAFE_WRAPPED_NCG_MINTER,
+        "string"
+    );
+
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore =
@@ -205,13 +254,43 @@ process.on("uncaughtException", console.error);
         gasPriceTipPolicy,
         gasPriceLimitPolicy,
     ]);
-    const minter: IWrappedNCGMinter = new WrappedNCGMinter(
-        web3,
-        wNCGToken,
-        kmsAddress,
-        gasPricePolicy,
-        new Decimal(PRIORITY_FEE)
-    );
+
+    async function makeSafeWrappedNCGMinter(): Promise<SafeWrappedNCGMinter> {
+        if (
+            !USE_SAFE_WRAPPED_NCG_MINTER ||
+            !SAFE_TX_SERVICE_URL ||
+            !SAFE_OWNER_CREDENTIALS ||
+            !SAFE_ADDRESS
+        ) {
+            throw new Error("Unsufficient environment variables were given.");
+        }
+
+        const provider = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
+
+        const [owner1Signer, owner2Signer, owner3Signer] =
+            SAFE_OWNER_CREDENTIALS.map(
+                (credentials) => new AwsKmsSigner(credentials, provider)
+            );
+
+        return await SafeWrappedNCGMinter.create(
+            SAFE_TX_SERVICE_URL,
+            SAFE_ADDRESS,
+            WNCG_CONTRACT_ADDRESS,
+            owner1Signer,
+            owner2Signer,
+            owner3Signer
+        );
+    }
+
+    const minter: IWrappedNCGMinter = USE_SAFE_WRAPPED_NCG_MINTER
+        ? await makeSafeWrappedNCGMinter()
+        : new WrappedNCGMinter(
+              web3,
+              wNCGToken,
+              kmsAddress,
+              gasPricePolicy,
+              new Decimal(PRIORITY_FEE)
+          );
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
         secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
