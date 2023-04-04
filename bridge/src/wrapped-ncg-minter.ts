@@ -41,7 +41,7 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         this._priorityFee = priorityFee;
     }
 
-    async mint(address: string, amount: Decimal): Promise<TransactionReceipt> {
+    async mint(address: string, amount: Decimal): Promise<string> {
         //NOTICE: This can be a problem if the number of digits in amount exceeds 9e+14.
         //more detail: https://mikemcl.github.io/decimal.js/#toExpPos
         Decimal.set({ toExpPos: 900000000000000 });
@@ -55,8 +55,9 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         const gasPrice = new Decimal(gasPriceString);
         const calculatedGasPrice =
             this._gasPricePolicy.calculateGasPrice(gasPrice);
-        return this._contract.methods
+        const { transactionHash } = await this._contract.methods
             .mint(address, this._web3.utils.toBN(amount.toString()))
             .send({ from: this._minterAddress, gasPrice: calculatedGasPrice });
+        return transactionHash;
     }
 }

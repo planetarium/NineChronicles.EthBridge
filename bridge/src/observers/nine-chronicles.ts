@@ -367,11 +367,10 @@ export class NCGTransferredEventObserver
                     transactionHash =
                         "0xc60146f55fd24323de2e2efbd66743317ac9601aa648daf9d78069661635c306";
                 } else {
-                    const { transactionHash: txHash } =
-                        await this._wrappedNcgTransfer.mint(
-                            recipient!,
-                            ethereumExchangeAmount
-                        );
+                    const txHash = await this._wrappedNcgTransfer.mint(
+                        recipient!,
+                        ethereumExchangeAmount
+                    );
                     transactionHash = txHash;
                 }
 
