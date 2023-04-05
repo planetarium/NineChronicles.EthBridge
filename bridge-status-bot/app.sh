@@ -8,7 +8,8 @@ SLACK_CHANNEL="$3"
 
 ETHERSCAN_API_ENDPOINT='https://api.etherscan.io'
 CONTRACT_ADDRESS='0xf203ca1769ca8e9e8fe1da9d147db68b6c919817'
-BRIDGE_ADDRESS='0x9093dd96c4bb6b44a9e0a522e2de49641f146223'
+BRIDGE_NC_ADDRESS='0x9093dd96c4bb6b44a9e0a522e2de49641f146223'
+BRIDGE_ETHEREUM_ADDRESS='0x4A2FbE06004e37dE6Fe7Da59a53D14a407Def0ed'
 
 GRAPHQL_API_ENDPOINT='https://9c-main-full-state.planetarium.dev'
 
@@ -37,8 +38,8 @@ function get_gold_balance() {
 }
 
 TOTAL_SUPPLY=$(get_total_supply)
-GOLD_BALANCE=$(get_gold_balance "$BRIDGE_ADDRESS")
-ETH_BALANCE=$(get_eth_balance "$BRIDGE_ADDRESS")
+GOLD_BALANCE=$(get_gold_balance "$BRIDGE_NC_ADDRESS")
+ETH_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_ADDRESS")
 ETH_BALANCE_THRESHOLD=3
 
 # https://etherscan.io/tx/0x851bffbfcb2084bd6ea376b0e799d8111e2b38a04a6eadc74d0c9dbd8c59b7d4
