@@ -9,6 +9,8 @@ import {
 import Safe from "@safe-global/safe-core-sdk";
 import SafeServiceClient from "@safe-global/safe-service-client";
 import EthersAdapter from "@safe-global/safe-ethers-lib";
+import { Provider } from "@ethersproject/abstract-provider";
+import { IGasPricePolicy } from "./policies/gas-price";
 
 export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _safeService: SafeServiceClient;
@@ -19,6 +21,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _wncgContractAddress: string;
     private readonly _safeSdkOwner1: Safe;
     private readonly _safeSdkOwner2: Safe;
+    private readonly _provider: Provider;
+    private readonly _gasPricePolicy: IGasPricePolicy;
 
     private constructor(
         safeService: SafeServiceClient,
@@ -28,7 +32,9 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         owner2Signer: Signer,
         owner3Signer: Signer,
         safeSdkOwner1: Safe,
-        safeSdkOwner2: Safe
+        safeSdkOwner2: Safe,
+        provider: Provider,
+        gasPricePolicy: IGasPricePolicy
     ) {
         this._safeService = safeService;
         this._safeAddress = safeAddress;
@@ -38,6 +44,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         this._owner3Signer = owner3Signer;
         this._safeSdkOwner1 = safeSdkOwner1;
         this._safeSdkOwner2 = safeSdkOwner2;
+        this._provider = provider;
+        this._gasPricePolicy = gasPricePolicy;
     }
 
     async mint(address: string, amount: Decimal): Promise<string> {
@@ -62,7 +70,9 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         wncgContractAddress: string,
         owner1Signer: Signer,
         owner2Signer: Signer,
-        owner3Signer: Signer
+        owner3Signer: Signer,
+        provider: Provider,
+        gasPricePolicy: IGasPricePolicy
     ): Promise<SafeWrappedNCGMinter> {
         const ethAdapterOwner1 = new EthersAdapter({
             ethers,
@@ -94,11 +104,22 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             owner2Signer,
             owner3Signer,
             safeSdkOwner1,
-            safeSdkOwner2
+            safeSdkOwner2,
+            provider,
+            gasPricePolicy
         );
     }
 
     private async proposeMintTransaction(amount: string, to: string) {
+        Decimal.set({ toExpPos: 900000000000000 });
+        const gasPrice = new Decimal(
+            (await this._provider.getGasPrice()).toString()
+        );
+        console.log("Original gas price:", gasPrice);
+        const calculatedGasPrice =
+            this._gasPricePolicy.calculateGasPrice(gasPrice);
+        console.log("Calculated gas price:", calculatedGasPrice);
+
         // Create a transaction object
         const mintAmount = ethers.utils.parseUnits(amount, 18);
         const contract = new ethers.Contract(
@@ -116,6 +137,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         const safeTransactionData: SafeTransactionDataPartial = {
             to: this._wncgContractAddress,
             value: "0",
+            gasPrice: calculatedGasPrice.toNumber(),
             data: data,
         };
 
