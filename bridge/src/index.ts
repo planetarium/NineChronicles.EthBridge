@@ -278,7 +278,9 @@ process.on("uncaughtException", console.error);
             WNCG_CONTRACT_ADDRESS,
             owner1Signer,
             owner2Signer,
-            owner3Signer
+            owner3Signer,
+            provider,
+            gasPricePolicy
         );
     }
 
