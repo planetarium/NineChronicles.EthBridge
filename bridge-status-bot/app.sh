@@ -10,6 +10,7 @@ ETHERSCAN_API_ENDPOINT='https://api.etherscan.io'
 CONTRACT_ADDRESS='0xf203ca1769ca8e9e8fe1da9d147db68b6c919817'
 BRIDGE_NC_ADDRESS='0x9093dd96c4bb6b44a9e0a522e2de49641f146223'
 BRIDGE_ETHEREUM_ADDRESS='0x4A2FbE06004e37dE6Fe7Da59a53D14a407Def0ed'
+BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDRESS='0x241085D7772E12740d6b1420043F04C51Cb3B45A'
 
 GRAPHQL_API_ENDPOINT='https://9c-main-full-state.planetarium.dev'
 
@@ -41,6 +42,7 @@ TOTAL_SUPPLY=$(get_total_supply)
 GOLD_BALANCE=$(get_gold_balance "$BRIDGE_NC_ADDRESS")
 ETH_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_ADDRESS")
 ETH_BALANCE_THRESHOLD=3
+ETH_SAFE_EXECUTOR_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDRESS")
 
 # https://etherscan.io/tx/0x851bffbfcb2084bd6ea376b0e799d8111e2b38a04a6eadc74d0c9dbd8c59b7d4
 # https://etherscan.io/tx/0x6e7d5d173d2acc7d33f22f4b65da0a33fdfe1a605072e9e70ac1873a7cfe0c18
@@ -54,10 +56,11 @@ GAP=$(bc <<< "$TOTAL_SUPPLY - $MINTED_BALANCE - $GOLD_BALANCE")
 TEXT=":notebook: *9c-bridge report*\\n\
 > Currently, there are WNCGs minted manually not through bridge swap process. The total amount is *$MINTED_BALANCE*. So the gap was calculated via:\
 \`\`\`total_supply - $MINTED_BALANCE - ncg_balance\`\`\`\\n
-:wncg: WNCG Total Supply:     *$TOTAL_SUPPLY*\\n\
-:ncg: NCG Balance:                *$GOLD_BALANCE*\\n\
-GAP between :wncg: and :ncg:: *$GAP*
-:ether: Ether balance:                *$ETH_BALANCE*\\n"
+:wncg: WNCG Total Supply:                               *$TOTAL_SUPPLY*\\n\
+:ncg: NCG Balance:                                           *$GOLD_BALANCE*\\n\
+GAP between :wncg: and :ncg::                           *$GAP*
+:ether: Ether Safe Contract balance:                  *$ETH_BALANCE*\\n
+:ether: Ether Safe Contract Executor balance: *$ETH_SAFE_EXECUTOR_BALANCE*\\n"
 
 if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
     TEXT+="Ether Balance is lower than the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
