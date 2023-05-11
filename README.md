@@ -69,8 +69,12 @@ So you can check them have enough collateral NCGs corresponded to the WNCGs:
 | 0x310518163256A9642364FDadb0eB2b218cfa86c6 | 30,000,000         |
 | 0xdF81374a4e4853340CCef6485083Cc1ba9100E2B | 9,000,000         |
 
+Since Apr 01 2023, Planetarium started to organize all collaterals into one cold wallet acocunt. The cold wallet's address is [0xa86e321048c397c0f7f23c65b1ee902afe24644e]. So the sum of [0xa86e321048c397c0f7f23c65b1ee902afe24644e]'s balance and [0x9093dd96c4bb6b44a9e0a522e2de49641f146223]'s balance, must be equal or more than the issuance of WNCG.
+
 [0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5]: https://9cscan.com/address/0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5
 [0xebCa4032529221a9BCd3fF3a17C26e7d4f829695]: https://9cscan.com/address/0xebCa4032529221a9BCd3fF3a17C26e7d4f829695
 [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]: https://9cscan.com/address/0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19
 [0x310518163256A9642364FDadb0eB2b218cfa86c6]: https://9cscan.com/address/0x310518163256A9642364FDadb0eB2b218cfa86c6
 [0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]: https://9cscan.com/address/0xdF81374a4e4853340CCef6485083Cc1ba9100E2B
+[0xa86e321048c397c0f7f23c65b1ee902afe24644e]: https://9cscan.com/address/0xa86e321048c397c0f7f23c65b1ee902afe24644e
+[0x9093dd96c4bb6b44a9e0a522e2de49641f146223]: https://9cscan.com/address/0x9093dd96c4bb6b44a9e0a522e2de49641f146223
