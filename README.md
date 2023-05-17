@@ -6,7 +6,7 @@ A project to bridge NCG between NineChronicles network and Ethereum network.
 
 ### Collateral
 
-Planetarium organization manually minted as `110523334`.
+Planetarium organization manually minted as `128038607`.
 
 The manual mint transactions are like the below list:
 
@@ -58,12 +58,17 @@ The manual mint transactions are like the below list:
   - Amount: 9,000,000 NCG
   - Backed by:
     - [0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]
+- https://
+  - Reason: Growth Partner Balance Withdrawal
+  - Amount: 8,515,273 NCG
+  - Backed by:
+    - [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]
 
 So you can check them have enough collateral NCGs corresponded to the WNCGs:
 
 |                   address                  |   WNCG collateral  |
 |--------------------------------------------|--------------------|
-| 0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19 | 70,073,334         |
+| 0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19 | 78,588,607         |
 | 0xebCa4032529221a9BCd3fF3a17C26e7d4f829695 |  5,450,000         |
 | 0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5 |  5,000,000         |
 | 0x310518163256A9642364FDadb0eB2b218cfa86c6 | 30,000,000         |
