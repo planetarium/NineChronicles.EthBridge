@@ -58,11 +58,6 @@ The manual mint transactions are like the below list:
   - Amount: 9,000,000 NCG
   - Backed by:
     - [0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]
-- https://
-  - Reason: Growth Partner Balance Withdrawal
-  - Amount: 8,515,273 NCG
-  - Backed by:
-    - [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]
 
 So you can check them have enough collateral NCGs corresponded to the WNCGs:
 
@@ -75,6 +70,29 @@ So you can check them have enough collateral NCGs corresponded to the WNCGs:
 | 0xdF81374a4e4853340CCef6485083Cc1ba9100E2B | 9,000,000         |
 
 Since Apr 01 2023, Planetarium started to organize all collaterals into one cold wallet acocunt. The cold wallet's address is [0xa86e321048c397c0f7f23c65b1ee902afe24644e]. So the sum of [0xa86e321048c397c0f7f23c65b1ee902afe24644e]'s balance and [0x9093dd96c4bb6b44a9e0a522e2de49641f146223]'s balance, must be equal or more than the issuance of WNCG.
+
+The below transactions deposits collaterals into one Bridge Cold Wallet:
+
+- [0xb3a2025bEbC87E2fF9DfD065F8e622b1583eDF19]
+  - https://9cscan.com/tx/cbeb9edbd6b3694fe5197a937294772345a5f6e41b04653048b088a770c6b714
+  - https://9cscan.com/tx/5d8dcb81a347d5a56d0d515da667cd854061d3fcef4217e3d590aaeec4de31db
+- [0xebCa4032529221a9BCd3fF3a17C26e7d4f829695]
+  - https://9cscan.com/tx/8ca99829ceca1c59f932b3ef79d9b4a308e915811675a9c313381ddfcd2192e9
+- [0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5]
+  - https://9cscan.com/tx/0818d8751dfd0b90343b84afd8a7539425437290b037a654f60f501958761d6f
+- [0x310518163256A9642364FDadb0eB2b218cfa86c6]
+  - https://9cscan.com/tx/7b3112e1a34c4fc8be1197f4703e6b28402844bda38ad18ce6405b482721dcc6
+- [0xdF81374a4e4853340CCef6485083Cc1ba9100E2B]
+  - https://9cscan.com/tx/07d63cbe561e4d37f1651f604df0934ce18716a00cfe47903258a390e8d91409
+
+
+After the above settlement, starting with the manual mint below, write the 9c transaction link that you moved to the cold wallet, replacing the collateral account link.
+
+- https://etherscan.io/tx/0x208746218c94414ad008cff71358a3997c4c1aeec9b1e838f040ca21f712d30b
+  - Reason: Growth Partner Balance Withdrawal
+  - Amount: 8,515,273 NCG
+  - Collateral Deposit Transaction: https://9cscan.com/tx/90499dce3fa66913f63e05f470dee5586918111dc242d984147771db5813ea38
+
 
 [0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5]: https://9cscan.com/address/0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5
 [0xebCa4032529221a9BCd3fF3a17C26e7d4f829695]: https://9cscan.com/address/0xebCa4032529221a9BCd3fF3a17C26e7d4f829695
