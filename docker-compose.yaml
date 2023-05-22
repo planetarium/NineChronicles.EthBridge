@@ -1,7 +1,7 @@
 version: '3'
 services:
   9c-headless:
-    image: planetariumhq/ninechronicles-headless:git-aeca30f8286c9dbddefde7db38e8ae49a4113e78
+    image: planetariumhq/ninechronicles-headless:git-a0081624dee94156fcdf8aaf37ea074de32e7169
     command:
       - "--app-protocol-version=1000/5616aAE462952937f72c64180310d56E2DBE51F6/MEQCICpMk84Aw51KDop882iA5YC6PJpMTjoIEWnMpC8hDQljAiBrxmUFKv1oHf0og+HrwJ2qIZ7e9aHcHmRp.pmycKJ8JA=="
       - "--network-type=default"
@@ -15,6 +15,7 @@ services:
       - "--consensus-private-key=42e08b93f63f73de77c1214e56e331fa6d1a02a4f236dc8d1b1de894992387c9"
       - "--consensus-seed=033b805105b2a452495e82d44cc95d8f6ebf700f90abdc5647e38fca1051c9a88c,localhost,35353"
       - "--consensus-port=35353"
-      - "-G=https://9c-dx.s3.ap-northeast-2.amazonaws.com/empty-genesis-block-test-mead-20230511"  # Set `NCG_MINTER="0x6667562C50a0B4508d36936EDf9204b3Fb10D72D"` in .env file.
+      - "--consensus-target-block-interval=1000"
+      - "-G=https://9c-dx.s3.ap-northeast-2.amazonaws.com/empty-genesis-block-20230522"  # Set `NCG_MINTER="0x28d80242290EB305C996A89F8D8A3707f7b6bc28"` in .env file.
     ports:
       - 5000:5000
