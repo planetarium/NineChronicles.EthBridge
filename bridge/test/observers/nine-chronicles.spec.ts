@@ -81,7 +81,7 @@ describe(NCGTransferredEventObserver.name, () => {
     const baseFeePolicy = {
         criterion: 1000,
         fee: 10,
-    }
+    };
 
     const limitationPolicy = {
         maximum: 100000,

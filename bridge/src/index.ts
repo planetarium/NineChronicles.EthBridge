@@ -85,7 +85,11 @@ process.on("uncaughtException", console.error);
     );
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
-    const BASE_FEE_CRITERION: number = Configuration.get("BASE_FEE_CRITERION", true, "float");
+    const BASE_FEE_CRITERION: number = Configuration.get(
+        "BASE_FEE_CRITERION",
+        true,
+        "float"
+    );
     const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const OPENSEARCH_ENDPOINT: string = Configuration.get(
@@ -382,7 +386,7 @@ process.on("uncaughtException", console.error);
         ncgExchangeFeeRatioPolicy,
         {
             criterion: BASE_FEE_CRITERION,
-            fee: BASE_FEE
+            fee: BASE_FEE,
         },
         {
             maximum: MAXIMUM_NCG,

@@ -351,8 +351,12 @@ export class NCGTransferredEventObserver
                  * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
                  * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
                  */
-                const fee = limitedAmount.greaterThanOrEqualTo(new Decimal(this._baseFeePolicy.criterion))
-                    ? new Decimal(limitedAmount.mul(exchangeFeeRatio).toFixed(2))
+                const fee = limitedAmount.greaterThanOrEqualTo(
+                    new Decimal(this._baseFeePolicy.criterion)
+                )
+                    ? new Decimal(
+                          limitedAmount.mul(exchangeFeeRatio).toFixed(2)
+                      )
                     : new Decimal(this._baseFeePolicy.fee);
                 const exchangeAmount = limitedAmount.sub(fee);
                 const ethereumExchangeAmount = exchangeAmount.mul(decimals);
