@@ -71,11 +71,17 @@ describe(NCGTransferredEventObserver.name, () => {
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
         new Decimal(0.01)
     );
+
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
         exist: jest.fn(),
     };
+
+    const baseFeePolicy = {
+        criterion: 1000,
+        fee: 10,
+    }
 
     const limitationPolicy = {
         maximum: 100000,
@@ -104,6 +110,7 @@ describe(NCGTransferredEventObserver.name, () => {
         false,
         "https://ropsten.etherscan.io",
         exchangeFeeRatioPolicy,
+        baseFeePolicy,
         limitationPolicy,
         addressBanPolicy,
         mockIntegration
@@ -504,8 +511,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 tx_id: "TX-SHOULD-REFUND-I",
             });
 
+            // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(99000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(90000000000000000000)],
                 [wrappedNcgRecipient, new Decimal(98901000000000000000000)],
             ]);
         });
