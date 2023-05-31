@@ -365,6 +365,12 @@ process.on("uncaughtException", console.error);
     );
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
+    if (BASE_FEE >= BASE_FEE_CRITERION) {
+        throw Error(
+            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
+        );
+    }
+
     const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
         ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(
             (address) => new ZeroExchangeFeeRatioPolicy(address)
