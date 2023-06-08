@@ -85,6 +85,12 @@ process.on("uncaughtException", console.error);
     );
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
+    const BASE_FEE_CRITERION: number = Configuration.get(
+        "BASE_FEE_CRITERION",
+        true,
+        "float"
+    );
+    const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const OPENSEARCH_ENDPOINT: string = Configuration.get(
         "OPENSEARCH_ENDPOINT"
@@ -359,6 +365,12 @@ process.on("uncaughtException", console.error);
     );
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
 
+    if (BASE_FEE >= BASE_FEE_CRITERION) {
+        throw Error(
+            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
+        );
+    }
+
     const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
         ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(
             (address) => new ZeroExchangeFeeRatioPolicy(address)
@@ -378,6 +390,10 @@ process.on("uncaughtException", console.error);
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         ncgExchangeFeeRatioPolicy,
+        {
+            criterion: BASE_FEE_CRITERION,
+            fee: BASE_FEE,
+        },
         {
             maximum: MAXIMUM_NCG,
             minimum: MINIMUM_NCG,
