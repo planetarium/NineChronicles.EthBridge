@@ -11,5 +11,7 @@ FROM node:16.17-alpine
 
 COPY --from=build-env /build/dist /app
 COPY --from=build-env /build/node_modules /app/node_modules
+COPY package*.json /app
+
 WORKDIR /app
 ENTRYPOINT ["node", "index.js"]
