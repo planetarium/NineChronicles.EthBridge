@@ -2,6 +2,6 @@
     "extends": "./tsconfig",
     "include": [
         "src",
-        "src/scripts"
+        "scripts"
     ]
 }
