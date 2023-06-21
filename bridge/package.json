@@ -2,7 +2,7 @@
   "name": "bridge",
   "version": "0.1.0",
   "description": "A project to bridge NCG between NineChronicles network and Ethereum network.",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "start": "ts-node ./src/index.ts",
     "test": "run-s test:*",
