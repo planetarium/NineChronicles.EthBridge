@@ -196,7 +196,9 @@ async function executeTransaction(
     const receipt = await executeTxResponse.transactionResponse?.wait();
 
     console.log("Transaction executed:");
-    console.log(`${process.env.ETHERSCAN_ROOT_URL}${receipt?.transactionHash}`);
+    console.log(
+        `${process.env.ETHERSCAN_ROOT_URL}/tx/${receipt?.transactionHash}`
+    );
 
     safeBalance = await safeSdk.getBalance();
 
