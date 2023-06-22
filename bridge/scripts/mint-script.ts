@@ -55,7 +55,6 @@ let safeSdkOwner1: Safe;
 let safeAddress: string;
 
 // If you have an existing Safe, you can use it instead of deploying a new one
-// https://app.safe.global/home?safe=eth:0x4A2FbE06004e37dE6Fe7Da59a53D14a407Def0ed
 const EXISTING_SAFE_ADDRESS = ethers.utils.getAddress(
     process.env.SAFE_ADDRESS!
 );
@@ -125,7 +124,7 @@ async function proposeMintTransaction(
         gasPrice,
     };
 
-    // Create a Safe transaction with the provided parametersx
+    // Create a Safe transaction with the provided parameters
     const safeTransaction: SafeTransaction =
         await safeSdkOwner1.createTransaction({ safeTransactionData });
 
