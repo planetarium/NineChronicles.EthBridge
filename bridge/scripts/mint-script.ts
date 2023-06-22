@@ -136,18 +136,23 @@ async function proposeMintTransaction(
 
     const owner1SignerAddress = await owner1Signer.getAddress();
 
+    // set address check Summed
+    const checkSummedSenderAddress =
+        ethers.utils.getAddress(owner1SignerAddress);
+    const checkSummedSafeAddress = ethers.utils.getAddress(safeAddress);
+
     console.log({
-        safeAddress,
+        safeAddress: checkSummedSafeAddress,
         safeTransactionData: safeTransaction.data,
         safeTxHash,
-        senderAddress: await owner1Signer.getAddress(),
+        senderAddress: checkSummedSenderAddress,
         senderSignature: senderSignature.data,
     });
     await safeService.proposeTransaction({
-        safeAddress: ethers.utils.getAddress(safeAddress),
+        safeAddress: checkSummedSafeAddress,
         safeTransactionData: safeTransaction.data,
         safeTxHash,
-        senderAddress: ethers.utils.getAddress(owner1SignerAddress),
+        senderAddress: checkSummedSenderAddress,
         senderSignature: senderSignature.data,
     });
 
