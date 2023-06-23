@@ -75,7 +75,7 @@ async function mint() {
             // optional argument gasPrice
             "[gasPrice]",
             "gasPrice(optional, default: 50)",
-            Number(process.env.gasPrice) || 50
+            Number(process.env.GAS_PRICE) || 50
         )
         .action(async (address: string, amount: string, gasPrice: string) => {
             await main(address, amount, gasPrice);
