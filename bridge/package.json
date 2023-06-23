@@ -2,7 +2,7 @@
   "name": "bridge",
   "version": "0.1.0",
   "description": "A project to bridge NCG between NineChronicles network and Ethereum network.",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "start": "ts-node ./src/index.ts",
     "test": "run-s test:*",
@@ -10,7 +10,8 @@
     "test:bridge": "jest --config=./bridge.jest.config.js",
     "coverage": "jest --coverage --config=./bridge.jest.config.js",
     "lint": "eslint src --ext .ts",
-    "build": "tsc"
+    "build": "tsc",
+    "mint": "node scripts/mint-script.js mint"
   },
   "repository": {
     "type": "git",
@@ -86,11 +87,13 @@
     "axios": "^0.21.1",
     "bencodex": "^0.1.1",
     "bigint-buffer": "^1.1.5",
+    "commander": "^11.0.0",
     "console-stamp": "^3.0.3",
     "decimal.js": "^10.3.1",
     "dotenv": "^8.2.0",
     "elliptic": "^6.5.4",
     "ethers": "^5.7.2",
+    "ethers-aws-kms-signer": "^1.3.2",
     "read-bigint": "^0.1.6",
     "sqlite3": "^5.1.1",
     "web3": "1.5.3"
