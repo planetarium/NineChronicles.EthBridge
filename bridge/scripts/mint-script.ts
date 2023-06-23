@@ -77,9 +77,8 @@ async function mint() {
             "gasPrice(optional, default: 50)",
             Number(process.env.gasPrice) || 50
         )
-        .action(async (address: string, amount: string, gasPrice: number) => {
-            // cli arguments type is string, so convert gasPrice to number, whether it's type is number or not
-            await main(address, amount, Number(gasPrice));
+        .action(async (address: string, amount: string, gasPrice: string) => {
+            await main(address, amount, gasPrice);
         });
 
     program.parseAsync();
@@ -223,11 +222,18 @@ function sleep(sec: number) {
     return new Promise((resolve) => setTimeout(resolve, sec * 1000));
 }
 
-async function main(destination: string, amount: string, gasPrice: number) {
+async function main(destination: string, amount: string, gasPrice: string) {
     const amountToNum = Number(amount);
+    const gasPriceToNum = Number(gasPrice);
 
     if (Number.isNaN(amountToNum)) {
         console.log(`amount:${amount} is not a number`);
+        console.log("Cancel Minting...");
+        process.exit(1);
+    }
+
+    if (Number.isNaN(gasPriceToNum)) {
+        console.log(`gasPrice:${gasPrice} is not a number`);
         console.log("Cancel Minting...");
         process.exit(1);
     }
@@ -258,7 +264,7 @@ async function main(destination: string, amount: string, gasPrice: number) {
         "==========================================================================================================="
     );
     console.log(
-        `Are you trying to Transfer WNCG. To: ${destination}, Amount: ${amount}, gasPrice: ${gasPrice} ??`
+        `Are you trying to Transfer WNCG. To: ${destination}, Amount: ${amount}, gasPrice: ${gasPriceToNum} ??`
     );
     console.log('If Correct, Enter "yes", If not Enter anything');
 
@@ -276,7 +282,7 @@ async function main(destination: string, amount: string, gasPrice: number) {
         }
 
         console.log(
-            `Trnasfer WNCG to ${destination}, amount: ${amount}, gasPrice: ${gasPrice} ...`
+            `Trnasfer WNCG to ${destination}, amount: ${amount}, gasPrice: ${gasPriceToNum} ...`
         );
 
         await initalizeSafe();
@@ -284,7 +290,7 @@ async function main(destination: string, amount: string, gasPrice: number) {
         const safeTxHash = await proposeMintTransaction(
             amount,
             ethers.utils.getAddress(destination),
-            gasPrice
+            gasPriceToNum
         );
         const { safeTxHash: confirmedSafeTxHash } = await confirmTransaction(
             safeTxHash
