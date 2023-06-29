@@ -61,7 +61,7 @@ export class NCGKMSTransfer implements INCGTransfer {
             // FIXME: request unsigned transaction builder API to NineChronicles.Headless developer
             //        and remove these lines.
             const plainValue = {
-                type_id: "transfer_asset3",
+                type_id: "transfer_asset4",
                 values: {
                     amount: [
                         {
