@@ -1,13 +1,13 @@
 version: '3'
 services:
   9c-headless:
-    image: planetariumhq/ninechronicles-headless:git-a0081624dee94156fcdf8aaf37ea074de32e7169
+    image: planetariumhq/ninechronicles-headless:git-14ca945556bc0008711226e6a35e37f0534b440a
     command:
       - "--app-protocol-version=1000/5616aAE462952937f72c64180310d56E2DBE51F6/MEQCICpMk84Aw51KDop882iA5YC6PJpMTjoIEWnMpC8hDQljAiBrxmUFKv1oHf0og+HrwJ2qIZ7e9aHcHmRp.pmycKJ8JA=="
       - "--network-type=default"
       - "--host=localhost"
       - "--graphql-server"
-      - "--graphql-port=5000"
+      - "--graphql-port=8000"
       - "--store-type=rocksdb"
       - "--store-path=/tmp"
       - "--no-cors"
@@ -18,4 +18,4 @@ services:
       - "--consensus-target-block-interval=1000"
       - "-G=https://9c-dx.s3.ap-northeast-2.amazonaws.com/empty-genesis-block-20230522"  # Set `NCG_MINTER="0x28d80242290EB305C996A89F8D8A3707f7b6bc28"` in .env file.
     ports:
-      - 5000:5000
+      - 8000:8000
