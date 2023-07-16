@@ -64,30 +64,9 @@ export class NCGKMSTransfer implements INCGTransfer {
             const recipient = Buffer.from(web3.utils.hexToBytes(address));
             const sender = Buffer.from(web3.utils.hexToBytes(this._address));
             const publicKey = Buffer.from(this._publicKey, "base64");
-            /*
-            const plainValue = {
-                type_id: "transfer_asset4",
-                values: {
-                    amount: [
-                        {
-                            decimalPlaces: Buffer.from([0x02]),
-                            minters: this._minters.map((x) =>
-                                Buffer.from(web3.utils.hexToBytes(x))
-                            ),
-                            ticker: "NCG",
-                        },
-                        ncgAmount,
-                    ],
-                    ...(memo === null ? {} : { memo }),
-                    recipient: recipient,
-                    sender: sender,                    
-                },
-            };*/
-
-            console.log('AHRAM');
-            console.log('recipient', recipient);
-            console.log('sender', sender);
-            console.log('publicKey', publicKey);
+            const nonce = BigInt(await this.headlessGraphQLClient.getNextTxNonce(this._address));
+            const genesisHash = Buffer.from(await this.headlessGraphQLClient.getGenesisHash(), "hex");
+            const updatedAddresses = new Set([recipient, sender]);
 
             const action = new RecordView({
                 type_id: "transfer_asset4",
@@ -104,23 +83,12 @@ export class NCGKMSTransfer implements INCGTransfer {
                             "text"
                         ),
                         BigInt(ncgAmount),
-                    ],                        
+                    ],
                     ...(memo === null ? {} : { memo }),
                     recipient: recipient,
                     sender: sender,
                 },
             }, "text")
-
-            console.log('action', JSON.stringify(action))
-           
-            const nonce = BigInt(await this.headlessGraphQLClient.getNextTxNonce(this._address));
-            console.log('nonce', nonce);
-
-            const genesisHash = Buffer.from(await this.headlessGraphQLClient.getGenesisHash(), "hex");
-            console.log('genesisHash', genesisHash);
-
-            const updatedAddresses = new Set([recipient, sender]);
-            console.log('updatedAddresses', JSON.stringify(updatedAddresses))
 
             const MEAD_CURRENCY = {
                 ticker: "Mead",
@@ -148,23 +116,6 @@ export class NCGKMSTransfer implements INCGTransfer {
                 ...additionalGasTxProperties,
                 actions: [action],
             });
-
-            console.log('AHRAM');
-            console.log(JSON.stringify(action))
-            console.log(JSON.stringify(unsignedTx))
-
-            /*
-            const unsignedTx =
-                await this.headlessGraphQLClient.createUnsignedTx(
-                    encode(plainValue).toString("base64"),
-                    this._publicKey
-                );
-            */
-            console.log(`AHRAM: unsignedTx ${unsignedTx}`);
-
-            /*const tx = await this._signer.sign(
-                Buffer.from(unsignedTx, "base64").toString("hex")
-            );*/
 
             const tx = await this._signer.sign(
                 Buffer.from(encode(unsignedTx)).toString("hex")

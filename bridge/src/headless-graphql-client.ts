@@ -128,9 +128,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
             query,
             variables: { },
         });
-
-        console.log('getGenesisHash', response.data.data.chainQuery.blockQuery.block.hash)
-
+        
         return response.data.data.chainQuery.blockQuery.block.hash;
     }
 

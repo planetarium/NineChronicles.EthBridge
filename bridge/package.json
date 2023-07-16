@@ -69,6 +69,7 @@
   },
   "dependencies": {
     "@pagerduty/pdjs": "^2.2.3",
+    "@planetarium/account": "^2.5.0",
     "@planetarium/account-aws-kms": "^0.0.2",
     "@planetarium/aws-kms-provider": "0.3.4",
     "@planetarium/bencodex": "^0.2.2",
