@@ -64,31 +64,39 @@ export class NCGKMSTransfer implements INCGTransfer {
             const recipient = Buffer.from(web3.utils.hexToBytes(address));
             const sender = Buffer.from(web3.utils.hexToBytes(this._address));
             const publicKey = Buffer.from(this._publicKey, "base64");
-            const nonce = BigInt(await this.headlessGraphQLClient.getNextTxNonce(this._address));
-            const genesisHash = Buffer.from(await this.headlessGraphQLClient.getGenesisHash(), "hex");
+            const nonce = BigInt(
+                await this.headlessGraphQLClient.getNextTxNonce(this._address)
+            );
+            const genesisHash = Buffer.from(
+                await this.headlessGraphQLClient.getGenesisHash(),
+                "hex"
+            );
             const updatedAddresses = new Set([recipient, sender]);
 
-            const action = new RecordView({
-                type_id: "transfer_asset4",
-                values: {
-                    amount: [
-                        new RecordView(
-                            {
-                                decimalPlaces: Buffer.from([0x02]),
-                                minters: this._minters.map((x) =>
-                                    Buffer.from(web3.utils.hexToBytes(x))
-                                ),
-                                ticker: "NCG",
-                            },
-                            "text"
-                        ),
-                        BigInt(ncgAmount),
-                    ],
-                    ...(memo === null ? {} : { memo }),
-                    recipient: recipient,
-                    sender: sender,
+            const action = new RecordView(
+                {
+                    type_id: "transfer_asset4",
+                    values: {
+                        amount: [
+                            new RecordView(
+                                {
+                                    decimalPlaces: Buffer.from([0x02]),
+                                    minters: this._minters.map((x) =>
+                                        Buffer.from(web3.utils.hexToBytes(x))
+                                    ),
+                                    ticker: "NCG",
+                                },
+                                "text"
+                            ),
+                            BigInt(ncgAmount),
+                        ],
+                        ...(memo === null ? {} : { memo }),
+                        recipient: recipient,
+                        sender: sender,
+                    },
                 },
-            }, "text")
+                "text"
+            );
 
             const MEAD_CURRENCY = {
                 ticker: "Mead",
@@ -100,12 +108,12 @@ export class NCGKMSTransfer implements INCGTransfer {
 
             const additionalGasTxProperties = {
                 maxGasPrice: {
-                  currency: MEAD_CURRENCY,
-                  rawValue: 10n ** 18n,
+                    currency: MEAD_CURRENCY,
+                    rawValue: 10n ** 18n,
                 },
                 gasLimit: 1n,
             };
-            
+
             const unsignedTx = encodeUnsignedTx({
                 nonce: nonce,
                 publicKey: publicKey,
@@ -120,7 +128,7 @@ export class NCGKMSTransfer implements INCGTransfer {
             const tx = await this._signer.sign(
                 Buffer.from(encode(unsignedTx)).toString("hex")
             );
-            
+
             const stageResults = await Promise.all(
                 this._headlessGraphQLCLients.map((client) =>
                     client

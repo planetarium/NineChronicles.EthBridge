@@ -126,7 +126,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         const response = await this.graphqlRequest({
             operationName: "GetGenesisHash",
             query,
-            variables: { },
+            variables: {},
         });
 
         return response.data.data.chainQuery.blockQuery.block.hash;
