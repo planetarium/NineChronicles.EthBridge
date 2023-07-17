@@ -13,6 +13,7 @@ export interface IHeadlessGraphQLClient {
         recipient: string
     ): Promise<NCGTransferredEvent[]>;
     getNextTxNonce(address: string): Promise<number>;
+    getGenesisHash(): Promise<string>;
     transfer(
         recipient: string,
         amount: string,

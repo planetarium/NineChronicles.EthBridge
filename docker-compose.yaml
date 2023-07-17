@@ -1,7 +1,7 @@
 version: '3'
 services:
   9c-headless:
-    image: planetariumhq/ninechronicles-headless:git-a0081624dee94156fcdf8aaf37ea074de32e7169
+    image: planetariumhq/ninechronicles-headless:git-14ca945556bc0008711226e6a35e37f0534b440a
     command:
       - "--app-protocol-version=1000/5616aAE462952937f72c64180310d56E2DBE51F6/MEQCICpMk84Aw51KDop882iA5YC6PJpMTjoIEWnMpC8hDQljAiBrxmUFKv1oHf0og+HrwJ2qIZ7e9aHcHmRp.pmycKJ8JA=="
       - "--network-type=default"
