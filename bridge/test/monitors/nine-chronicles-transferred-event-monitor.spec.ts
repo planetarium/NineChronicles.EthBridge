@@ -30,6 +30,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
             .fn()
             .mockResolvedValue(Promise.resolve([])),
         getNextTxNonce: jest.fn(),
+        getGenesisHash: jest.fn(),
         transfer: jest.fn(),
         attachSignature: jest.fn(),
         createUnsignedTx: jest.fn(),
