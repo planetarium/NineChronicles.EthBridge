@@ -31,7 +31,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         return this._apiEndpoint;
     }
 
-    async getBlockIndex(blockHash: BlockHash): Promise<number> {        
+    async getBlockIndex(blockHash: BlockHash): Promise<number> {
         const query = `query GetBlockHash($hash: ID!)
         { chainQuery { blockQuery { block(hash: $hash) { index } } } }`;
         const { data } = await this.graphqlRequest({
