@@ -111,7 +111,7 @@ export class NCGKMSTransfer implements INCGTransfer {
                     currency: MEAD_CURRENCY,
                     rawValue: 10n ** 18n,
                 },
-                gasLimit: 1n,
+                gasLimit: 4n,
             };
 
             const unsignedTx = encodeUnsignedTx({
