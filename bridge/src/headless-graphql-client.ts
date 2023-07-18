@@ -119,6 +119,19 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
 
         return response.data.data.nextTxNonce;
     }
+
+    async getGenesisHash(): Promise<string> {
+        const query =
+            "query GetGenesisHash { chainQuery { blockQuery { block(index: 0) { hash } } } }";
+        const response = await this.graphqlRequest({
+            operationName: "GetGenesisHash",
+            query,
+            variables: {},
+        });
+
+        return response.data.data.chainQuery.blockQuery.block.hash;
+    }
+
     async createUnsignedTx(
         plainValue: string,
         publicKey: string
