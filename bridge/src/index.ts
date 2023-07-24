@@ -92,6 +92,9 @@ process.on("uncaughtException", console.error);
     );
     const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
+    const FAILURE_SUBSCRIBERS: string = Configuration.get(
+        "FAILURE_SUBSCRIBERS"
+    );
     const OPENSEARCH_ENDPOINT: string = Configuration.get(
         "OPENSEARCH_ENDPOINT"
     );
@@ -399,7 +402,8 @@ process.on("uncaughtException", console.error);
             minimum: MINIMUM_NCG,
         },
         addressBanPolicy,
-        integration
+        integration,
+        FAILURE_SUBSCRIBERS
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),
