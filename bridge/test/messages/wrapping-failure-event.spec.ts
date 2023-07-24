@@ -11,6 +11,7 @@ describe("WrappingFailureEvent", () => {
             const AMOUNT = "100";
             const NINE_CHRONICLES_TX_ID =
                 "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043";
+            const failureSubscribers = "@gamefi-be";
             expect(
                 new WrappingFailureEvent(
                     EXPLORER_URL,
@@ -20,7 +21,8 @@ describe("WrappingFailureEvent", () => {
                     RECIPIENT,
                     AMOUNT,
                     NINE_CHRONICLES_TX_ID,
-                    String(new Error("error"))
+                    String(new Error("error")),
+                    failureSubscribers
                 ).render()
             ).toMatchSnapshot();
         });
