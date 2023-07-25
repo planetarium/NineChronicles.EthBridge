@@ -56,6 +56,7 @@ export class NCGTransferredEventObserver
     private readonly _ncscanUrl: string | undefined;
     private readonly _useNcscan: boolean;
     private readonly _etherscanUrl: string;
+    private readonly _failureSubscribers: string;
     /**
      * The fee ratio requried to exchange. This should be float value like 0.01.
      */
@@ -81,7 +82,8 @@ export class NCGTransferredEventObserver
         baseFeePolicy: BaseFeePolicy,
         limitationPolicy: LimitationPolicy,
         addressBanPolicy: IAddressBanPolicy,
-        integration: Integration
+        integration: Integration,
+        failureSubscribers: string
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -98,6 +100,7 @@ export class NCGTransferredEventObserver
         this._limitationPolicy = limitationPolicy;
         this._addressBanPolicy = addressBanPolicy;
         this._integration = integration;
+        this._failureSubscribers = failureSubscribers;
     }
 
     async notify(data: {
@@ -434,7 +437,8 @@ export class NCGTransferredEventObserver
                         String(recipient),
                         amountString,
                         txId,
-                        errorMessage
+                        errorMessage,
+                        this._failureSubscribers
                     )
                 );
                 await this._opensearchClient.to_opensearch("error", {

@@ -98,6 +98,8 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
+    const failureSubscribers = "@gamefi-be";
+
     const observer = new NCGTransferredEventObserver(
         mockNcgTransfer,
         mockWrappedNcgMinter,
@@ -113,7 +115,8 @@ describe(NCGTransferredEventObserver.name, () => {
         baseFeePolicy,
         limitationPolicy,
         addressBanPolicy,
-        mockIntegration
+        mockIntegration,
+        failureSubscribers
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {

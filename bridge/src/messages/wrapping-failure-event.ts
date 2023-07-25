@@ -14,6 +14,7 @@ export class WrappingFailureEvent implements Message {
     private readonly _txId: TxId;
     private readonly _amount: string;
     private readonly _error: string;
+    private readonly _subscribers: string;
 
     constructor(
         url: string,
@@ -23,7 +24,8 @@ export class WrappingFailureEvent implements Message {
         recipient: Address,
         amount: string,
         txId: TxId,
-        error: string
+        error: string,
+        subscribers: string
     ) {
         this._url = url;
         this._ncscanUrl = ncscanUrl;
@@ -33,11 +35,12 @@ export class WrappingFailureEvent implements Message {
         this._amount = amount;
         this._txId = txId;
         this._error = error;
+        this._subscribers = subscribers;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
-            text: "NCG → wNCG event failed.",
+            text: `NCG → wNCG event failed. ${this._subscribers}`,
             attachments: [
                 {
                     author_name: "Bridge Error",

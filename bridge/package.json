@@ -4,7 +4,7 @@
   "description": "A project to bridge NCG between NineChronicles network and Ethereum network.",
   "main": "dist/src/index.js",
   "scripts": {
-    "start": "ts-node ./src/index.ts",
+    "start": "npx tsx ./src/index.ts",
     "test": "run-s test:*",
     "test:aws": "jest --config=./aws.jest.config.js",
     "test:bridge": "jest --config=./bridge.jest.config.js",
