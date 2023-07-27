@@ -92,6 +92,10 @@ After the above settlement, starting with the manual mint below, write the 9c tr
   - Reason: Growth Partner Balance Withdrawal
   - Amount: 8,515,273 NCG
   - Collateral Deposit Transaction: https://9cscan.com/tx/90499dce3fa66913f63e05f470dee5586918111dc242d984147771db5813ea38
+- https://etherscan.io/tx/0xe0a0fbc12a7bee129b49fab027577316ff4cb934cd6b06f7b718a9166f486afb
+  - Reason: Securing funds for multi-chain partnerships
+  - Amount: 3,000,000 NCG
+  - Collateral Deposit Transaction: https://9cscan.com/tx/bd044405c45d8456963773996f21a4ce0df0e4687fd40815289683f69a937a29
 
 
 [0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5]: https://9cscan.com/address/0xEc20402FD4426CDeb233a7F04B6c42af9f3bb5B5
