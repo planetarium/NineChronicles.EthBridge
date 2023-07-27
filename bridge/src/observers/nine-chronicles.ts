@@ -17,6 +17,8 @@ import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
+import { ACCOUNT_TYPE } from "../white-list/account-type";
+import { whitelistedAccounts } from "../white-list/whitelist-accounts";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -31,6 +33,7 @@ function isValidAddress(address: string): boolean {
 
 interface LimitationPolicy {
     maximum: number;
+    whiteListMaximum: number;
     minimum: number;
 }
 
@@ -139,10 +142,25 @@ export class NCGTransferredEventObserver
                     continue;
                 }
 
+                /**
+                 * Check AddressType. <Sender, Recipient> Pair is in WhiteList or Not
+                 */
+                const addressType = this.getAddressType(sender, recipient!);
+                console.log("addressType", addressType);
+
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
-                const maximum = new Decimal(this._limitationPolicy.maximum);
+
+                /**
+                 * If <Sender, Recipient> Pair is in WhiteList,
+                 * applied whiteListMaximum for Maximum NCG Transfer Amount of Limitation Policy
+                 */
+                const maximum =
+                    addressType === ACCOUNT_TYPE.NORMAL
+                        ? new Decimal(this._limitationPolicy.maximum)
+                        : new Decimal(this._limitationPolicy.whiteListMaximum);
+
                 const transferredAmountInLast24Hours = new Decimal(
                     await this._exchangeHistoryStore.transferredAmountInLast24Hours(
                         "nineChronicles",
@@ -354,13 +372,22 @@ export class NCGTransferredEventObserver
                  * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
                  * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
                  */
-                const fee = limitedAmount.greaterThanOrEqualTo(
+                let fee = limitedAmount.greaterThanOrEqualTo(
                     new Decimal(this._baseFeePolicy.criterion)
                 )
                     ? new Decimal(
                           limitedAmount.mul(exchangeFeeRatio).toFixed(2)
                       )
                     : new Decimal(this._baseFeePolicy.fee);
+
+                /**
+                 * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,
+                 * set Transfer ( NCG -> WNCG ) Fee to 0 ( Zero )
+                 */
+                if (addressType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
+                    fee = new Decimal(0);
+                }
+
                 const exchangeAmount = limitedAmount.sub(fee);
                 const ethereumExchangeAmount = exchangeAmount.mul(decimals);
 
@@ -468,5 +495,23 @@ export class NCGTransferredEventObserver
                 txId: null,
             });
         }
+    }
+
+    getAddressType(
+        sender: string,
+        recipient: string
+    ): ACCOUNT_TYPE | undefined {
+        if (!whitelistedAccounts.length) return ACCOUNT_TYPE.NORMAL;
+
+        for (const whitelistedAccount of whitelistedAccounts) {
+            if (
+                whitelistedAccount.from === sender &&
+                whitelistedAccount.to === recipient
+            ) {
+                return whitelistedAccount.type;
+            }
+        }
+
+        return ACCOUNT_TYPE.NORMAL;
     }
 }

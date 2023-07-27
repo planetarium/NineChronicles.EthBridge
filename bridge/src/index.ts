@@ -85,6 +85,11 @@ process.on("uncaughtException", console.error);
     );
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
+    const MAXIMUM_WHITELIST_NCG: number = Configuration.get(
+        "MAXIMUM_WHITELIST_NCG",
+        true,
+        "float"
+    );
     const BASE_FEE_CRITERION: number = Configuration.get(
         "BASE_FEE_CRITERION",
         true,
@@ -399,6 +404,7 @@ process.on("uncaughtException", console.error);
         },
         {
             maximum: MAXIMUM_NCG,
+            whiteListMaximum: MAXIMUM_WHITELIST_NCG,
             minimum: MINIMUM_NCG,
         },
         addressBanPolicy,
