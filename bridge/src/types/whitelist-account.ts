@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPE } from "../white-list/account-type";
+import { ACCOUNT_TYPE } from "../whitelist/account-type";
 
 export type WhitelistAccount = {
     type?: ACCOUNT_TYPE;

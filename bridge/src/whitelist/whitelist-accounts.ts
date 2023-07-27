@@ -15,4 +15,4 @@ import { ACCOUNT_TYPE } from "./account-type";
  *         to: "ETH Address",
  *     },
  */
-export const whitelistedAccounts: WhitelistAccount[] = [];
+export const whitelistAccounts: WhitelistAccount[] = [];

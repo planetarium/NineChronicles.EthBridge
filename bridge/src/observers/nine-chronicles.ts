@@ -17,8 +17,8 @@ import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
-import { ACCOUNT_TYPE } from "../white-list/account-type";
-import { whitelistedAccounts } from "../white-list/whitelist-accounts";
+import { ACCOUNT_TYPE } from "../whitelist/account-type";
+import { whitelistAccounts } from "../whitelist/whitelist-accounts";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -501,14 +501,14 @@ export class NCGTransferredEventObserver
         sender: string,
         recipient: string
     ): ACCOUNT_TYPE | undefined {
-        if (!whitelistedAccounts.length) return ACCOUNT_TYPE.NORMAL;
+        if (!whitelistAccounts.length) return ACCOUNT_TYPE.NORMAL;
 
-        for (const whitelistedAccount of whitelistedAccounts) {
+        for (const whitelistAccount of whitelistAccounts) {
             if (
-                whitelistedAccount.from === sender &&
-                whitelistedAccount.to === recipient
+                whitelistAccount.from === sender &&
+                whitelistAccount.to === recipient
             ) {
-                return whitelistedAccount.type;
+                return whitelistAccount.type;
             }
         }
 
