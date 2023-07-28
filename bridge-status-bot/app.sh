@@ -12,7 +12,7 @@ BRIDGE_NC_ADDRESS='0x9093dd96c4bb6b44a9e0a522e2de49641f146223'
 BRIDGE_ETHEREUM_ADDRESS='0x4A2FbE06004e37dE6Fe7Da59a53D14a407Def0ed'
 BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDRESS='0x241085D7772E12740d6b1420043F04C51Cb3B45A'
 
-GRAPHQL_API_ENDPOINT='https://9c-main-full-state.planetarium.dev'
+GRAPHQL_API_ENDPOINT='https://9c-main-full-state.nine-chronicles.com'
 
 function get_total_supply() {
     local raw_total_supply=$(curl "$ETHERSCAN_API_ENDPOINT/api?module=stats&action=tokensupply&contractaddress=$CONTRACT_ADDRESS&apiKey=$ETHERSCAN_API_KEY" -s | jq '.result' -r)
@@ -50,7 +50,8 @@ ETH_SAFE_EXECUTOR_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDR
 # https://etherscan.io/tx/0x6d1c74f7ca3e1ce1a77cc6797bbb501652f1f72a3d0f8d6f23ee3680e890ed77
 # https://etherscan.io/tx/0xe5677a9bc5a4742bfda137e32e0ac8eeaac1d0b5ad442eb2a6a033eb65c16925
 # https://etherscan.io/tx/0x208746218c94414ad008cff71358a3997c4c1aeec9b1e838f040ca21f712d30b
-MINTED_BALANCE=$((54073334 + 30000000 + 450000 + 13000000 + 13000000 + 9000000 + 8515273))
+# https://etherscan.io/tx/0xe0a0fbc12a7bee129b49fab027577316ff4cb934cd6b06f7b718a9166f486afb
+MINTED_BALANCE=$((54073334 + 30000000 + 450000 + 13000000 + 13000000 + 9000000 + 8515273 + 3000000))
 
 GAP=$(bc <<< "$TOTAL_SUPPLY - $MINTED_BALANCE - $GOLD_BALANCE")
 
