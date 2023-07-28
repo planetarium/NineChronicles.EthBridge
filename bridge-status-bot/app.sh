@@ -12,7 +12,7 @@ BRIDGE_NC_ADDRESS='0x9093dd96c4bb6b44a9e0a522e2de49641f146223'
 BRIDGE_ETHEREUM_ADDRESS='0x4A2FbE06004e37dE6Fe7Da59a53D14a407Def0ed'
 BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDRESS='0x241085D7772E12740d6b1420043F04C51Cb3B45A'
 
-GRAPHQL_API_ENDPOINT='https://9c-main-full-state.planetarium.dev'
+GRAPHQL_API_ENDPOINT='https://9c-main-full-state.nine-chronicles.com'
 
 function get_total_supply() {
     local raw_total_supply=$(curl "$ETHERSCAN_API_ENDPOINT/api?module=stats&action=tokensupply&contractaddress=$CONTRACT_ADDRESS&apiKey=$ETHERSCAN_API_KEY" -s | jq '.result' -r)
