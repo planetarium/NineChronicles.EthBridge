@@ -14,6 +14,7 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _exchangeAmount: string;
     private readonly _refundAmount: string | null;
     private readonly _refundTxId: string | null;
+    private readonly _isWhitelistEvent: boolean;
 
     constructor(
         explorerUrl: string,
@@ -27,7 +28,8 @@ export class WrappedEvent extends WrappingEvent {
         ethereumTransactionHash: string,
         fee: Decimal,
         refundAmount: string | null,
-        refundTxId: TxId | null
+        refundTxId: TxId | null,
+        isWhitelistEvent: boolean
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -39,6 +41,7 @@ export class WrappedEvent extends WrappingEvent {
         this._fee = fee;
         this._refundAmount = refundAmount;
         this._refundTxId = refundTxId;
+        this._isWhitelistEvent = isWhitelistEvent;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
@@ -55,12 +58,16 @@ export class WrappedEvent extends WrappingEvent {
                       },
                   ]
                 : [];
+
+        let text = "NCG → wNCG event occurred.";
+        if (this._isWhitelistEvent) text += " (Whitelist Transfer) <!here>";
+
         return {
-            text: "NCG → wNCG event occurred.",
+            text,
             attachments: [
                 {
                     author_name: "Bridge Event",
-                    color: "#42f5aa",
+                    color: !this._isWhitelistEvent ? "#42f5aa" : "#b547f5",
                     fields: [
                         {
                             title: "9c network transaction",

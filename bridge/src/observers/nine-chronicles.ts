@@ -148,6 +148,9 @@ export class NCGTransferredEventObserver
                 const addressType = this.getAddressType(sender, recipient!);
                 console.log("addressType", addressType);
 
+                const isWhitelistEvent: boolean =
+                    addressType !== ACCOUNT_TYPE.NORMAL;
+
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
@@ -433,7 +436,8 @@ export class NCGTransferredEventObserver
                         transactionHash,
                         fee,
                         refundAmount,
-                        refundTxId
+                        refundTxId,
+                        isWhitelistEvent
                     )
                 );
                 await this._opensearchClient.to_opensearch("info", {
