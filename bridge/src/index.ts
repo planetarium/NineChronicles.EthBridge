@@ -44,6 +44,7 @@ import SafeServiceClient from "@safe-global/safe-service-client";
 import { ethers } from "ethers";
 import EthersAdapter from "@safe-global/safe-ethers-lib";
 import Safe from "@safe-global/safe-core-sdk";
+import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 
 consoleStamp(console);
 
@@ -409,7 +410,8 @@ process.on("uncaughtException", console.error);
         },
         addressBanPolicy,
         integration,
-        FAILURE_SUBSCRIBERS
+        FAILURE_SUBSCRIBERS,
+        whitelistAccounts
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),

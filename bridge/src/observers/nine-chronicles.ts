@@ -18,7 +18,7 @@ import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 import { ACCOUNT_TYPE } from "../whitelist/account-type";
-import { whitelistAccounts } from "../whitelist/whitelist-accounts";
+import { WhitelistAccount } from "../types/whitelist-account";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -69,6 +69,7 @@ export class NCGTransferredEventObserver
     private readonly _addressBanPolicy: IAddressBanPolicy;
 
     private readonly _integration: Integration;
+    private readonly _whitelistAccounts: WhitelistAccount[];
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -86,7 +87,8 @@ export class NCGTransferredEventObserver
         limitationPolicy: LimitationPolicy,
         addressBanPolicy: IAddressBanPolicy,
         integration: Integration,
-        failureSubscribers: string
+        failureSubscribers: string,
+        whitelistAccounts: WhitelistAccount[]
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -104,6 +106,7 @@ export class NCGTransferredEventObserver
         this._addressBanPolicy = addressBanPolicy;
         this._integration = integration;
         this._failureSubscribers = failureSubscribers;
+        this._whitelistAccounts = whitelistAccounts;
     }
 
     async notify(data: {
@@ -505,9 +508,9 @@ export class NCGTransferredEventObserver
         sender: string,
         recipient: string
     ): ACCOUNT_TYPE | undefined {
-        if (!whitelistAccounts.length) return ACCOUNT_TYPE.NORMAL;
+        if (!this._whitelistAccounts.length) return ACCOUNT_TYPE.NORMAL;
 
-        for (const whitelistAccount of whitelistAccounts) {
+        for (const whitelistAccount of this._whitelistAccounts) {
             if (
                 whitelistAccount.from === sender &&
                 whitelistAccount.to === recipient
