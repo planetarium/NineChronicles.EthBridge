@@ -16,6 +16,7 @@ describe("WrappedEvent", () => {
             const NINE_CHRONICLES_TX_ID =
                 "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043";
             const FEE = new Decimal(1);
+            const isWhitelistEvent = false;
             expect(
                 new WrappedEvent(
                     EXPLORER_URL,
@@ -29,7 +30,8 @@ describe("WrappedEvent", () => {
                     ETHEREUM_TRANSACTION_HASH,
                     FEE,
                     null,
-                    null
+                    null,
+                    isWhitelistEvent
                 ).render()
             ).toMatchSnapshot();
         });
@@ -50,6 +52,7 @@ describe("WrappedEvent", () => {
             const REFUND_AMOUNT = "9999900000";
             const REFUND_TX_ID =
                 "a3cd151aa0cb24b3e692f433b857f08bd347dad0d2d6ca3666f26420b8b8d096";
+            const isWhitelistEvent = false;
             expect(
                 new WrappedEvent(
                     EXPLORER_URL,
@@ -63,7 +66,8 @@ describe("WrappedEvent", () => {
                     ETHEREUM_TRANSACTION_HASH,
                     FEE,
                     REFUND_AMOUNT,
-                    REFUND_TX_ID
+                    REFUND_TX_ID,
+                    isWhitelistEvent
                 ).render()
             ).toMatchSnapshot();
         });
