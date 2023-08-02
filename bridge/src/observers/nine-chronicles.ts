@@ -33,7 +33,7 @@ function isValidAddress(address: string): boolean {
 
 interface LimitationPolicy {
     maximum: number;
-    whiteListMaximum: number;
+    whitelistMaximum: number;
     minimum: number;
 }
 
@@ -160,12 +160,12 @@ export class NCGTransferredEventObserver
 
                 /**
                  * If <Sender, Recipient> Pair is in WhiteList,
-                 * applied whiteListMaximum for Maximum NCG Transfer Amount of Limitation Policy
+                 * applied whitelistMaximum for Maximum NCG Transfer Amount of Limitation Policy
                  */
                 const maximum =
                     addressType === ACCOUNT_TYPE.NORMAL
                         ? new Decimal(this._limitationPolicy.maximum)
-                        : new Decimal(this._limitationPolicy.whiteListMaximum);
+                        : new Decimal(this._limitationPolicy.whitelistMaximum);
 
                 const transferredAmountInLast24Hours = new Decimal(
                     await this._exchangeHistoryStore.transferredAmountInLast24Hours(

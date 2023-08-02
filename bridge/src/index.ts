@@ -405,7 +405,7 @@ process.on("uncaughtException", console.error);
         },
         {
             maximum: MAXIMUM_NCG,
-            whiteListMaximum: MAXIMUM_WHITELIST_NCG,
+            whitelistMaximum: MAXIMUM_WHITELIST_NCG,
             minimum: MINIMUM_NCG,
         },
         addressBanPolicy,
