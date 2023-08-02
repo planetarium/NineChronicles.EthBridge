@@ -15,6 +15,7 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _refundAmount: string | null;
     private readonly _refundTxId: string | null;
     private readonly _isWhitelistEvent: boolean;
+    private readonly _description: string | undefined;
 
     constructor(
         explorerUrl: string,
@@ -29,7 +30,8 @@ export class WrappedEvent extends WrappingEvent {
         fee: Decimal,
         refundAmount: string | null,
         refundTxId: TxId | null,
-        isWhitelistEvent: boolean
+        isWhitelistEvent: boolean,
+        description: string | undefined
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -42,6 +44,7 @@ export class WrappedEvent extends WrappingEvent {
         this._refundAmount = refundAmount;
         this._refundTxId = refundTxId;
         this._isWhitelistEvent = isWhitelistEvent;
+        this._description = description;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
@@ -62,7 +65,7 @@ export class WrappedEvent extends WrappingEvent {
         let text = "NCG → wNCG event occurred.";
         if (this._isWhitelistEvent) text += " (Whitelist Transfer) <!here>";
 
-        return {
+        const message = {
             text,
             attachments: [
                 {
@@ -101,5 +104,14 @@ export class WrappedEvent extends WrappingEvent {
                 },
             ],
         };
+
+        if (this._description) {
+            message.attachments[0].fields.push({
+                title: "description",
+                value: this._description,
+            });
+        }
+
+        return message;
     }
 }

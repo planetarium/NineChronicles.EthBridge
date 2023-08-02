@@ -4,4 +4,5 @@ export type WhitelistAccount = {
     type: ACCOUNT_TYPE;
     from: string;
     to: string;
+    description?: string;
 };

@@ -148,11 +148,12 @@ export class NCGTransferredEventObserver
                 /**
                  * Check AddressType. <Sender, Recipient> Pair is in WhiteList or Not
                  */
-                const addressType = this.getAddressType(sender, recipient!);
-                console.log("addressType", addressType);
+                const { accountType, description: whitelistDescription } =
+                    this.getTransferAddressInfo(sender, recipient!);
+                console.log("accountType", accountType);
 
                 const isWhitelistEvent: boolean =
-                    addressType !== ACCOUNT_TYPE.NORMAL;
+                    accountType !== ACCOUNT_TYPE.NORMAL;
 
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
@@ -163,7 +164,7 @@ export class NCGTransferredEventObserver
                  * applied whitelistMaximum for Maximum NCG Transfer Amount of Limitation Policy
                  */
                 const maximum =
-                    addressType === ACCOUNT_TYPE.NORMAL
+                    accountType === ACCOUNT_TYPE.NORMAL
                         ? new Decimal(this._limitationPolicy.maximum)
                         : new Decimal(this._limitationPolicy.whitelistMaximum);
 
@@ -390,7 +391,7 @@ export class NCGTransferredEventObserver
                  * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,
                  * set Transfer ( NCG -> WNCG ) Fee to 0 ( Zero )
                  */
-                if (addressType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
+                if (accountType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
                     fee = new Decimal(0);
                 }
 
@@ -440,7 +441,8 @@ export class NCGTransferredEventObserver
                         fee,
                         refundAmount,
                         refundTxId,
-                        isWhitelistEvent
+                        isWhitelistEvent,
+                        whitelistDescription
                     )
                 );
                 await this._opensearchClient.to_opensearch("info", {
@@ -504,18 +506,25 @@ export class NCGTransferredEventObserver
         }
     }
 
-    getAddressType(sender: string, recipient: string): ACCOUNT_TYPE {
-        if (!this._whitelistAccounts.length) return ACCOUNT_TYPE.NORMAL;
+    getTransferAddressInfo(
+        sender: string,
+        recipient: string
+    ): { accountType: ACCOUNT_TYPE; description?: string } {
+        if (!this._whitelistAccounts.length)
+            return { accountType: ACCOUNT_TYPE.NORMAL };
 
         for (const whitelistAccount of this._whitelistAccounts) {
             if (
                 whitelistAccount.from === sender &&
                 whitelistAccount.to === recipient
             ) {
-                return whitelistAccount.type;
+                return {
+                    accountType: whitelistAccount.type,
+                    description: whitelistAccount.description,
+                };
             }
         }
 
-        return ACCOUNT_TYPE.NORMAL;
+        return { accountType: ACCOUNT_TYPE.NORMAL };
     }
 }
