@@ -31,7 +31,8 @@ describe("WrappedEvent", () => {
                     FEE,
                     null,
                     null,
-                    isWhitelistEvent
+                    isWhitelistEvent,
+                    undefined
                 ).render()
             ).toMatchSnapshot();
         });
@@ -67,7 +68,8 @@ describe("WrappedEvent", () => {
                     FEE,
                     REFUND_AMOUNT,
                     REFUND_TX_ID,
-                    isWhitelistEvent
+                    isWhitelistEvent,
+                    undefined
                 ).render()
             ).toMatchSnapshot();
         });
@@ -100,7 +102,8 @@ describe("WrappedEvent", () => {
                     FEE,
                     null,
                     null,
-                    isWhitelistEvent
+                    isWhitelistEvent,
+                    "test description"
                 ).render()
             ).toMatchSnapshot();
         });

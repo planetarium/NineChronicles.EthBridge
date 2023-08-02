@@ -118,6 +118,10 @@ Object {
           "title": "fee",
           "value": "1",
         },
+        Object {
+          "title": "description",
+          "value": "test description",
+        },
       ],
     },
   ],
