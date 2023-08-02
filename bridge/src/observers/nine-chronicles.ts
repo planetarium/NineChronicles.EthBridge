@@ -504,10 +504,7 @@ export class NCGTransferredEventObserver
         }
     }
 
-    getAddressType(
-        sender: string,
-        recipient: string
-    ): ACCOUNT_TYPE | undefined {
+    getAddressType(sender: string, recipient: string): ACCOUNT_TYPE {
         if (!this._whitelistAccounts.length) return ACCOUNT_TYPE.NORMAL;
 
         for (const whitelistAccount of this._whitelistAccounts) {
