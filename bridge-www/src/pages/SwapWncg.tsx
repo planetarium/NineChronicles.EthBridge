@@ -18,7 +18,7 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
     if (chain?.id === mainnet.id) {
       return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
     } else if (chain?.id === goerli.id) {
-      return "0x847933319010F86aa8294904da3A295bdAb6D540";
+      return "0xafbf2bee0c4803c13436db44509267fa2312ad33";
     } else {
       return "0xad84431776e966400a8aecaf7bd2316a69c54efe";
     }
