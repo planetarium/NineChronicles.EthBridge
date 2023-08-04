@@ -5,7 +5,7 @@ import { isAddress } from "ethers/lib/utils";
 import { useState, useMemo } from "react";
 import { erc20ABI, useBalance, useContract, useNetwork, useSigner } from "wagmi";
 import { TextField } from "../components/TextField";
-import { mainnet, ropsten, goerli } from 'wagmi/chains'
+import { mainnet, goerli } from 'wagmi/chains'
 
 interface SwapWncgPageProps {
     address: string,
