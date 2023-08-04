@@ -17,10 +17,8 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
   const contractAddress = useMemo<string>(() => {
     if (chain?.id === mainnet.id) {
       return "0xf203ca1769ca8e9e8fe1da9d147db68b6c919817";
-    } else if (chain?.id === ropsten.id) {
-      return "0xeaa982f3424338598738c496153e55b1df11f625";
     } else if (chain?.id === goerli.id) {
-      return "0xafbf2bee0c4803c13436db44509267fa2312ad33";      
+      return "0x847933319010F86aa8294904da3A295bdAb6D540";
     } else {
       return "0xad84431776e966400a8aecaf7bd2316a69c54efe";
     }
@@ -83,6 +81,7 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
           contract === null || burnAmount === null || burnAmount.toString().indexOf(".") !== -1 || !isAddress(ncAddress)
             ? <Text weight={"bold"}>Fill corret values</Text>
             : <Button onClick={event => {
+              if (event.currentTarget === undefined) return
               event.preventDefault();    
               console.log(contract);
               contract.burn(BigNumber.from(burnAmount.toString()), ncAddress + "0".repeat(24)).then(console.debug)
