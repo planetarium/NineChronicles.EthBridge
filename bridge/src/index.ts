@@ -44,6 +44,7 @@ import SafeServiceClient from "@safe-global/safe-service-client";
 import { ethers } from "ethers";
 import EthersAdapter from "@safe-global/safe-ethers-lib";
 import Safe from "@safe-global/safe-core-sdk";
+import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 
 consoleStamp(console);
 
@@ -85,6 +86,11 @@ process.on("uncaughtException", console.error);
     );
     const MINIMUM_NCG: number = Configuration.get("MINIMUM_NCG", true, "float");
     const MAXIMUM_NCG: number = Configuration.get("MAXIMUM_NCG", true, "float");
+    const MAXIMUM_WHITELIST_NCG: number = Configuration.get(
+        "MAXIMUM_WHITELIST_NCG",
+        true,
+        "float"
+    );
     const BASE_FEE_CRITERION: number = Configuration.get(
         "BASE_FEE_CRITERION",
         true,
@@ -399,11 +405,13 @@ process.on("uncaughtException", console.error);
         },
         {
             maximum: MAXIMUM_NCG,
+            whitelistMaximum: MAXIMUM_WHITELIST_NCG,
             minimum: MINIMUM_NCG,
         },
         addressBanPolicy,
         integration,
-        FAILURE_SUBSCRIBERS
+        FAILURE_SUBSCRIBERS,
+        whitelistAccounts
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),

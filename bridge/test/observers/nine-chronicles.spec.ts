@@ -12,6 +12,7 @@ import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
 import { ISlackChannel } from "../../src/slack-channel";
 import { SlackMessageSender } from "../../src/slack-message-sender";
+import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -85,6 +86,7 @@ describe(NCGTransferredEventObserver.name, () => {
 
     const limitationPolicy = {
         maximum: 100000,
+        whitelistMaximum: 200000,
         minimum: 100,
     };
     const BANNED_ADDRESS = "0x47D082a115c63E7b58B1532d20E631538eaFADde";
@@ -99,6 +101,12 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const failureSubscribers = "@gamefi-be";
+
+    const allowlistSender = "0xa134048eC2892d111b4fbAB224400847544FC871";
+    const allowlistRecipient = "0x954941eC7FACf9A81e2f026A356fF83F54a5827F";
+
+    const feeWaiverSender = "0xb134048eC2892d111b4fbAB224400847544FC871";
+    const feeWaiverRecipient = "0xd1EF2BDd39323D8C17eD4a122aa910301cf1eDAA";
 
     const observer = new NCGTransferredEventObserver(
         mockNcgTransfer,
@@ -116,7 +124,19 @@ describe(NCGTransferredEventObserver.name, () => {
         limitationPolicy,
         addressBanPolicy,
         mockIntegration,
-        failureSubscribers
+        failureSubscribers,
+        [
+            {
+                type: ACCOUNT_TYPE.ALLOWED,
+                from: allowlistSender,
+                to: allowlistRecipient,
+            },
+            {
+                type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
+                from: feeWaiverSender,
+                to: feeWaiverRecipient,
+            },
+        ]
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
@@ -301,7 +321,7 @@ describe(NCGTransferredEventObserver.name, () => {
             );
 
             const sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
-            const wrappedNcgRecipient: string =
+            const wrappedNcgRecipient =
                 "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
             function makeEvent(
                 wrappedNcgRecipient: string,
@@ -315,6 +335,22 @@ describe(NCGTransferredEventObserver.name, () => {
                     txId: txId,
                     recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
                     sender: sender,
+                };
+            }
+
+            function makeWhitelistEvent(
+                whitelistSender: string,
+                whitelistTRecipient: string,
+                amount: string,
+                txId: TxId
+            ) {
+                return {
+                    amount: amount,
+                    memo: whitelistTRecipient,
+                    blockHash: "BLOCK-HASH",
+                    txId: txId,
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: whitelistSender,
                 };
             }
 
@@ -336,6 +372,18 @@ describe(NCGTransferredEventObserver.name, () => {
                     wrappedNcgRecipient,
                     "99999.99",
                     "TX-SHOULD-REFUND-J"
+                ),
+                makeWhitelistEvent(
+                    allowlistSender,
+                    allowlistRecipient,
+                    "11000",
+                    "TX-ALLOWLIST"
+                ),
+                makeWhitelistEvent(
+                    feeWaiverSender,
+                    feeWaiverRecipient,
+                    "11000",
+                    "TX-FEE-WAIVER"
                 ),
             ];
 
@@ -432,6 +480,22 @@ describe(NCGTransferredEventObserver.name, () => {
                     txId: "TX-SHOULD-REFUND-J",
                 }
             );
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                11,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ALLOWLIST",
+                }
+            );
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                12,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-FEE-WAIVER",
+                }
+            );
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
                 amount: 0,
@@ -514,10 +578,39 @@ describe(NCGTransferredEventObserver.name, () => {
                 tx_id: "TX-SHOULD-REFUND-I",
             });
 
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(10, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-J",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(11, {
+                amount: 11000,
+                network: "nineChronicles",
+                recipient: allowlistRecipient,
+                sender: allowlistSender,
+                timestamp: expect.any(String),
+                tx_id: "TX-ALLOWLIST",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(12, {
+                amount: 11000,
+                network: "nineChronicles",
+                recipient: feeWaiverRecipient,
+                sender: feeWaiverSender,
+                timestamp: expect.any(String),
+                tx_id: "TX-FEE-WAIVER",
+            });
+
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
                 [wrappedNcgRecipient, new Decimal(90000000000000000000)],
                 [wrappedNcgRecipient, new Decimal(98901000000000000000000)],
+                [allowlistRecipient, new Decimal(10890000000000000000000)],
+                [feeWaiverRecipient, new Decimal(11000000000000000000000)],
             ]);
         });
 

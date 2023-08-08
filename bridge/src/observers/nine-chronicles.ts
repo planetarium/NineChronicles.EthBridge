@@ -17,6 +17,8 @@ import { IAddressBanPolicy } from "../policies/address-ban";
 import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
+import { ACCOUNT_TYPE } from "../whitelist/account-type";
+import { WhitelistAccount } from "../types/whitelist-account";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -31,6 +33,7 @@ function isValidAddress(address: string): boolean {
 
 interface LimitationPolicy {
     maximum: number;
+    whitelistMaximum: number;
     minimum: number;
 }
 
@@ -66,6 +69,7 @@ export class NCGTransferredEventObserver
     private readonly _addressBanPolicy: IAddressBanPolicy;
 
     private readonly _integration: Integration;
+    private readonly _whitelistAccounts: WhitelistAccount[];
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -83,7 +87,8 @@ export class NCGTransferredEventObserver
         limitationPolicy: LimitationPolicy,
         addressBanPolicy: IAddressBanPolicy,
         integration: Integration,
-        failureSubscribers: string
+        failureSubscribers: string,
+        whitelistAccounts: WhitelistAccount[]
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -101,6 +106,7 @@ export class NCGTransferredEventObserver
         this._addressBanPolicy = addressBanPolicy;
         this._integration = integration;
         this._failureSubscribers = failureSubscribers;
+        this._whitelistAccounts = whitelistAccounts;
     }
 
     async notify(data: {
@@ -139,10 +145,29 @@ export class NCGTransferredEventObserver
                     continue;
                 }
 
+                /**
+                 * Check AddressType. <Sender, Recipient> Pair is in WhiteList or Not
+                 */
+                const { accountType, description: whitelistDescription } =
+                    this.getTransferAddressInfo(sender, recipient!);
+                console.log("accountType", accountType);
+
+                const isWhitelistEvent: boolean =
+                    accountType !== ACCOUNT_TYPE.NORMAL;
+
                 const decimals = new Decimal(10).pow(18);
                 const amount = new Decimal(amountString);
                 const minimum = new Decimal(this._limitationPolicy.minimum);
-                const maximum = new Decimal(this._limitationPolicy.maximum);
+
+                /**
+                 * If <Sender, Recipient> Pair is in WhiteList,
+                 * applied whitelistMaximum for Maximum NCG Transfer Amount of Limitation Policy
+                 */
+                const maximum =
+                    accountType === ACCOUNT_TYPE.NORMAL
+                        ? new Decimal(this._limitationPolicy.maximum)
+                        : new Decimal(this._limitationPolicy.whitelistMaximum);
+
                 const transferredAmountInLast24Hours = new Decimal(
                     await this._exchangeHistoryStore.transferredAmountInLast24Hours(
                         "nineChronicles",
@@ -354,13 +379,22 @@ export class NCGTransferredEventObserver
                  * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
                  * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
                  */
-                const fee = limitedAmount.greaterThanOrEqualTo(
+                let fee = limitedAmount.greaterThanOrEqualTo(
                     new Decimal(this._baseFeePolicy.criterion)
                 )
                     ? new Decimal(
                           limitedAmount.mul(exchangeFeeRatio).toFixed(2)
                       )
                     : new Decimal(this._baseFeePolicy.fee);
+
+                /**
+                 * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,
+                 * set Transfer ( NCG -> WNCG ) Fee to 0 ( Zero )
+                 */
+                if (accountType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
+                    fee = new Decimal(0);
+                }
+
                 const exchangeAmount = limitedAmount.sub(fee);
                 const ethereumExchangeAmount = exchangeAmount.mul(decimals);
 
@@ -406,7 +440,9 @@ export class NCGTransferredEventObserver
                         transactionHash,
                         fee,
                         refundAmount,
-                        refundTxId
+                        refundTxId,
+                        isWhitelistEvent,
+                        whitelistDescription
                     )
                 );
                 await this._opensearchClient.to_opensearch("info", {
@@ -468,5 +504,27 @@ export class NCGTransferredEventObserver
                 txId: null,
             });
         }
+    }
+
+    getTransferAddressInfo(
+        sender: string,
+        recipient: string
+    ): { accountType: ACCOUNT_TYPE; description?: string } {
+        if (!this._whitelistAccounts.length)
+            return { accountType: ACCOUNT_TYPE.NORMAL };
+
+        for (const whitelistAccount of this._whitelistAccounts) {
+            if (
+                whitelistAccount.from === sender &&
+                whitelistAccount.to === recipient
+            ) {
+                return {
+                    accountType: whitelistAccount.type,
+                    description: whitelistAccount.description,
+                };
+            }
+        }
+
+        return { accountType: ACCOUNT_TYPE.NORMAL };
     }
 }

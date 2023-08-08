@@ -14,6 +14,8 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _exchangeAmount: string;
     private readonly _refundAmount: string | null;
     private readonly _refundTxId: string | null;
+    private readonly _isWhitelistEvent: boolean;
+    private readonly _description: string | undefined;
 
     constructor(
         explorerUrl: string,
@@ -27,7 +29,9 @@ export class WrappedEvent extends WrappingEvent {
         ethereumTransactionHash: string,
         fee: Decimal,
         refundAmount: string | null,
-        refundTxId: TxId | null
+        refundTxId: TxId | null,
+        isWhitelistEvent: boolean,
+        description: string | undefined
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -39,6 +43,8 @@ export class WrappedEvent extends WrappingEvent {
         this._fee = fee;
         this._refundAmount = refundAmount;
         this._refundTxId = refundTxId;
+        this._isWhitelistEvent = isWhitelistEvent;
+        this._description = description;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
@@ -55,12 +61,16 @@ export class WrappedEvent extends WrappingEvent {
                       },
                   ]
                 : [];
-        return {
-            text: "NCG → wNCG event occurred.",
+
+        let text = "NCG → wNCG event occurred.";
+        if (this._isWhitelistEvent) text += " (Whitelist Transfer) <!here>";
+
+        const message = {
+            text,
             attachments: [
                 {
                     author_name: "Bridge Event",
-                    color: "#42f5aa",
+                    color: !this._isWhitelistEvent ? "#42f5aa" : "#b547f5",
                     fields: [
                         {
                             title: "9c network transaction",
@@ -94,5 +104,14 @@ export class WrappedEvent extends WrappingEvent {
                 },
             ],
         };
+
+        if (this._description) {
+            message.attachments[0].fields.push({
+                title: "description",
+                value: this._description,
+            });
+        }
+
+        return message;
     }
 }
