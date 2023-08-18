@@ -499,7 +499,7 @@ export class NCGTransferredEventObserver
                     sender,
                     recipient: String(recipient),
                     amount: amountString,
-                    error: "custom error",
+                    error: errorMessage,
                 });
 
                 await this._integration.error(
