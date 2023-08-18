@@ -45,6 +45,8 @@ import { ethers } from "ethers";
 import EthersAdapter from "@safe-global/safe-ethers-lib";
 import Safe from "@safe-global/safe-core-sdk";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
+import { SpreadsheetClient } from "./spreadsheet-client";
+import { google } from "googleapis";
 
 consoleStamp(console);
 
@@ -130,6 +132,36 @@ process.on("uncaughtException", console.error);
             dsn: SENTRY_DSN,
         });
     }
+
+    const GOOGLE_SPREADSHEET_URL: string = Configuration.get(
+        "GOOGLE_SPREADSHEET_URL"
+    );
+    const GOOGLE_SPREADSHEET_ID: string = Configuration.get(
+        "GOOGLE_SPREADSHEET_ID"
+    );
+    const GOOGLE_CLIENT_EMAIL: string = Configuration.get(
+        "GOOGLE_CLIENT_EMAIL"
+    );
+    const GOOGLE_CLIENT_PRIVATE_KEY: string = Configuration.get(
+        "GOOGLE_CLIENT_PRIVATE_KEY"
+    );
+    const authorize = new google.auth.JWT(
+        GOOGLE_CLIENT_EMAIL,
+        undefined,
+        GOOGLE_CLIENT_PRIVATE_KEY,
+        [GOOGLE_SPREADSHEET_URL]
+    );
+    // google spread sheet api 가져오기
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const spreadsheetClient = new SpreadsheetClient(
+        googleSheet,
+        GOOGLE_SPREADSHEET_ID
+    );
+
     const PRIORITY_FEE: number = Configuration.get(
         "PRIORITY_FEE",
         true,
@@ -392,6 +424,7 @@ process.on("uncaughtException", console.error);
         minter,
         slackMessageSender,
         opensearchClient,
+        spreadsheetClient,
         monitorStateStore,
         exchangeHistoryStore,
         EXPLORER_ROOT_URL,
