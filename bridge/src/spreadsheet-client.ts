@@ -4,9 +4,16 @@ import { sheets_v4 } from "googleapis";
 export class SpreadsheetClient {
     private readonly _googleSheet: sheets_v4.Sheets;
     private readonly _googleSpreadSheetId: string;
-    constructor(googleSheet: sheets_v4.Sheets, googleSpreadSheetId: string) {
+    private readonly _useSpreadSheet: boolean | undefined;
+
+    constructor(
+        googleSheet: sheets_v4.Sheets,
+        googleSpreadSheetId: string,
+        useSpreadSheet: boolean | undefined
+    ) {
         this._googleSheet = googleSheet;
         this._googleSpreadSheetId = googleSpreadSheetId;
+        this._useSpreadSheet = useSpreadSheet;
     }
 
     async to_spreadsheet(data: {
@@ -19,6 +26,8 @@ export class SpreadsheetClient {
         amount: string;
         error: string;
     }) {
+        if (!this._useSpreadSheet) return;
+
         try {
             await this._googleSheet.spreadsheets.values.append({
                 spreadsheetId: this._googleSpreadSheetId,

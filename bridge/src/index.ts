@@ -145,6 +145,12 @@ process.on("uncaughtException", console.error);
     const GOOGLE_CLIENT_PRIVATE_KEY: string = Configuration.get(
         "GOOGLE_CLIENT_PRIVATE_KEY"
     );
+    const USE_GOOGLE_SPREAD_SHEET: boolean = Configuration.get(
+        "USE_GOOGLE_SPREAD_SHEET",
+        false,
+        "boolean"
+    );
+
     const authorize = new google.auth.JWT(
         GOOGLE_CLIENT_EMAIL,
         undefined,
@@ -159,7 +165,8 @@ process.on("uncaughtException", console.error);
 
     const spreadsheetClient = new SpreadsheetClient(
         googleSheet,
-        GOOGLE_SPREADSHEET_ID
+        GOOGLE_SPREADSHEET_ID,
+        USE_GOOGLE_SPREAD_SHEET
     );
 
     const PRIORITY_FEE: number = Configuration.get(
