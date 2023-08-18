@@ -13,6 +13,8 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 import { ISlackChannel } from "../../src/slack-channel";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
+import { SpreadsheetClient } from "../../src/spreadsheet-client";
+import { google } from "googleapis";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -64,6 +66,23 @@ describe(NCGTransferredEventObserver.name, () => {
         to_opensearch: ReturnType<typeof jest.fn>;
     };
 
+    const authorize = new google.auth.JWT(
+        "randemail@rand.com",
+        undefined,
+        "rand-key",
+        ["spreadsheet-url"]
+    );
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const mockSpreadSheetClient = new SpreadsheetClient(
+        googleSheet,
+        "random-id",
+        false
+    );
+
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
         load: jest.fn(),
         store: jest.fn(),
@@ -113,6 +132,7 @@ describe(NCGTransferredEventObserver.name, () => {
         mockWrappedNcgMinter,
         mockSlackMessageSender,
         mockOpenSearchClient,
+        mockSpreadSheetClient,
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",
