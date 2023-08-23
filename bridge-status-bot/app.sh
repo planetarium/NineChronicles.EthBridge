@@ -41,8 +41,9 @@ function get_gold_balance() {
 TOTAL_SUPPLY=$(get_total_supply)
 GOLD_BALANCE=$(get_gold_balance "$BRIDGE_NC_ADDRESS")
 ETH_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_ADDRESS")
-ETH_BALANCE_THRESHOLD=3
+ETH_BALANCE_THRESHOLD=0.5
 ETH_SAFE_EXECUTOR_BALANCE=$(get_eth_balance "$BRIDGE_ETHEREUM_SAFE_EXECUTOR_ADDRESS")
+ETH_SAFE_EXECUTOR_THRESHOLD=2
 
 # https://etherscan.io/tx/0x851bffbfcb2084bd6ea376b0e799d8111e2b38a04a6eadc74d0c9dbd8c59b7d4
 # https://etherscan.io/tx/0x6e7d5d173d2acc7d33f22f4b65da0a33fdfe1a605072e9e70ac1873a7cfe0c18
@@ -66,6 +67,10 @@ GAP between :wncg: and :ncg::                           *$GAP*
 
 if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
     TEXT+="Ether Balance is lower than the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
+fi
+
+if [ $(echo "${ETH_SAFE_EXECUTOR_BALANCE} <= ${ETH_SAFE_EXECUTOR_THRESHOLD}" | bc) -eq 1 ];then
+    TEXT+="Ether Safe Executor Balance is lower than the threshold (*$ETH_SAFE_EXECUTOR_THRESHOLD ETH*). <!here>\\n"
 fi
 
 DATA="{\"channel\":\"$SLACK_CHANNEL\",\"text\":\"$TEXT\",\"mrkdwn\":true}"
