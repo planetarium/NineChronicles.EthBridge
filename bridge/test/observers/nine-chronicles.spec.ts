@@ -13,6 +13,8 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 import { ISlackChannel } from "../../src/slack-channel";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
+import { WhitelistAccount } from "../../src/types/whitelist-account";
+
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -100,6 +102,12 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
+    // const mockWhitelistAccounts: jest.Mocked<WhitelistAccount>[] = [];
+    // const mockGetTransferAddressInfo: jest.Mocked<(sender: string, recipient: string) => {
+    //     accountType: ACCOUNT_TYPE;
+    //     description?: string | undefined;
+    // }>;
+
     const failureSubscribers = "@gamefi-be";
 
     const allowlistSender = "0xa134048eC2892d111b4fbAB224400847544FC871";
@@ -137,6 +145,26 @@ describe(NCGTransferredEventObserver.name, () => {
                 to: feeWaiverRecipient,
             },
         ]
+    );
+
+    const observerForNonWhitelist = new NCGTransferredEventObserver(
+        mockNcgTransfer,
+        mockWrappedNcgMinter,
+        mockSlackMessageSender,
+        mockOpenSearchClient,
+        mockMonitorStateStore,
+        mockExchangeHistoryStore,
+        "https://explorer.libplanet.io/9c-internal",
+        "https://9cscan.com",
+        false,
+        "https://ropsten.etherscan.io",
+        exchangeFeeRatioPolicy,
+        baseFeePolicy,
+        limitationPolicy,
+        addressBanPolicy,
+        mockIntegration,
+        failureSubscribers,
+        []
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
@@ -812,6 +840,56 @@ describe(NCGTransferredEventObserver.name, () => {
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
+        });
+    });
+    
+    describe("Get Transfer Address Info Function", () => {
+        beforeEach(() => {
+            mockNcgTransfer.transfer.mockResolvedValue("TX-ID");
+        });
+
+        afterEach(() => {
+            jest.clearAllMocks();
+        });
+        
+        const xferAddress = {
+            sender: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+            recipient: "0x2734048eC2892d111b4fbAB224400847544FC872",
+        }
+        it("should run with a NORMAL account type just fine", async () => {
+            await observerForNonWhitelist.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ID",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        recipient: xferAddress.recipient,
+                        sender: xferAddress.sender,
+                    },
+                ],
+            });
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ID",
+                }
+            );
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 100,
+                network: "nineChronicles",
+                recipient: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                sender: xferAddress.sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-ID",
+            });
+            const wrappedNcgRecipient =
+                "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
+            expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                [wrappedNcgRecipient, new Decimal(90000000000000000000)],
+            ]);
         });
     });
 });
