@@ -122,7 +122,8 @@ describe(NCGTransferredEventObserver.name, () => {
             baseFeeCriterion: baseFeePolicy.criterion,
             baseFee: baseFeePolicy.fee,
             feeRatio: 0.01,
-        }
+        },
+        "slack-url"
     ) as SpreadsheetClient & {
         to_spreadsheet: ReturnType<typeof jest.fn>;
     };

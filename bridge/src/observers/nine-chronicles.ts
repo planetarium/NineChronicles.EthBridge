@@ -493,8 +493,8 @@ export class NCGTransferredEventObserver
 
                 await this._spreadsheetClient.to_spreadsheet({
                     slackMessageId: `${
-                        slackMsgRes.channel
-                    }/p${slackMsgRes.ts?.replace(".", "")}`,
+                        slackMsgRes?.channel
+                    }/p${slackMsgRes?.ts?.replace(".", "")}`,
                     url: this._explorerUrl,
                     ncscanUrl: this._ncscanUrl,
                     useNcscan: this._useNcscan,
