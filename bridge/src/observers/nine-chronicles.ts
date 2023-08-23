@@ -431,7 +431,7 @@ export class NCGTransferredEventObserver
                 }
 
                 console.log("Receipt", transactionHash);
-                await this._slackMessageSender.sendMessage(
+                const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new WrappedEvent(
                         this._explorerUrl,
                         this._ncscanUrl,
@@ -468,7 +468,7 @@ export class NCGTransferredEventObserver
                 }
 
                 // TODO: it should be replaced with `Integration` Slack implementation.
-                await this._slackMessageSender.sendMessage(
+                const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new WrappingFailureEvent(
                         this._explorerUrl,
                         this._ncscanUrl,
@@ -492,6 +492,9 @@ export class NCGTransferredEventObserver
                 });
 
                 await this._spreadsheetClient.to_spreadsheet({
+                    slackMessageId: `${
+                        slackMsgRes.channel
+                    }/p${slackMsgRes.ts?.replace(".", "")}`,
                     url: this._explorerUrl,
                     ncscanUrl: this._ncscanUrl,
                     useNcscan: this._useNcscan,

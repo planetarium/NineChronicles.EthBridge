@@ -12,20 +12,23 @@ export class SpreadsheetClient {
     private readonly _googleSpreadSheetId: string;
     private readonly _useSpreadSheet: boolean | undefined;
     private readonly _feePolicy: FeePolicy;
+    private readonly _slackUrl: string;
 
     constructor(
         googleSheet: sheets_v4.Sheets,
         googleSpreadSheetId: string,
         useSpreadSheet: boolean | undefined,
-        feePolicy: FeePolicy
+        feePolicy: FeePolicy,
+        slackUrl: string
     ) {
         this._googleSheet = googleSheet;
         this._googleSpreadSheetId = googleSpreadSheetId;
         this._useSpreadSheet = useSpreadSheet;
         this._feePolicy = feePolicy;
+        this._slackUrl = slackUrl;
     }
-
     async to_spreadsheet(data: {
+        slackMessageId: string;
         url: string;
         ncscanUrl: string | undefined;
         useNcscan: boolean;
@@ -51,6 +54,7 @@ export class SpreadsheetClient {
                 requestBody: {
                     values: [
                         [
+                            this._slackUrl + data.slackMessageId,
                             combineNcExplorerUrl(
                                 data.url,
                                 data.ncscanUrl,

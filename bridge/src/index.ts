@@ -133,6 +133,8 @@ process.on("uncaughtException", console.error);
         });
     }
 
+    const SLACK_URL: string = Configuration.get("SLACK_URL");
+
     const GOOGLE_SPREADSHEET_URL: string = Configuration.get(
         "GOOGLE_SPREADSHEET_URL"
     );
@@ -170,7 +172,8 @@ process.on("uncaughtException", console.error);
             baseFeeCriterion: BASE_FEE_CRITERION,
             baseFee: BASE_FEE,
             feeRatio: 0.01,
-        }
+        },
+        SLACK_URL
     );
 
     const PRIORITY_FEE: number = Configuration.get(
