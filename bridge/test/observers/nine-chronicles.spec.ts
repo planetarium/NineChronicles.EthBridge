@@ -13,8 +13,6 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 import { ISlackChannel } from "../../src/slack-channel";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
-import { WhitelistAccount } from "../../src/types/whitelist-account";
-
 
 jest.mock("@slack/web-api", () => {
     return {
