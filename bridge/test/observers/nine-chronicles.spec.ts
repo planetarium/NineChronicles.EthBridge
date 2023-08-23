@@ -102,12 +102,6 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
-    // const mockWhitelistAccounts: jest.Mocked<WhitelistAccount>[] = [];
-    // const mockGetTransferAddressInfo: jest.Mocked<(sender: string, recipient: string) => {
-    //     accountType: ACCOUNT_TYPE;
-    //     description?: string | undefined;
-    // }>;
-
     const failureSubscribers = "@gamefi-be";
 
     const allowlistSender = "0xa134048eC2892d111b4fbAB224400847544FC871";
