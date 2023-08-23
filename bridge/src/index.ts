@@ -157,7 +157,6 @@ process.on("uncaughtException", console.error);
         GOOGLE_CLIENT_PRIVATE_KEY,
         [GOOGLE_SPREADSHEET_URL]
     );
-    // google spread sheet api 가져오기
     const googleSheet = google.sheets({
         version: "v4",
         auth: authorize,
@@ -166,7 +165,12 @@ process.on("uncaughtException", console.error);
     const spreadsheetClient = new SpreadsheetClient(
         googleSheet,
         GOOGLE_SPREADSHEET_ID,
-        USE_GOOGLE_SPREAD_SHEET
+        USE_GOOGLE_SPREAD_SHEET,
+        {
+            baseFeeCriterion: BASE_FEE_CRITERION,
+            baseFee: BASE_FEE,
+            feeRatio: 0.01,
+        }
     );
 
     const PRIORITY_FEE: number = Configuration.get(

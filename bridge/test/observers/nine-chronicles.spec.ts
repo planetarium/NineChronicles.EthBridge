@@ -66,23 +66,6 @@ describe(NCGTransferredEventObserver.name, () => {
         to_opensearch: ReturnType<typeof jest.fn>;
     };
 
-    const authorize = new google.auth.JWT(
-        "randemail@rand.com",
-        undefined,
-        "rand-key",
-        ["spreadsheet-url"]
-    );
-    const googleSheet = google.sheets({
-        version: "v4",
-        auth: authorize,
-    });
-
-    const mockSpreadSheetClient = new SpreadsheetClient(
-        googleSheet,
-        "random-id",
-        false
-    );
-
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
         load: jest.fn(),
         store: jest.fn(),
@@ -117,6 +100,31 @@ describe(NCGTransferredEventObserver.name, () => {
 
     const mockIntegration: jest.Mocked<Integration> = {
         error: jest.fn(),
+    };
+
+    const authorize = new google.auth.JWT(
+        "randemail@rand.com",
+        undefined,
+        "rand-key",
+        ["spreadsheet-url"]
+    );
+
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const mockSpreadSheetClient = new SpreadsheetClient(
+        googleSheet,
+        "random-id",
+        false,
+        {
+            baseFeeCriterion: baseFeePolicy.criterion,
+            baseFee: baseFeePolicy.fee,
+            feeRatio: 0.01,
+        }
+    ) as SpreadsheetClient & {
+        to_spreadsheet: ReturnType<typeof jest.fn>;
     };
 
     const failureSubscribers = "@gamefi-be";
