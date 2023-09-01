@@ -67,7 +67,7 @@ TEXT=":notebook: *9c-bridge report*\\n\
 GAP between :wncg: and :ncg::                           *$GAP*
 :ether: Ether Safe Contract balance:                  *$ETH_BALANCE*\\n
 :ether: Ether Safe Contract Executor balance: *$ETH_SAFE_EXECUTOR_BALANCE*\\n
-:ether: Ether Bridge bsc operator balance: *$ETH_BRIDGE_BSC_OPERATOR_BALANCE*\\n"
+:ether: Ether Bridge Bsc Operator balance: *$ETH_BRIDGE_BSC_OPERATOR_BALANCE*\\n"
 
 if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
     TEXT+="Ether Balance is lower than the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
