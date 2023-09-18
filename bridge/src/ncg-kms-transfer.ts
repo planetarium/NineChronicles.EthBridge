@@ -75,7 +75,7 @@ export class NCGKMSTransfer implements INCGTransfer {
 
             const action = new RecordView(
                 {
-                    type_id: "transfer_asset4",
+                    type_id: "transfer_asset5",
                     values: {
                         amount: [
                             new RecordView(
