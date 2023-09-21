@@ -40,11 +40,10 @@ import {
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
 import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
-import SafeServiceClient from "@safe-global/safe-service-client";
 import { ethers } from "ethers";
-import EthersAdapter from "@safe-global/safe-ethers-lib";
-import Safe from "@safe-global/safe-core-sdk";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
+import { SpreadsheetClient } from "./spreadsheet-client";
+import { google } from "googleapis";
 
 consoleStamp(console);
 
@@ -130,6 +129,57 @@ process.on("uncaughtException", console.error);
             dsn: SENTRY_DSN,
         });
     }
+
+    // Environment Variables for using Google Spread Sheet API
+    const SLACK_URL: string = Configuration.get("SLACK_URL");
+
+    const GOOGLE_SPREADSHEET_URL: string = Configuration.get(
+        "GOOGLE_SPREADSHEET_URL"
+    );
+    const GOOGLE_SPREADSHEET_ID: string = Configuration.get(
+        "GOOGLE_SPREADSHEET_ID"
+    );
+    const GOOGLE_CLIENT_EMAIL: string = Configuration.get(
+        "GOOGLE_CLIENT_EMAIL"
+    );
+    const GOOGLE_CLIENT_PRIVATE_KEY: string = Configuration.get(
+        "GOOGLE_CLIENT_PRIVATE_KEY"
+    );
+    const USE_GOOGLE_SPREAD_SHEET: boolean = Configuration.get(
+        "USE_GOOGLE_SPREAD_SHEET",
+        false,
+        "boolean"
+    );
+    const SHEET_MINT: string = Configuration.get("SHEET_MINT");
+    const SHEET_BURN: string = Configuration.get("SHEET_BURN");
+
+    const authorize = new google.auth.JWT(
+        GOOGLE_CLIENT_EMAIL,
+        undefined,
+        GOOGLE_CLIENT_PRIVATE_KEY,
+        [GOOGLE_SPREADSHEET_URL]
+    );
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const spreadsheetClient = new SpreadsheetClient(
+        googleSheet,
+        GOOGLE_SPREADSHEET_ID,
+        USE_GOOGLE_SPREAD_SHEET,
+        {
+            baseFeeCriterion: BASE_FEE_CRITERION,
+            baseFee: BASE_FEE,
+            feeRatio: 0.01,
+        },
+        SLACK_URL,
+        {
+            mint: SHEET_MINT,
+            burn: SHEET_BURN,
+        }
+    );
+
     const PRIORITY_FEE: number = Configuration.get(
         "PRIORITY_FEE",
         true,
@@ -358,6 +408,7 @@ process.on("uncaughtException", console.error);
         ncgKmsTransfer,
         slackMessageSender,
         opensearchClient,
+        spreadsheetClient,
         monitorStateStore,
         exchangeHistoryStore,
         EXPLORER_ROOT_URL,
@@ -392,6 +443,7 @@ process.on("uncaughtException", console.error);
         minter,
         slackMessageSender,
         opensearchClient,
+        spreadsheetClient,
         monitorStateStore,
         exchangeHistoryStore,
         EXPLORER_ROOT_URL,

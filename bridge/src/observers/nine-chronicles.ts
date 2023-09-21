@@ -19,6 +19,7 @@ import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 import { ACCOUNT_TYPE } from "../whitelist/account-type";
 import { WhitelistAccount } from "../types/whitelist-account";
+import { SpreadsheetClient } from "../spreadsheet-client";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -52,6 +53,7 @@ export class NCGTransferredEventObserver
     private readonly _ncgTransfer: INCGTransfer;
     private readonly _wrappedNcgTransfer: IWrappedNCGMinter;
     private readonly _opensearchClient: OpenSearchClient;
+    private readonly _spreadsheetClient: SpreadsheetClient;
     private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _exchangeHistoryStore: IExchangeHistoryStore;
@@ -76,6 +78,7 @@ export class NCGTransferredEventObserver
         wrappedNcgTransfer: IWrappedNCGMinter,
         slackMessageSender: ISlackMessageSender,
         opensearchClient: OpenSearchClient,
+        spreadsheetClient: SpreadsheetClient,
         monitorStateStore: IMonitorStateStore,
         exchangeHistoryStore: IExchangeHistoryStore,
         explorerUrl: string,
@@ -94,6 +97,7 @@ export class NCGTransferredEventObserver
         this._wrappedNcgTransfer = wrappedNcgTransfer;
         this._slackMessageSender = slackMessageSender;
         this._opensearchClient = opensearchClient;
+        this._spreadsheetClient = spreadsheetClient;
         this._monitorStateStore = monitorStateStore;
         this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
@@ -463,8 +467,7 @@ export class NCGTransferredEventObserver
                     errorMessage = JSON.stringify(e);
                 }
 
-                // TODO: it should be replaced with `Integration` Slack implementation.
-                await this._slackMessageSender.sendMessage(
+                const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new WrappingFailureEvent(
                         this._explorerUrl,
                         this._ncscanUrl,
@@ -477,6 +480,21 @@ export class NCGTransferredEventObserver
                         this._failureSubscribers
                     )
                 );
+
+                await this._spreadsheetClient.to_spreadsheet_mint({
+                    slackMessageId: `${
+                        slackMsgRes?.channel
+                    }/p${slackMsgRes?.ts?.replace(".", "")}`,
+                    url: this._explorerUrl,
+                    ncscanUrl: this._ncscanUrl,
+                    useNcscan: this._useNcscan,
+                    txId: txId,
+                    sender,
+                    recipient: String(recipient),
+                    amount: amountString,
+                    error: errorMessage,
+                });
+
                 await this._opensearchClient.to_opensearch("error", {
                     content: "NCG -> wNCG request failure",
                     cause: errorMessage,
@@ -485,6 +503,7 @@ export class NCGTransferredEventObserver
                     recipient: recipient,
                     amount: amountString,
                 });
+
                 await this._integration.error(
                     "Unexpected error during wrapping NCG",
                     {

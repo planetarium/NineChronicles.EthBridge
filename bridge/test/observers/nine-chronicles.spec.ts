@@ -13,6 +13,8 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 import { ISlackChannel } from "../../src/slack-channel";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
+import { SpreadsheetClient } from "../../src/spreadsheet-client";
+import { google } from "googleapis";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -31,6 +33,17 @@ jest.mock("../../src/opensearch-client", () => {
         OpenSearchClient: jest.fn(() => {
             return {
                 to_opensearch: jest.fn(),
+            };
+        }),
+    };
+});
+
+jest.mock("../../src/spreadsheet-client", () => {
+    return {
+        SpreadsheetClient: jest.fn(() => {
+            return {
+                to_spreadsheet_mint: jest.fn(),
+                to_spreadsheet_burn: jest.fn(),
             };
         }),
     };
@@ -100,6 +113,34 @@ describe(NCGTransferredEventObserver.name, () => {
         error: jest.fn(),
     };
 
+    const authorize = new google.auth.JWT(
+        "randemail@rand.com",
+        undefined,
+        "rand-key",
+        ["spreadsheet-url"]
+    );
+
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const mockSpreadSheetClient = new SpreadsheetClient(
+        googleSheet,
+        "random-id",
+        false,
+        {
+            baseFeeCriterion: 1000,
+            baseFee: 10,
+            feeRatio: 0.01,
+        },
+        "slack-url",
+        {
+            mint: "NCGtoWNCG",
+            burn: "WNCGtoNCG",
+        }
+    ) as SpreadsheetClient;
+
     const failureSubscribers = "@gamefi-be";
 
     const allowlistSender = "0xa134048eC2892d111b4fbAB224400847544FC871";
@@ -113,6 +154,7 @@ describe(NCGTransferredEventObserver.name, () => {
         mockWrappedNcgMinter,
         mockSlackMessageSender,
         mockOpenSearchClient,
+        mockSpreadSheetClient,
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",

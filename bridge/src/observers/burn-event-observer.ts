@@ -13,6 +13,7 @@ import { Integration } from "../integrations";
 import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { UnwrappingRetryIgnoreEvent } from "../messages/unwrapping-retry-ignore-event";
+import { SpreadsheetClient } from "../spreadsheet-client";
 
 export class EthereumBurnEventObserver
     implements
@@ -23,6 +24,7 @@ export class EthereumBurnEventObserver
 {
     private readonly _ncgTransfer: INCGTransfer;
     private readonly _opensearchClient: OpenSearchClient;
+    private readonly _spreadsheetClient: SpreadsheetClient;
     private readonly _slackMessageSender: ISlackMessageSender;
     private readonly _monitorStateStore: IMonitorStateStore;
     private readonly _exchangeHistoryStore: IExchangeHistoryStore;
@@ -36,6 +38,7 @@ export class EthereumBurnEventObserver
         ncgTransfer: INCGTransfer,
         slackMessageSender: ISlackMessageSender,
         opensearchClient: OpenSearchClient,
+        spreadsheetClient: SpreadsheetClient,
         monitorStateStore: IMonitorStateStore,
         exchangeHistoryStore: IExchangeHistoryStore,
         explorerUrl: string,
@@ -47,6 +50,7 @@ export class EthereumBurnEventObserver
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;
         this._opensearchClient = opensearchClient;
+        this._spreadsheetClient = spreadsheetClient;
         this._monitorStateStore = monitorStateStore;
         this._exchangeHistoryStore = exchangeHistoryStore;
         this._explorerUrl = explorerUrl;
@@ -139,7 +143,7 @@ export class EthereumBurnEventObserver
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
-                await this._slackMessageSender.sendMessage(
+                const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new UnwrappingFailureEvent(
                         this._etherscanUrl,
                         sender,
@@ -149,6 +153,19 @@ export class EthereumBurnEventObserver
                         String(e)
                     )
                 );
+
+                await this._spreadsheetClient.to_spreadsheet_burn({
+                    slackMessageId: `${
+                        slackMsgRes?.channel
+                    }/p${slackMsgRes?.ts?.replace(".", "")}`,
+                    url: this._etherscanUrl,
+                    txId: transactionHash,
+                    sender,
+                    recipient: String(recipient),
+                    amount: amountString,
+                    error: String(e),
+                });
+
                 await this._opensearchClient.to_opensearch("error", {
                     content: "wNCG -> NCG request failure",
                     cause: String(e),
