@@ -431,7 +431,7 @@ export class NCGTransferredEventObserver
                 }
 
                 console.log("Receipt", transactionHash);
-                const slackMsgRes = await this._slackMessageSender.sendMessage(
+                await this._slackMessageSender.sendMessage(
                     new WrappedEvent(
                         this._explorerUrl,
                         this._ncscanUrl,

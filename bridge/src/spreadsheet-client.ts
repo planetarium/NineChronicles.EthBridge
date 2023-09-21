@@ -58,7 +58,6 @@ export class SpreadsheetClient {
 
             return await this._googleSheet.spreadsheets.values.append({
                 spreadsheetId: this._googleSpreadSheetId,
-                // range: "NCGtoWNCG!A1:F1",
                 range: this._sheetIndexes.mint,
                 valueInputOption: "USER_ENTERED",
                 requestBody: {

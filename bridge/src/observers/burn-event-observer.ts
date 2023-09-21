@@ -163,7 +163,7 @@ export class EthereumBurnEventObserver
                     sender,
                     recipient: String(recipient),
                     amount: amountString,
-                    error: "test",
+                    error: String(e),
                 });
 
                 await this._opensearchClient.to_opensearch("error", {
