@@ -40,10 +40,7 @@ import {
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
 import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
-import SafeServiceClient from "@safe-global/safe-service-client";
 import { ethers } from "ethers";
-import EthersAdapter from "@safe-global/safe-ethers-lib";
-import Safe from "@safe-global/safe-core-sdk";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
@@ -133,6 +130,7 @@ process.on("uncaughtException", console.error);
         });
     }
 
+    // Environment Variables for using Google Spread Sheet API
     const SLACK_URL: string = Configuration.get("SLACK_URL");
 
     const GOOGLE_SPREADSHEET_URL: string = Configuration.get(
@@ -152,6 +150,8 @@ process.on("uncaughtException", console.error);
         false,
         "boolean"
     );
+    const SHEET_MINT: string = Configuration.get("SHEET_MINT");
+    const SHEET_BURN: string = Configuration.get("SHEET_BURN");
 
     const authorize = new google.auth.JWT(
         GOOGLE_CLIENT_EMAIL,
@@ -173,7 +173,11 @@ process.on("uncaughtException", console.error);
             baseFee: BASE_FEE,
             feeRatio: 0.01,
         },
-        SLACK_URL
+        SLACK_URL,
+        {
+            mint: SHEET_MINT,
+            burn: SHEET_BURN,
+        }
     );
 
     const PRIORITY_FEE: number = Configuration.get(
@@ -404,6 +408,7 @@ process.on("uncaughtException", console.error);
         ncgKmsTransfer,
         slackMessageSender,
         opensearchClient,
+        spreadsheetClient,
         monitorStateStore,
         exchangeHistoryStore,
         EXPLORER_ROOT_URL,

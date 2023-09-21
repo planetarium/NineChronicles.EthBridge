@@ -10,6 +10,8 @@ import { ISlackMessageSender } from "../../src/interfaces/slack-message-sender";
 import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ISlackChannel } from "../../src/slack-channel";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
+import { google } from "googleapis";
+import { SpreadsheetClient } from "../../src/spreadsheet-client";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -28,6 +30,17 @@ jest.mock("../../src/opensearch-client", () => {
         OpenSearchClient: jest.fn(() => {
             return {
                 to_opensearch: jest.fn(),
+            };
+        }),
+    };
+});
+
+jest.mock("../../src/spreadsheet-client", () => {
+    return {
+        SpreadsheetClient: jest.fn(() => {
+            return {
+                to_spreadsheet_mint: jest.fn(),
+                to_spreadsheet_burn: jest.fn(),
             };
         }),
     };
@@ -72,10 +85,39 @@ describe(EthereumBurnEventObserver.name, () => {
         error: jest.fn(),
     };
 
+    const authorize = new google.auth.JWT(
+        "randemail@rand.com",
+        undefined,
+        "rand-key",
+        ["spreadsheet-url"]
+    );
+
+    const googleSheet = google.sheets({
+        version: "v4",
+        auth: authorize,
+    });
+
+    const mockSpreadSheetClient = new SpreadsheetClient(
+        googleSheet,
+        "random-id",
+        false,
+        {
+            baseFeeCriterion: 1000,
+            baseFee: 10,
+            feeRatio: 0.01,
+        },
+        "slack-url",
+        {
+            mint: "NCGtoWNCG",
+            burn: "WNCGtoNCG",
+        }
+    ) as SpreadsheetClient;
+
     const observer = new EthereumBurnEventObserver(
         mockNcgTransfer,
         mockSlackMessageSender,
         mockOpenSearchClient,
+        mockSpreadSheetClient,
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",

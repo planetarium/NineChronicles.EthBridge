@@ -467,7 +467,6 @@ export class NCGTransferredEventObserver
                     errorMessage = JSON.stringify(e);
                 }
 
-                // TODO: it should be replaced with `Integration` Slack implementation.
                 const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new WrappingFailureEvent(
                         this._explorerUrl,
@@ -482,16 +481,7 @@ export class NCGTransferredEventObserver
                     )
                 );
 
-                await this._opensearchClient.to_opensearch("error", {
-                    content: "NCG -> wNCG request failure",
-                    cause: errorMessage,
-                    libplanetTxId: txId,
-                    sender: sender,
-                    recipient: recipient,
-                    amount: amountString,
-                });
-
-                await this._spreadsheetClient.to_spreadsheet({
+                await this._spreadsheetClient.to_spreadsheet_mint({
                     slackMessageId: `${
                         slackMsgRes?.channel
                     }/p${slackMsgRes?.ts?.replace(".", "")}`,
@@ -503,6 +493,15 @@ export class NCGTransferredEventObserver
                     recipient: String(recipient),
                     amount: amountString,
                     error: errorMessage,
+                });
+
+                await this._opensearchClient.to_opensearch("error", {
+                    content: "NCG -> wNCG request failure",
+                    cause: errorMessage,
+                    libplanetTxId: txId,
+                    sender: sender,
+                    recipient: recipient,
+                    amount: amountString,
                 });
 
                 await this._integration.error(

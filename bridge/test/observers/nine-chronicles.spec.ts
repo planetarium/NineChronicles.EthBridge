@@ -38,6 +38,17 @@ jest.mock("../../src/opensearch-client", () => {
     };
 });
 
+jest.mock("../../src/spreadsheet-client", () => {
+    return {
+        SpreadsheetClient: jest.fn(() => {
+            return {
+                to_spreadsheet_mint: jest.fn(),
+                to_spreadsheet_burn: jest.fn(),
+            };
+        }),
+    };
+});
+
 describe(NCGTransferredEventObserver.name, () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -119,14 +130,16 @@ describe(NCGTransferredEventObserver.name, () => {
         "random-id",
         false,
         {
-            baseFeeCriterion: baseFeePolicy.criterion,
-            baseFee: baseFeePolicy.fee,
+            baseFeeCriterion: 1000,
+            baseFee: 10,
             feeRatio: 0.01,
         },
-        "slack-url"
-    ) as SpreadsheetClient & {
-        to_spreadsheet: ReturnType<typeof jest.fn>;
-    };
+        "slack-url",
+        {
+            mint: "NCGtoWNCG",
+            burn: "WNCGtoNCG",
+        }
+    ) as SpreadsheetClient;
 
     const failureSubscribers = "@gamefi-be";
 
