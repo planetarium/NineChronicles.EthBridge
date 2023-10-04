@@ -33,7 +33,7 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         this._web3 = web3;
         this._contractDescription = contractDescription;
         this._contract = new this._web3.eth.Contract(
-            this._contractDescription.abi,
+            this._contractDescription.abi as never,
             this._contractDescription.address
         );
         this._minterAddress = minterAddress;

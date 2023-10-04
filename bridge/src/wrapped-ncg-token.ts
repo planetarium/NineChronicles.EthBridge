@@ -1,6 +1,6 @@
-import { AbiItem } from "web3-utils";
+import { ContractInterface } from "ethers";
 
-export const wNCGTokenAbi: AbiItem | AbiItem[] = [
+export const wNCGTokenAbi: ContractInterface = [
     {
         inputs: [],
         stateMutability: "nonpayable",

@@ -59,6 +59,9 @@ process.on("uncaughtException", console.error);
     );
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
+    const KMS_PROVIDER_SUB_URL: string = Configuration.get(
+        "KMS_PROVIDER_SUB_URL"
+    );
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "KMS_PROVIDER_KEY_ID"
     );
@@ -292,6 +295,7 @@ process.on("uncaughtException", console.error);
         },
     });
     const web3 = new Web3(kmsProvider);
+
     const wNCGToken: ContractDescription = {
         abi: wNCGTokenAbi,
         address: WNCG_CONTRACT_ADDRESS,
@@ -320,6 +324,19 @@ process.on("uncaughtException", console.error);
         gasPriceLimitPolicy,
     ]);
 
+    const providerMain = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
+    const providerSub = new ethers.providers.JsonRpcProvider(
+        KMS_PROVIDER_SUB_URL
+    );
+
+    const provider = new ethers.providers.FallbackProvider(
+        [
+            { provider: providerMain, priority: 0 },
+            { provider: providerSub, priority: 1 },
+        ],
+        1
+    );
+
     async function makeSafeWrappedNCGMinter(): Promise<SafeWrappedNCGMinter> {
         if (
             !USE_SAFE_WRAPPED_NCG_MINTER ||
@@ -329,8 +346,6 @@ process.on("uncaughtException", console.error);
         ) {
             throw new Error("Unsufficient environment variables were given.");
         }
-
-        const provider = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
 
         const [owner1Signer, owner2Signer, owner3Signer] =
             SAFE_OWNER_CREDENTIALS.map(
@@ -349,6 +364,7 @@ process.on("uncaughtException", console.error);
         );
     }
 
+    // Todo: Apply Multi-provider at WrappedNCGMinter
     const minter: IWrappedNCGMinter = USE_SAFE_WRAPPED_NCG_MINTER
         ? await makeSafeWrappedNCGMinter()
         : new WrappedNCGMinter(
@@ -418,7 +434,7 @@ process.on("uncaughtException", console.error);
         integration
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
-        web3,
+        provider,
         wNCGToken,
         await monitorStateStore.load("ethereum"),
         CONFIRMATIONS
