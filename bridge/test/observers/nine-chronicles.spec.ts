@@ -83,7 +83,16 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(0.01)
+        {
+            start: new Decimal(1000),
+            end: new Decimal(50000),
+            ratio: new Decimal(0.01),
+        },
+        {
+            start: new Decimal(50000),
+            end: new Decimal(100000),
+            ratio: new Decimal(0.02),
+        }
     );
 
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
@@ -129,16 +138,16 @@ describe(NCGTransferredEventObserver.name, () => {
         googleSheet,
         "random-id",
         false,
-        {
-            baseFeeCriterion: 1000,
-            baseFee: 10,
-            feeRatio: 0.01,
-        },
         "slack-url",
         {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
-        }
+        },
+        {
+            baseFeeCriterion: 1000,
+            baseFee: 10,
+        },
+        exchangeFeeRatioPolicy
     ) as SpreadsheetClient;
 
     const failureSubscribers = "@gamefi-be";
@@ -401,7 +410,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
-                makeEvent(wrappedNcgRecipient, "100", "TX-E"),
+                makeEvent(wrappedNcgRecipient, "100", "TX-E"), // Success TX - Base Fee
+                makeEvent(wrappedNcgRecipient, "5000", "TX-FEE-FIRST-RANGE"), //Success TX - fee first range
+                makeEvent(wrappedNcgRecipient, "60000", "TX-FEE-SECOND-RANGE"), //Success TX - fee second range
                 makeEvent(
                     wrappedNcgRecipient,
                     "10000000000",
@@ -486,7 +497,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-PART-F",
+                    txId: "TX-FEE-FIRST-RANGE",
                 }
             );
 
@@ -495,23 +506,25 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-G",
+                    txId: "TX-FEE-SECOND-RANGE",
                 }
             );
+
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
                 8,
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-H",
+                    txId: "TX-SHOULD-REFUND-PART-F",
                 }
             );
+
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
                 9,
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-I",
+                    txId: "TX-SHOULD-REFUND-G",
                 }
             );
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
@@ -519,7 +532,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-J",
+                    txId: "TX-SHOULD-REFUND-H",
                 }
             );
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
@@ -527,11 +540,27 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-ALLOWLIST",
+                    txId: "TX-SHOULD-REFUND-I",
                 }
             );
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
                 12,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-SHOULD-REFUND-J",
+                }
+            );
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                13,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ALLOWLIST",
+                }
+            );
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                14,
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
@@ -585,30 +614,30 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(6, {
-                amount: 99900,
+                amount: 5000,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-FEE-FIRST-RANGE",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(7, {
+                amount: 60000,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-FEE-SECOND-RANGE",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
+                amount: 34900, // 100000 - ( 100 + 5000 + 60000 )
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
                 timestamp: expect.any(String),
                 tx_id: "TX-SHOULD-REFUND-PART-F",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(7, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-G",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-H",
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(9, {
@@ -617,7 +646,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 recipient: wrappedNcgRecipient,
                 sender: sender,
                 timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-I",
+                tx_id: "TX-SHOULD-REFUND-G",
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(10, {
@@ -626,10 +655,28 @@ describe(NCGTransferredEventObserver.name, () => {
                 recipient: wrappedNcgRecipient,
                 sender: sender,
                 timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-J",
+                tx_id: "TX-SHOULD-REFUND-H",
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(11, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-I",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(12, {
+                amount: 0,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND-J",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(13, {
                 amount: 11000,
                 network: "nineChronicles",
                 recipient: allowlistRecipient,
@@ -638,7 +685,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 tx_id: "TX-ALLOWLIST",
             });
 
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(12, {
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(14, {
                 amount: 11000,
                 network: "nineChronicles",
                 recipient: feeWaiverRecipient,
@@ -649,8 +696,10 @@ describe(NCGTransferredEventObserver.name, () => {
 
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(90000000000000000000)],
-                [wrappedNcgRecipient, new Decimal(98901000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(90000000000000000000)], // Base Fee ( 100 NCG, BaseFee 10 NCG )
+                [wrappedNcgRecipient, new Decimal(4950000000000000000000)], // Fee First Range ( 5000 NCG, Fee 0.01 )
+                [wrappedNcgRecipient, new Decimal(58800000000000000000000)], // Fee Second Range ( 60000 NCG, Fee 0.02 )
+                [wrappedNcgRecipient, new Decimal(34551000000000000000000)],
                 [allowlistRecipient, new Decimal(10890000000000000000000)],
                 [feeWaiverRecipient, new Decimal(11000000000000000000000)],
             ]);

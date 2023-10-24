@@ -1,52 +1,34 @@
 import Decimal from "decimal.js";
-import { Address } from "../types/address";
 
 export interface IExchangeFeeRatioPolicy {
-    getFee(address: Address): Decimal | false;
+    getFee(): {
+        feeRange1: IExchangeFeeInfo;
+        feeRange2: IExchangeFeeInfo;
+    };
+}
+
+export interface IExchangeFeeInfo {
+    start: Decimal;
+    end: Decimal;
+    ratio: Decimal;
 }
 
 export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
-    private readonly _fee: Decimal;
+    private readonly _feeRange1: IExchangeFeeInfo;
+    private readonly _feeRange2: IExchangeFeeInfo;
 
-    constructor(fee: Decimal) {
-        this._fee = fee;
+    constructor(feeRange1: IExchangeFeeInfo, feeRange2: IExchangeFeeInfo) {
+        this._feeRange1 = feeRange1;
+        this._feeRange2 = feeRange2;
     }
 
-    getFee(address: string): Decimal | false {
-        return this._fee;
-    }
-}
-
-export class ZeroExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
-    private readonly _address: Address;
-
-    constructor(address: Address) {
-        this._address = address;
-    }
-
-    getFee(address: string): Decimal | false {
-        if (address === this._address) {
-            return new Decimal(0);
-        }
-
-        return false;
-    }
-}
-
-export class ExchnageFeePolicies implements IExchangeFeeRatioPolicy {
-    private readonly _policies: IExchangeFeeRatioPolicy[];
-
-    constructor(policies: IExchangeFeeRatioPolicy[]) {
-        this._policies = policies;
-    }
-
-    getFee(address: string): Decimal | false {
-        for (const policy of this._policies) {
-            const fee = policy.getFee(address);
-            if (fee !== false) {
-                return fee;
-            }
-        }
-        return false;
+    getFee(): {
+        feeRange1: IExchangeFeeInfo;
+        feeRange2: IExchangeFeeInfo;
+    } {
+        return {
+            feeRange1: this._feeRange1,
+            feeRange2: this._feeRange2,
+        };
     }
 }

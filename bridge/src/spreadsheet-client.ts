@@ -1,10 +1,11 @@
 import { combineNcExplorerUrl, combineUrl } from "./messages/utils";
 import { sheets_v4 } from "googleapis";
+import { IExchangeFeeRatioPolicy } from "./policies/exchange-fee-ratio";
+import Decimal from "decimal.js";
 
-interface FeePolicy {
+interface BaseFeePolicy {
     baseFeeCriterion: number;
     baseFee: number;
-    feeRatio: number;
 }
 
 interface SheetIndexes {
@@ -16,24 +17,27 @@ export class SpreadsheetClient {
     private readonly _googleSheet: sheets_v4.Sheets;
     private readonly _googleSpreadSheetId: string;
     private readonly _useSpreadSheet: boolean | undefined;
-    private readonly _feePolicy: FeePolicy;
     private readonly _slackUrl: string;
     private readonly _sheetIndexes: SheetIndexes;
+    private readonly _baseFeePolicy: BaseFeePolicy;
+    private readonly _exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy;
 
     constructor(
         googleSheet: sheets_v4.Sheets,
         googleSpreadSheetId: string,
         useSpreadSheet: boolean | undefined,
-        feePolicy: FeePolicy,
         slackUrl: string,
-        sheetIndexes: SheetIndexes
+        sheetIndexes: SheetIndexes,
+        baseFeePolicy: BaseFeePolicy,
+        exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy
     ) {
         this._googleSheet = googleSheet;
         this._googleSpreadSheetId = googleSpreadSheetId;
         this._useSpreadSheet = useSpreadSheet;
-        this._feePolicy = feePolicy;
         this._slackUrl = slackUrl;
         this._sheetIndexes = sheetIndexes;
+        this._baseFeePolicy = baseFeePolicy;
+        this._exchangeFeeRatioPolicy = exchangeFeeRatioPolicy;
     }
 
     async to_spreadsheet_mint(data: {
@@ -50,11 +54,34 @@ export class SpreadsheetClient {
         if (!this._useSpreadSheet) return;
 
         try {
-            const amountNum = Number(data.amount);
-            const amountFeeApplied =
-                amountNum >= this._feePolicy.baseFeeCriterion
-                    ? (amountNum * 0.99).toFixed(2)
-                    : amountNum - this._feePolicy.baseFee;
+            const amountDecimal = new Decimal(Number(data.amount));
+            const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee();
+
+            let fee;
+            if (
+                !amountDecimal.greaterThanOrEqualTo(
+                    new Decimal(this._baseFeePolicy.baseFeeCriterion)
+                )
+            ) {
+                fee = new Decimal(this._baseFeePolicy.baseFee);
+            } else {
+                if (
+                    !amountDecimal.greaterThan(exchangeFeeRatio.feeRange1.end)
+                ) {
+                    fee = new Decimal(
+                        amountDecimal
+                            .mul(exchangeFeeRatio.feeRange1.ratio)
+                            .toFixed(2)
+                    );
+                } else {
+                    fee = new Decimal(
+                        amountDecimal
+                            .mul(exchangeFeeRatio.feeRange2.ratio)
+                            .toFixed(2)
+                    );
+                }
+            }
+            const amountFeeApplied = amountDecimal.sub(fee).toString();
 
             return await this._googleSheet.spreadsheets.values.append({
                 spreadsheetId: this._googleSpreadSheetId,

@@ -62,9 +62,6 @@ export class NCGTransferredEventObserver
     private readonly _useNcscan: boolean;
     private readonly _etherscanUrl: string;
     private readonly _failureSubscribers: string;
-    /**
-     * The fee ratio requried to exchange. This should be float value like 0.01.
-     */
     private readonly _exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy;
     private readonly _baseFeePolicy: BaseFeePolicy;
     private readonly _limitationPolicy: LimitationPolicy;
@@ -371,25 +368,41 @@ export class NCGTransferredEventObserver
                     );
                 }
 
-                const exchangeFeeRatio =
-                    this._exchangeFeeRatioPolicy.getFee(sender);
-                if (exchangeFeeRatio === false) {
-                    throw new Error(
-                        `Failed to get exchange fee ratio for ${sender}`
-                    );
-                }
+                const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee();
 
                 /**
                  * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
                  * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
                  */
-                let fee = limitedAmount.greaterThanOrEqualTo(
-                    new Decimal(this._baseFeePolicy.criterion)
-                )
-                    ? new Decimal(
-                          limitedAmount.mul(exchangeFeeRatio).toFixed(2)
-                      )
-                    : new Decimal(this._baseFeePolicy.fee);
+                let fee;
+                if (
+                    !limitedAmount.greaterThanOrEqualTo(
+                        new Decimal(this._baseFeePolicy.criterion)
+                    )
+                ) {
+                    fee = new Decimal(this._baseFeePolicy.fee);
+                } else {
+                    /**
+                     * Set Fee Per Amount Range
+                     */
+                    if (
+                        !limitedAmount.greaterThan(
+                            exchangeFeeRatio.feeRange1.end
+                        )
+                    ) {
+                        fee = new Decimal(
+                            limitedAmount
+                                .mul(exchangeFeeRatio.feeRange1.ratio)
+                                .toFixed(2)
+                        );
+                    } else {
+                        fee = new Decimal(
+                            limitedAmount
+                                .mul(exchangeFeeRatio.feeRange2.ratio)
+                                .toFixed(2)
+                        );
+                    }
+                }
 
                 /**
                  * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,

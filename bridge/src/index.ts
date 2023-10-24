@@ -33,9 +33,8 @@ import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
 import { SlackMessageSender } from "./slack-message-sender";
 import {
-    ExchnageFeePolicies,
     FixedExchangeFeeRatioPolicy,
-    ZeroExchangeFeeRatioPolicy,
+    IExchangeFeeRatioPolicy,
 } from "./policies/exchange-fee-ratio";
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
@@ -96,6 +95,38 @@ process.on("uncaughtException", console.error);
         "float"
     );
     const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
+
+    const FEE_RANGE1_START: number = Configuration.get(
+        "FEE_RANGE1_START",
+        true,
+        "float"
+    );
+    const FEE_RANGE1_END: number = Configuration.get(
+        "FEE_RANGE1_END",
+        true,
+        "float"
+    );
+    const FEE_RANGE1_RATIO: number = Configuration.get(
+        "FEE_RANGE1_RATIO",
+        true,
+        "float"
+    );
+    const FEE_RANGE2_START: number = Configuration.get(
+        "FEE_RANGE2_START",
+        true,
+        "float"
+    );
+    const FEE_RANGE2_END: number = Configuration.get(
+        "FEE_RANGE2_END",
+        true,
+        "float"
+    );
+    const FEE_RANGE2_RATIO: number = Configuration.get(
+        "FEE_RANGE2_RATIO",
+        true,
+        "float"
+    );
+
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const FAILURE_SUBSCRIBERS: string = Configuration.get(
         "FAILURE_SUBSCRIBERS"
@@ -153,6 +184,38 @@ process.on("uncaughtException", console.error);
     const SHEET_MINT: string = Configuration.get("SHEET_MINT");
     const SHEET_BURN: string = Configuration.get("SHEET_BURN");
 
+    if (BASE_FEE >= BASE_FEE_CRITERION) {
+        throw Error(
+            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
+        );
+    }
+
+    if (BASE_FEE_CRITERION > FEE_RANGE1_START) {
+        throw Error(
+            `BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION}) should be less than or Equal FEE_RANGE1_START(value: ${FEE_RANGE1_START})`
+        );
+    }
+
+    if (FEE_RANGE1_END > FEE_RANGE2_START) {
+        throw Error(
+            `FEE_RANGE1_END(value: ${FEE_RANGE1_END}) should be less than or Equal FEE_RANGE2_START(value: ${FEE_RANGE2_START})`
+        );
+    }
+
+    const ncgExchangeFeeRatioPolicy: IExchangeFeeRatioPolicy =
+        new FixedExchangeFeeRatioPolicy(
+            {
+                start: new Decimal(FEE_RANGE1_START),
+                end: new Decimal(FEE_RANGE1_END),
+                ratio: new Decimal(FEE_RANGE1_RATIO),
+            },
+            {
+                start: new Decimal(FEE_RANGE2_START),
+                end: new Decimal(FEE_RANGE2_END),
+                ratio: new Decimal(FEE_RANGE2_RATIO),
+            }
+        );
+
     const authorize = new google.auth.JWT(
         GOOGLE_CLIENT_EMAIL,
         undefined,
@@ -168,16 +231,16 @@ process.on("uncaughtException", console.error);
         googleSheet,
         GOOGLE_SPREADSHEET_ID,
         USE_GOOGLE_SPREAD_SHEET,
-        {
-            baseFeeCriterion: BASE_FEE_CRITERION,
-            baseFee: BASE_FEE,
-            feeRatio: 0.01,
-        },
         SLACK_URL,
         {
             mint: SHEET_MINT,
             burn: SHEET_BURN,
-        }
+        },
+        {
+            baseFeeCriterion: BASE_FEE_CRITERION,
+            baseFee: BASE_FEE,
+        },
+        ncgExchangeFeeRatioPolicy
     );
 
     const PRIORITY_FEE: number = Configuration.get(
@@ -424,19 +487,6 @@ process.on("uncaughtException", console.error);
         CONFIRMATIONS
     );
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
-
-    if (BASE_FEE >= BASE_FEE_CRITERION) {
-        throw Error(
-            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
-        );
-    }
-
-    const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
-        ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(
-            (address) => new ZeroExchangeFeeRatioPolicy(address)
-        ),
-        new FixedExchangeFeeRatioPolicy(new Decimal(0.01)),
-    ]);
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(
         ncgKmsTransfer,
