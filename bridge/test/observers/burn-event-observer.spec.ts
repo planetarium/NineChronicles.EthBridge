@@ -97,6 +97,10 @@ describe(EthereumBurnEventObserver.name, () => {
             start: new Decimal(50000),
             end: new Decimal(100000),
             ratio: new Decimal(0.02),
+        },
+        {
+            criterion: new Decimal(1000),
+            fee: new Decimal(10),
         }
     );
 
@@ -120,10 +124,6 @@ describe(EthereumBurnEventObserver.name, () => {
         {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
-        },
-        {
-            baseFeeCriterion: 1000,
-            baseFee: 10,
         },
         exchangeFeeRatioPolicy
     ) as SpreadsheetClient;
