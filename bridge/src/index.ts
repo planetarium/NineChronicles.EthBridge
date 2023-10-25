@@ -95,29 +95,14 @@ process.on("uncaughtException", console.error);
         "float"
     );
     const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
+    const FEE_RANGE_DIVIDER_AMOUNT: number = Configuration.get(
+        "FEE_RANGE_DIVIDER_AMOUNT",
+        true,
+        "float"
+    );
 
-    const FEE_RANGE1_START: number = Configuration.get(
-        "FEE_RANGE1_START",
-        true,
-        "float"
-    );
-    const FEE_RANGE1_END: number = Configuration.get(
-        "FEE_RANGE1_END",
-        true,
-        "float"
-    );
     const FEE_RANGE1_RATIO: number = Configuration.get(
         "FEE_RANGE1_RATIO",
-        true,
-        "float"
-    );
-    const FEE_RANGE2_START: number = Configuration.get(
-        "FEE_RANGE2_START",
-        true,
-        "float"
-    );
-    const FEE_RANGE2_END: number = Configuration.get(
-        "FEE_RANGE2_END",
         true,
         "float"
     );
@@ -190,39 +175,29 @@ process.on("uncaughtException", console.error);
         );
     }
 
-    if (BASE_FEE_CRITERION > FEE_RANGE1_START) {
+    if (BASE_FEE_CRITERION > FEE_RANGE_DIVIDER_AMOUNT) {
         throw Error(
-            `BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION}) should be less than or Equal FEE_RANGE1_START(value: ${FEE_RANGE1_START})`
+            `BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION}) should be less than or Equal FEE_RANGE_DIVIDER_AMOUNT(value: ${FEE_RANGE_DIVIDER_AMOUNT})`
         );
     }
 
-    if (FEE_RANGE1_END > FEE_RANGE2_START) {
+    if (FEE_RANGE_DIVIDER_AMOUNT > MAXIMUM_NCG) {
         throw Error(
-            `FEE_RANGE1_END(value: ${FEE_RANGE1_END}) should be less than or Equal FEE_RANGE2_START(value: ${FEE_RANGE2_START})`
-        );
-    }
-
-    if (FEE_RANGE2_END > MAXIMUM_NCG) {
-        throw Error(
-            `FEE_RANGE2_END(value: ${FEE_RANGE2_END}) should be less than or Equal MAXIMUM_NCG(value: ${MAXIMUM_NCG})`
+            `FEE_RANGE_DIVIDER_AMOUNT(value: ${FEE_RANGE_DIVIDER_AMOUNT}) should be less than or Equal MAXIMUM_NCG(value: ${MAXIMUM_NCG})`
         );
     }
 
     const ncgExchangeFeeRatioPolicy: IExchangeFeeRatioPolicy =
         new FixedExchangeFeeRatioPolicy(
-            {
-                start: new Decimal(FEE_RANGE1_START),
-                end: new Decimal(FEE_RANGE1_END),
-                ratio: new Decimal(FEE_RANGE1_RATIO),
-            },
-            {
-                start: new Decimal(FEE_RANGE2_START),
-                end: new Decimal(FEE_RANGE2_END),
-                ratio: new Decimal(FEE_RANGE2_RATIO),
-            },
+            new Decimal(MAXIMUM_NCG),
+            new Decimal(FEE_RANGE_DIVIDER_AMOUNT),
             {
                 criterion: new Decimal(BASE_FEE_CRITERION),
                 fee: new Decimal(BASE_FEE),
+            },
+            {
+                range1: new Decimal(FEE_RANGE1_RATIO),
+                range2: new Decimal(FEE_RANGE2_RATIO),
             }
         );
 

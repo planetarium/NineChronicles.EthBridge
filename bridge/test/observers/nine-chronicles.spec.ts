@@ -83,19 +83,15 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
-        {
-            start: new Decimal(1000),
-            end: new Decimal(50000),
-            ratio: new Decimal(0.01),
-        },
-        {
-            start: new Decimal(50000),
-            end: new Decimal(100000),
-            ratio: new Decimal(0.02),
-        },
+        new Decimal(100000),
+        new Decimal(50000),
         {
             criterion: new Decimal(1000),
             fee: new Decimal(10),
+        },
+        {
+            range1: new Decimal(0.01),
+            range2: new Decimal(0.02),
         }
     );
 
@@ -103,11 +99,6 @@ describe(NCGTransferredEventObserver.name, () => {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
         exist: jest.fn(),
-    };
-
-    const baseFeePolicy = {
-        criterion: 1000,
-        fee: 10,
     };
 
     const limitationPolicy = {

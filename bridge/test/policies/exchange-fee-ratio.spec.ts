@@ -2,23 +2,16 @@ import Decimal from "decimal.js";
 import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
 
 describe(FixedExchangeFeeRatioPolicy.name, () => {
-    const exchangeFeeRange1Info = {
-        start: new Decimal(100),
-        end: new Decimal(500),
-        ratio: new Decimal(0.01),
-    };
-    const exchangeFeeRange2Info = {
-        start: new Decimal(500),
-        end: new Decimal(1000),
-        ratio: new Decimal(0.02),
-    };
-
     const policy = new FixedExchangeFeeRatioPolicy(
-        exchangeFeeRange1Info,
-        exchangeFeeRange2Info,
+        new Decimal(1000),
+        new Decimal(500),
         {
             criterion: new Decimal(100),
             fee: new Decimal(10),
+        },
+        {
+            range1: new Decimal(0.01),
+            range2: new Decimal(0.02),
         }
     );
 

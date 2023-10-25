@@ -9,25 +9,27 @@ export interface BaseFeePolicy {
     fee: Decimal;
 }
 
-export interface IExchangeFeeInfo {
-    start: Decimal;
-    end: Decimal;
-    ratio: Decimal;
+export interface FeeRatios {
+    range1: Decimal;
+    range2: Decimal;
 }
 
 export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
-    private readonly _feeRange1: IExchangeFeeInfo;
-    private readonly _feeRange2: IExchangeFeeInfo;
     private readonly _baseFeePolicy: BaseFeePolicy;
+    private readonly _maximumNCG: Decimal;
+    private readonly _feeRangeDividerAmount: Decimal;
+    private readonly _feeRatios: FeeRatios;
 
     constructor(
-        feeRange1: IExchangeFeeInfo,
-        feeRange2: IExchangeFeeInfo,
-        baseFeePolicy: BaseFeePolicy
+        maximumNCG: Decimal,
+        feeRangeDividerAmount: Decimal,
+        baseFeePolicy: BaseFeePolicy,
+        feeRatios: FeeRatios
     ) {
-        this._feeRange1 = feeRange1;
-        this._feeRange2 = feeRange2;
+        this._maximumNCG = maximumNCG;
+        this._feeRangeDividerAmount = feeRangeDividerAmount;
         this._baseFeePolicy = baseFeePolicy;
+        this._feeRatios = feeRatios;
     }
 
     getFee(amount: Decimal): Decimal {
@@ -42,16 +44,16 @@ export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
 
         // fee for Amount Range 1
         if (
-            amount.greaterThanOrEqualTo(this._feeRange1.start) &&
-            amount.lessThanOrEqualTo(this._feeRange1.end)
+            amount.greaterThanOrEqualTo(this._baseFeePolicy.criterion) &&
+            amount.lessThanOrEqualTo(this._feeRangeDividerAmount)
         ) {
-            return new Decimal(amount.mul(this._feeRange1.ratio).toFixed(2));
+            return new Decimal(amount.mul(this._feeRatios.range1).toFixed(2));
         } else if (
             // fee for Amount Range 2
-            amount.greaterThan(this._feeRange2.start) &&
-            amount.lessThanOrEqualTo(this._feeRange2.end)
+            amount.greaterThan(this._feeRangeDividerAmount) &&
+            amount.lessThanOrEqualTo(this._maximumNCG)
         ) {
-            return new Decimal(amount.mul(this._feeRange2.ratio).toFixed(2));
+            return new Decimal(amount.mul(this._feeRatios.range2).toFixed(2));
         }
 
         throw new Error(`Invalid amount for getting fee.`);
