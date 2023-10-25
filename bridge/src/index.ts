@@ -202,6 +202,12 @@ process.on("uncaughtException", console.error);
         );
     }
 
+    if (FEE_RANGE2_END > MAXIMUM_NCG) {
+        throw Error(
+            `FEE_RANGE2_END(value: ${FEE_RANGE2_END}) should be less than or Equal MAXIMUM_NCG(value: ${MAXIMUM_NCG})`
+        );
+    }
+
     const ncgExchangeFeeRatioPolicy: IExchangeFeeRatioPolicy =
         new FixedExchangeFeeRatioPolicy(
             {
@@ -213,6 +219,10 @@ process.on("uncaughtException", console.error);
                 start: new Decimal(FEE_RANGE2_START),
                 end: new Decimal(FEE_RANGE2_END),
                 ratio: new Decimal(FEE_RANGE2_RATIO),
+            },
+            {
+                criterion: new Decimal(BASE_FEE_CRITERION),
+                fee: new Decimal(BASE_FEE),
             }
         );
 
@@ -235,10 +245,6 @@ process.on("uncaughtException", console.error);
         {
             mint: SHEET_MINT,
             burn: SHEET_BURN,
-        },
-        {
-            baseFeeCriterion: BASE_FEE_CRITERION,
-            baseFee: BASE_FEE,
         },
         ncgExchangeFeeRatioPolicy
     );
@@ -271,13 +277,6 @@ process.on("uncaughtException", console.error);
 
     const STAGE_HEADLESSES: string[] =
         Configuration.get("STAGE_HEADLESSES").split(",");
-
-    const ZERO_EXCHANGE_FEE_RATIO_ADDRESSES: string[] =
-        Configuration.get(
-            "ZERO_EXCHANGE_FEE_ADDRESSES",
-            false,
-            "string"
-        )?.split(",") || [];
 
     const USE_SAFE_WRAPPED_NCG_MINTER: boolean = Configuration.get(
         "USE_SAFE_WRAPPED_NCG_MINTER",
@@ -501,10 +500,6 @@ process.on("uncaughtException", console.error);
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         ncgExchangeFeeRatioPolicy,
-        {
-            criterion: BASE_FEE_CRITERION,
-            fee: BASE_FEE,
-        },
         {
             maximum: MAXIMUM_NCG,
             whitelistMaximum: MAXIMUM_WHITELIST_NCG,

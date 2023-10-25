@@ -3,11 +3,6 @@ import { sheets_v4 } from "googleapis";
 import { IExchangeFeeRatioPolicy } from "./policies/exchange-fee-ratio";
 import Decimal from "decimal.js";
 
-interface BaseFeePolicy {
-    baseFeeCriterion: number;
-    baseFee: number;
-}
-
 interface SheetIndexes {
     mint: string;
     burn: string;
@@ -19,7 +14,6 @@ export class SpreadsheetClient {
     private readonly _useSpreadSheet: boolean | undefined;
     private readonly _slackUrl: string;
     private readonly _sheetIndexes: SheetIndexes;
-    private readonly _baseFeePolicy: BaseFeePolicy;
     private readonly _exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy;
 
     constructor(
@@ -28,7 +22,6 @@ export class SpreadsheetClient {
         useSpreadSheet: boolean | undefined,
         slackUrl: string,
         sheetIndexes: SheetIndexes,
-        baseFeePolicy: BaseFeePolicy,
         exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy
     ) {
         this._googleSheet = googleSheet;
@@ -36,7 +29,6 @@ export class SpreadsheetClient {
         this._useSpreadSheet = useSpreadSheet;
         this._slackUrl = slackUrl;
         this._sheetIndexes = sheetIndexes;
-        this._baseFeePolicy = baseFeePolicy;
         this._exchangeFeeRatioPolicy = exchangeFeeRatioPolicy;
     }
 
@@ -55,32 +47,7 @@ export class SpreadsheetClient {
 
         try {
             const amountDecimal = new Decimal(Number(data.amount));
-            const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee();
-
-            let fee;
-            if (
-                !amountDecimal.greaterThanOrEqualTo(
-                    new Decimal(this._baseFeePolicy.baseFeeCriterion)
-                )
-            ) {
-                fee = new Decimal(this._baseFeePolicy.baseFee);
-            } else {
-                if (
-                    !amountDecimal.greaterThan(exchangeFeeRatio.feeRange1.end)
-                ) {
-                    fee = new Decimal(
-                        amountDecimal
-                            .mul(exchangeFeeRatio.feeRange1.ratio)
-                            .toFixed(2)
-                    );
-                } else {
-                    fee = new Decimal(
-                        amountDecimal
-                            .mul(exchangeFeeRatio.feeRange2.ratio)
-                            .toFixed(2)
-                    );
-                }
-            }
+            const fee = this._exchangeFeeRatioPolicy.getFee(amountDecimal);
             const amountFeeApplied = amountDecimal.sub(fee).toString();
 
             return await this._googleSheet.spreadsheets.values.append({

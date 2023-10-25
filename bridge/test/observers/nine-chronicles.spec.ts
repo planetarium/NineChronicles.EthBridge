@@ -92,6 +92,10 @@ describe(NCGTransferredEventObserver.name, () => {
             start: new Decimal(50000),
             end: new Decimal(100000),
             ratio: new Decimal(0.02),
+        },
+        {
+            criterion: new Decimal(1000),
+            fee: new Decimal(10),
         }
     );
 
@@ -143,10 +147,6 @@ describe(NCGTransferredEventObserver.name, () => {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
         },
-        {
-            baseFeeCriterion: 1000,
-            baseFee: 10,
-        },
         exchangeFeeRatioPolicy
     ) as SpreadsheetClient;
 
@@ -171,7 +171,6 @@ describe(NCGTransferredEventObserver.name, () => {
         false,
         "https://ropsten.etherscan.io",
         exchangeFeeRatioPolicy,
-        baseFeePolicy,
         limitationPolicy,
         addressBanPolicy,
         mockIntegration,

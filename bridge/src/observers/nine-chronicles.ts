@@ -38,11 +38,6 @@ interface LimitationPolicy {
     minimum: number;
 }
 
-interface BaseFeePolicy {
-    criterion: number;
-    fee: number;
-}
-
 export class NCGTransferredEventObserver
     implements
         IObserver<{
@@ -63,7 +58,6 @@ export class NCGTransferredEventObserver
     private readonly _etherscanUrl: string;
     private readonly _failureSubscribers: string;
     private readonly _exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy;
-    private readonly _baseFeePolicy: BaseFeePolicy;
     private readonly _limitationPolicy: LimitationPolicy;
     private readonly _addressBanPolicy: IAddressBanPolicy;
 
@@ -83,7 +77,6 @@ export class NCGTransferredEventObserver
         useNcscan: boolean,
         etherscanUrl: string,
         exchangeFeeRatioPolicy: IExchangeFeeRatioPolicy,
-        baseFeePolicy: BaseFeePolicy,
         limitationPolicy: LimitationPolicy,
         addressBanPolicy: IAddressBanPolicy,
         integration: Integration,
@@ -102,7 +95,6 @@ export class NCGTransferredEventObserver
         this._useNcscan = useNcscan;
         this._etherscanUrl = etherscanUrl;
         this._exchangeFeeRatioPolicy = exchangeFeeRatioPolicy;
-        this._baseFeePolicy = baseFeePolicy;
         this._limitationPolicy = limitationPolicy;
         this._addressBanPolicy = addressBanPolicy;
         this._integration = integration;
@@ -368,42 +360,7 @@ export class NCGTransferredEventObserver
                     );
                 }
 
-                const exchangeFeeRatio = this._exchangeFeeRatioPolicy.getFee();
-
-                /**
-                 * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
-                 * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
-                 */
-                let fee;
-                if (
-                    !limitedAmount.greaterThanOrEqualTo(
-                        new Decimal(this._baseFeePolicy.criterion)
-                    )
-                ) {
-                    fee = new Decimal(this._baseFeePolicy.fee);
-                } else {
-                    /**
-                     * Set Fee Per Amount Range
-                     */
-                    if (
-                        !limitedAmount.greaterThan(
-                            exchangeFeeRatio.feeRange1.end
-                        )
-                    ) {
-                        fee = new Decimal(
-                            limitedAmount
-                                .mul(exchangeFeeRatio.feeRange1.ratio)
-                                .toFixed(2)
-                        );
-                    } else {
-                        fee = new Decimal(
-                            limitedAmount
-                                .mul(exchangeFeeRatio.feeRange2.ratio)
-                                .toFixed(2)
-                        );
-                    }
-                }
-
+                let fee = this._exchangeFeeRatioPolicy.getFee(limitedAmount);
                 /**
                  * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,
                  * set Transfer ( NCG -> WNCG ) Fee to 0 ( Zero )
