@@ -42,20 +42,19 @@ export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
             return this._baseFeePolicy.fee;
         }
 
-        // fee for Amount Range 1
+        let fee = new Decimal(amount.mul(this._feeRatios.range1).toFixed(2));
+
         if (
-            amount.greaterThanOrEqualTo(this._baseFeePolicy.criterion) &&
-            amount.lessThanOrEqualTo(this._feeRangeDividerAmount)
-        ) {
-            return new Decimal(amount.mul(this._feeRatios.range1).toFixed(2));
-        } else if (
-            // fee for Amount Range 2
             amount.greaterThan(this._feeRangeDividerAmount) &&
             amount.lessThanOrEqualTo(this._maximumNCG)
         ) {
-            return new Decimal(amount.mul(this._feeRatios.range2).toFixed(2));
+            const overAmount = amount.sub(this._feeRangeDividerAmount);
+            const surCharge = new Decimal(
+                overAmount.mul(this._feeRatios.range2).toFixed(2)
+            );
+            fee = fee.add(surCharge);
         }
 
-        throw new Error(`Invalid amount for getting fee.`);
+        return fee;
     }
 }

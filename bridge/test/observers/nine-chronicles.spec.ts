@@ -83,8 +83,8 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(100000),
-        new Decimal(50000),
+        new Decimal(20000),
+        new Decimal(10000),
         {
             criterion: new Decimal(1000),
             fee: new Decimal(10),
@@ -102,7 +102,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const limitationPolicy = {
-        maximum: 100000,
+        maximum: 20000,
         whitelistMaximum: 200000,
         minimum: 100,
     };
@@ -400,9 +400,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
                 makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
                 makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
-                makeEvent(wrappedNcgRecipient, "100", "TX-E"), // Success TX - Base Fee
+                makeEvent(wrappedNcgRecipient, "500", "TX-E"), // Success TX - Base Fee
                 makeEvent(wrappedNcgRecipient, "5000", "TX-FEE-FIRST-RANGE"), //Success TX - fee first range
-                makeEvent(wrappedNcgRecipient, "60000", "TX-FEE-SECOND-RANGE"), //Success TX - fee second range
+                makeEvent(wrappedNcgRecipient, "12000", "TX-FEE-SECOND-RANGE"), //Success TX - fee second range
                 makeEvent(
                     wrappedNcgRecipient,
                     "10000000000",
@@ -595,7 +595,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(5, {
-                amount: 100,
+                amount: 500,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -613,7 +613,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(7, {
-                amount: 60000,
+                amount: 12000,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -622,7 +622,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
-                amount: 34900, // 100000 - ( 100 + 5000 + 60000 )
+                amount: 2500, // 20000 - ( 500 + 5000 + 12000 )
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -686,11 +686,12 @@ describe(NCGTransferredEventObserver.name, () => {
 
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(90000000000000000000)], // Base Fee ( 100 NCG, BaseFee 10 NCG )
+                [wrappedNcgRecipient, new Decimal(490000000000000000000)], // Base Fee ( 500 NCG, BaseFee 10 NCG )
                 [wrappedNcgRecipient, new Decimal(4950000000000000000000)], // Fee First Range ( 5000 NCG, Fee 0.01 )
-                [wrappedNcgRecipient, new Decimal(58800000000000000000000)], // Fee Second Range ( 60000 NCG, Fee 0.02 )
-                [wrappedNcgRecipient, new Decimal(34551000000000000000000)],
-                [allowlistRecipient, new Decimal(10890000000000000000000)],
+                // Fee Second Range ( 12000 NCG, Fee ( 0.01 for 12000 + 0.02 for 2000 )
+                [wrappedNcgRecipient, new Decimal(11840000000000000000000)],
+                [wrappedNcgRecipient, new Decimal(2475000000000000000000)],
+                [allowlistRecipient, new Decimal(10870000000000000000000)],
                 [feeWaiverRecipient, new Decimal(11000000000000000000000)],
             ]);
         });

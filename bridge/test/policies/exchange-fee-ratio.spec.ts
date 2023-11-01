@@ -3,10 +3,10 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 
 describe(FixedExchangeFeeRatioPolicy.name, () => {
     const policy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(1000),
-        new Decimal(500),
+        new Decimal(20000),
+        new Decimal(10000),
         {
-            criterion: new Decimal(100),
+            criterion: new Decimal(1000),
             fee: new Decimal(10),
         },
         {
@@ -17,19 +17,22 @@ describe(FixedExchangeFeeRatioPolicy.name, () => {
 
     describe(FixedExchangeFeeRatioPolicy.prototype.getFee.name, () => {
         it("should return value of exchange fee ratio information", () => {
-            expect(policy.getFee(new Decimal(50))).toEqual(new Decimal(10));
-            expect(policy.getFee(new Decimal(100))).toEqual(new Decimal(1));
-            expect(policy.getFee(new Decimal(150))).toEqual(new Decimal(1.5));
-            expect(policy.getFee(new Decimal(500))).toEqual(new Decimal(5));
-            expect(policy.getFee(new Decimal(700))).toEqual(new Decimal(14));
-        });
+            // base fee
+            expect(policy.getFee(new Decimal(300))).toEqual(new Decimal(10));
+            expect(policy.getFee(new Decimal(500))).toEqual(new Decimal(10));
 
-        it("should return error", () => {
-            try {
-                const fee = policy.getFee(new Decimal(5000));
-            } catch (e: any) {
-                expect(e.message).toBe("Invalid amount for getting fee.");
-            }
+            // range1 - 0.01
+            expect(policy.getFee(new Decimal(1000))).toEqual(new Decimal(10));
+            expect(policy.getFee(new Decimal(1001))).toEqual(
+                new Decimal(10.01)
+            );
+            expect(policy.getFee(new Decimal(5000))).toEqual(new Decimal(50));
+            expect(policy.getFee(new Decimal(10000))).toEqual(new Decimal(100));
+
+            // range2 - ( 1% fee + 2% surCharge applied )
+            expect(policy.getFee(new Decimal(12000))).toEqual(new Decimal(160));
+            expect(policy.getFee(new Decimal(15000))).toEqual(new Decimal(250));
+            expect(policy.getFee(new Decimal(20000))).toEqual(new Decimal(400));
         });
     });
 });
