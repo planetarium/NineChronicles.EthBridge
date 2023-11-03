@@ -12,6 +12,8 @@ import { ISlackChannel } from "../../src/slack-channel";
 import { IExchangeHistoryStore } from "../../src/interfaces/exchange-history-store";
 import { google } from "googleapis";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
+import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
+import { Decimal } from "decimal.js";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -85,6 +87,19 @@ describe(EthereumBurnEventObserver.name, () => {
         error: jest.fn(),
     };
 
+    const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
+        new Decimal(100000),
+        new Decimal(50000),
+        {
+            criterion: new Decimal(1000),
+            fee: new Decimal(10),
+        },
+        {
+            range1: new Decimal(0.01),
+            range2: new Decimal(0.02),
+        }
+    );
+
     const authorize = new google.auth.JWT(
         "randemail@rand.com",
         undefined,
@@ -101,16 +116,12 @@ describe(EthereumBurnEventObserver.name, () => {
         googleSheet,
         "random-id",
         false,
-        {
-            baseFeeCriterion: 1000,
-            baseFee: 10,
-            feeRatio: 0.01,
-        },
         "slack-url",
         {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
-        }
+        },
+        exchangeFeeRatioPolicy
     ) as SpreadsheetClient;
 
     const observer = new EthereumBurnEventObserver(
