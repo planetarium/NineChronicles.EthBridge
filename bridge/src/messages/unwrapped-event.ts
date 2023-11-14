@@ -10,6 +10,8 @@ export class UnwrappedEvent extends WrappingEvent {
     private readonly _nineChroniclesTxId: TxId;
     private readonly _ethereumTransactionHash: string;
     private readonly _amount: string;
+    private readonly _isMultiPlanetRequestType: boolean;
+    private readonly _planetName: string;
 
     constructor(
         explorerUrl: string,
@@ -20,7 +22,9 @@ export class UnwrappedEvent extends WrappingEvent {
         recipient: Address,
         amount: string,
         nineChroniclesTxId: TxId,
-        ethereumTransactionHash: string
+        ethereumTransactionHash: string,
+        isMultiPlanetRequestType: boolean,
+        planetName: string
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -29,10 +33,12 @@ export class UnwrappedEvent extends WrappingEvent {
         this._amount = amount;
         this._nineChroniclesTxId = nineChroniclesTxId;
         this._ethereumTransactionHash = ethereumTransactionHash;
+        this._planetName = planetName;
+        this._isMultiPlanetRequestType = isMultiPlanetRequestType;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
-        return {
+        const message = {
             text: "wNCG → NCG event occurred.",
             attachments: [
                 {
@@ -61,10 +67,23 @@ export class UnwrappedEvent extends WrappingEvent {
                             title: "amount",
                             value: this._amount,
                         },
+                        {
+                            title: "Planet-Name",
+                            value: this._planetName,
+                        },
                     ],
                     fallback: `wNCG ${this._sender} → NCG ${this._recipient}`,
                 },
             ],
         };
+
+        if (!this._isMultiPlanetRequestType) {
+            message.attachments[0].fields.push({
+                title: "Not Multi-Planet Request Type",
+                value: "This Transfer Request is not a multi-planet request type.",
+            });
+        }
+
+        return message;
     }
 }

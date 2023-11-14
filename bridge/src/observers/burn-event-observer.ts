@@ -14,6 +14,7 @@ import { ISlackMessageSender } from "../interfaces/slack-message-sender";
 import { IExchangeHistoryStore } from "../interfaces/exchange-history-store";
 import { UnwrappingRetryIgnoreEvent } from "../messages/unwrapping-retry-ignore-event";
 import { SpreadsheetClient } from "../spreadsheet-client";
+import { MultiPlanetary } from "../multi-planetary";
 
 export class EthereumBurnEventObserver
     implements
@@ -33,6 +34,7 @@ export class EthereumBurnEventObserver
     private readonly _useNcscan: boolean;
     private readonly _etherscanUrl: string;
     private readonly _integration: Integration;
+    private readonly _multiPlanetary: MultiPlanetary;
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -45,7 +47,8 @@ export class EthereumBurnEventObserver
         ncscanUrl: string | undefined,
         useNcscan: boolean,
         etherscanUrl: string,
-        integration: Integration
+        integration: Integration,
+        multiPlantary: MultiPlanetary
     ) {
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -58,6 +61,7 @@ export class EthereumBurnEventObserver
         this._useNcscan = useNcscan;
         this._etherscanUrl = etherscanUrl;
         this._integration = integration;
+        this._multiPlanetary = multiPlantary;
     }
 
     async notify(data: {
@@ -78,7 +82,16 @@ export class EthereumBurnEventObserver
                 _to,
                 amount: burnedWrappedNcgAmountString,
             } = returnValues as BurnEventResult;
-            const recipient = _to.substring(0, 42);
+
+            const isMultiPlanetRequestType =
+                this._multiPlanetary.isMultiPlanetRequestType(_to);
+            const requestPlanetName =
+                this._multiPlanetary.getRequestPlanetName(_to);
+
+            const recipient = isMultiPlanetRequestType
+                ? "0x" + _to.substring(14, 54)
+                : _to.substring(0, 42);
+
             const amount = new Decimal(burnedWrappedNcgAmountString).div(
                 new Decimal(10).pow(18)
             );
@@ -110,10 +123,24 @@ export class EthereumBurnEventObserver
 
             try {
                 console.log("Process Ethereum transaction", transactionHash);
+                const isOtherPlanetRequest = requestPlanetName !== "odin";
+                if (isOtherPlanetRequest) {
+                    console.log(`Send to other planet - ${requestPlanetName}`);
+                }
+
+                /**
+                 * If User send wNCG to other planet
+                 * recipient is other planet's vault address.
+                 * memo is user's other planet's 9c Address.
+                 */
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(
-                    recipient,
+                    isMultiPlanetRequestType && isOtherPlanetRequest
+                        ? this._multiPlanetary.getPlanetVaultAddress(
+                              requestPlanetName
+                          )
+                        : recipient,
                     amountString,
-                    transactionHash
+                    isOtherPlanetRequest ? recipient : transactionHash
                 );
 
                 await this._monitorStateStore.store("ethereum", {
@@ -130,7 +157,9 @@ export class EthereumBurnEventObserver
                         recipient,
                         amountString,
                         nineChroniclesTxId,
-                        transactionHash
+                        transactionHash,
+                        isMultiPlanetRequestType,
+                        requestPlanetName
                     )
                 );
                 await this._opensearchClient.to_opensearch("info", {
