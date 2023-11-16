@@ -35,6 +35,7 @@ export class EthereumBurnEventObserver
     private readonly _etherscanUrl: string;
     private readonly _integration: Integration;
     private readonly _multiPlanetary: MultiPlanetary;
+    private readonly _failureSubscribers: string;
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -48,7 +49,8 @@ export class EthereumBurnEventObserver
         useNcscan: boolean,
         etherscanUrl: string,
         integration: Integration,
-        multiPlantary: MultiPlanetary
+        multiPlanetary: MultiPlanetary,
+        failureSubscribers: string
     ) {
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -61,7 +63,8 @@ export class EthereumBurnEventObserver
         this._useNcscan = useNcscan;
         this._etherscanUrl = etherscanUrl;
         this._integration = integration;
-        this._multiPlanetary = multiPlantary;
+        this._multiPlanetary = multiPlanetary;
+        this._failureSubscribers = failureSubscribers;
     }
 
     async notify(data: {
@@ -88,7 +91,7 @@ export class EthereumBurnEventObserver
             const requestPlanetName =
                 this._multiPlanetary.getRequestPlanetName(_to);
 
-            const recipient = isMultiPlanetRequestType
+            const user9cAddress = isMultiPlanetRequestType
                 ? "0x" + _to.substring(14, 54)
                 : _to.substring(0, 42);
 
@@ -106,7 +109,7 @@ export class EthereumBurnEventObserver
                     cause: "Exchange history exist",
                     ethereumTxId: transactionHash,
                     sender: sender,
-                    recipient: recipient,
+                    recipient: user9cAddress,
                     amount: amountString,
                 });
                 continue;
@@ -127,20 +130,25 @@ export class EthereumBurnEventObserver
                 if (isOtherPlanetRequest) {
                     console.log(`Send to other planet - ${requestPlanetName}`);
                 }
-
                 /**
                  * If User send wNCG to other planet
                  * recipient is other planet's vault address.
                  * memo is user's other planet's 9c Address.
                  */
-                const nineChroniclesTxId = await this._ncgTransfer.transfer(
+                const recipient =
                     isMultiPlanetRequestType && isOtherPlanetRequest
                         ? this._multiPlanetary.getPlanetVaultAddress(
                               requestPlanetName
                           )
-                        : recipient,
+                        : user9cAddress;
+                const memo = isOtherPlanetRequest
+                    ? user9cAddress
+                    : transactionHash;
+
+                const nineChroniclesTxId = await this._ncgTransfer.transfer(
+                    recipient,
                     amountString,
-                    isOtherPlanetRequest ? recipient : transactionHash
+                    memo
                 );
 
                 await this._monitorStateStore.store("ethereum", {
@@ -154,7 +162,7 @@ export class EthereumBurnEventObserver
                         this._useNcscan,
                         this._etherscanUrl,
                         sender,
-                        recipient,
+                        user9cAddress,
                         amountString,
                         nineChroniclesTxId,
                         transactionHash,
@@ -167,8 +175,9 @@ export class EthereumBurnEventObserver
                     libplanetTxId: nineChroniclesTxId,
                     ethereumTxId: transactionHash,
                     sender: sender,
-                    recipient: recipient,
+                    recipient: user9cAddress,
                     amount: amount.toNumber(),
+                    planetName: requestPlanetName,
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
@@ -176,10 +185,12 @@ export class EthereumBurnEventObserver
                     new UnwrappingFailureEvent(
                         this._etherscanUrl,
                         sender,
-                        recipient,
+                        user9cAddress,
                         amountString,
                         transactionHash,
-                        String(e)
+                        String(e),
+                        requestPlanetName,
+                        this._failureSubscribers
                     )
                 );
 
@@ -190,8 +201,9 @@ export class EthereumBurnEventObserver
                     url: this._etherscanUrl,
                     txId: transactionHash,
                     sender,
-                    recipient: String(recipient),
+                    recipient: String(user9cAddress),
                     amount: amountString,
+                    planetName: requestPlanetName,
                     error: String(e),
                 });
 
@@ -200,15 +212,16 @@ export class EthereumBurnEventObserver
                     cause: String(e),
                     ethereumTxId: transactionHash,
                     sender: sender,
-                    recipient: recipient,
+                    recipient: user9cAddress,
                     amount: amount.toNumber(),
+                    planetName: requestPlanetName,
                 });
                 await this._integration.error(
                     "Unexpected error during unwrapping NCG",
                     {
                         errorMessage: String(e),
                         sender,
-                        recipient,
+                        user9cAddress,
                         transactionHash,
                         amountString,
                     }

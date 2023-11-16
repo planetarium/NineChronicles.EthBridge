@@ -479,7 +479,8 @@ process.on("uncaughtException", console.error);
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         integration,
-        multiPlanetary
+        multiPlanetary,
+        FAILURE_SUBSCRIBERS
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
         web3,
