@@ -86,8 +86,12 @@ export class EthereumBurnEventObserver
                 amount: burnedWrappedNcgAmountString,
             } = returnValues as BurnEventResult;
 
+            // Added logging for checking _to arg
+            console.log("_to", _to);
+
             const isMultiPlanetRequestType =
-                this._multiPlanetary.isMultiPlanetRequestType(_to);
+                this._multiPlanetary.isMultiPlanetRequest(_to);
+
             const requestPlanetName =
                 this._multiPlanetary.getRequestPlanetName(_to);
 
@@ -126,7 +130,10 @@ export class EthereumBurnEventObserver
 
             try {
                 console.log("Process Ethereum transaction", transactionHash);
-                const isOtherPlanetRequest = requestPlanetName !== "odin";
+                const isOtherPlanetRequest =
+                    this._multiPlanetary.isOtherPlanetRequest(
+                        requestPlanetName
+                    );
                 if (isOtherPlanetRequest) {
                     console.log(`Send to other planet - ${requestPlanetName}`);
                 }
@@ -141,9 +148,17 @@ export class EthereumBurnEventObserver
                               requestPlanetName
                           )
                         : user9cAddress;
+
                 const memo = isOtherPlanetRequest
                     ? user9cAddress
                     : transactionHash;
+
+                // Added logging for checking args
+                console.log({
+                    recipient,
+                    memo,
+                    amountString,
+                });
 
                 const nineChroniclesTxId = await this._ncgTransfer.transfer(
                     recipient,

@@ -18,32 +18,34 @@ export class MultiPlanetary {
         this._planetVaultAddresses = planetVaultAddresses;
     }
 
-    isMultiPlanetRequestType(_to: string): boolean {
-        let isMultiPlanetRequestType = false;
-
-        for (const key of Object.keys(this._planetIds)) {
-            if (_to.startsWith(this._planetIds[key as keyof IPlanetIds])) {
-                isMultiPlanetRequestType = true;
-                break;
-            }
-        }
-        return isMultiPlanetRequestType;
+    isMultiPlanetRequest(_to: string): boolean {
+        const multiPlanetIdRegex = /^[0-9]0{10}[0-9]*$/;
+        return multiPlanetIdRegex.test(_to.substring(2, 14));
     }
 
     getRequestPlanetName(_to: string): string {
-        let planetName = "";
+        let planetName = "odin";
 
-        if (!this.isMultiPlanetRequestType(_to)) {
+        if (!this.isMultiPlanetRequest(_to)) {
             return "odin";
         }
 
+        /**
+         * If requestPlanetId is not in this._planetIds ( Invalid Multi-Planet Id )
+         * Then send request to "odin".
+         */
         for (const key of Object.keys(this._planetIds)) {
             if (_to.startsWith(this._planetIds[key as keyof IPlanetIds])) {
                 planetName = key;
                 break;
             }
         }
+
         return planetName;
+    }
+
+    isOtherPlanetRequest(planetName: string): boolean {
+        return planetName !== "odin";
     }
 
     getPlanetVaultAddress(planetName: string): string {
