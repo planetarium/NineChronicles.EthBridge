@@ -123,7 +123,7 @@ export class EthereumBurnEventObserver
                 network: "ethereum",
                 tx_id: transactionHash,
                 sender,
-                recipient: _to,
+                recipient: user9cAddress,
                 timestamp: new Date().toISOString(),
                 amount: parseFloat(amountString),
             });

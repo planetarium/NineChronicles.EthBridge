@@ -7,9 +7,9 @@ Array [
     Object {
       "amountString": "1.00",
       "errorMessage": "Error: mockNcgTransfer.transfer error",
-      "recipient": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
       "transactionHash": "TX-ID",
+      "user9cAddress": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
     },
   ],
 ]
@@ -24,6 +24,7 @@ Array [
       "cause": "Error: mockNcgTransfer.transfer error",
       "content": "wNCG -> NCG request failure",
       "ethereumTxId": "TX-ID",
+      "planetName": "odin",
       "recipient": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
     },
@@ -58,13 +59,17 @@ Array [
               "value": "1.00",
             },
             Object {
+              "title": "Planet Name",
+              "value": "odin",
+            },
+            Object {
               "title": "error",
               "value": "Error: mockNcgTransfer.transfer error",
             },
           ],
         },
       ],
-      "text": "wNCG → NCG event failed.",
+      "text": "wNCG → NCG event failed. @gamefi-be",
     },
   ],
 ]
@@ -79,6 +84,7 @@ Array [
       "content": "wNCG -> NCG request success",
       "ethereumTxId": "TX-ID",
       "libplanetTxId": "TX-HASH",
+      "planetName": "odin",
       "recipient": "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
     },
@@ -115,6 +121,14 @@ Array [
             Object {
               "title": "amount",
               "value": "1.00",
+            },
+            Object {
+              "title": "Planet-Name",
+              "value": "odin",
+            },
+            Object {
+              "title": "Not Multi-Planet Request Type",
+              "value": "This Transfer Request is not a multi-planet request type.",
             },
           ],
         },

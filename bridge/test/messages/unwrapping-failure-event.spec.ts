@@ -16,7 +16,9 @@ describe("UnwrappingFailureEvent", () => {
                     RECIPIENT,
                     AMOUNT,
                     ETHEREUM_TRANSACTION_HASH,
-                    String(new Error("error"))
+                    String(new Error("error")),
+                    "odin",
+                    "@gamefi-be"
                 ).render()
             ).toMatchSnapshot();
         });
