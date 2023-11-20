@@ -302,8 +302,8 @@ process.on("uncaughtException", console.error);
         true,
         "string"
     );
-    const PLANET_HEIMDAL_ID: string | undefined = Configuration.get(
-        "PLANET_HEIMDAL_ID",
+    const PLANET_HEIMDALL_ID: string | undefined = Configuration.get(
+        "PLANET_HEIMDALL_ID",
         true,
         "string"
     );
@@ -460,7 +460,7 @@ process.on("uncaughtException", console.error);
     const slackMessageSender = new SlackMessageSender(slackChannel);
     const planetIds = {
         odin: PLANET_ODIN_ID,
-        heimdall: PLANET_HEIMDAL_ID,
+        heimdall: PLANET_HEIMDALL_ID,
     };
     const planetVaultAddress = {
         heimdall: HEIMDALL_VALUT_ADDRESS,
