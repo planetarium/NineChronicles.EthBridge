@@ -27,20 +27,20 @@ describe(MultiPlanetary.name, () => {
 
     describe("Check Methods of MultiPlanetary", () => {
         it("isMultiPlanetRequest", () => {
-            expect(multiPlanetary.isMultiPlanetRequest(odinRequest)).toEqual(
-                true
-            );
-
             expect(
-                multiPlanetary.isMultiPlanetRequest(heimdallRequest)
+                multiPlanetary.isMultiPlanetRequestType(odinRequest)
             ).toEqual(true);
 
             expect(
-                multiPlanetary.isMultiPlanetRequest(otherValidPlanetRequest)
+                multiPlanetary.isMultiPlanetRequestType(heimdallRequest)
             ).toEqual(true);
 
             expect(
-                multiPlanetary.isMultiPlanetRequest(invalidPlanetRequest)
+                multiPlanetary.isMultiPlanetRequestType(otherValidPlanetRequest)
+            ).toEqual(true);
+
+            expect(
+                multiPlanetary.isMultiPlanetRequestType(invalidPlanetRequest)
             ).toEqual(false);
         });
 
@@ -63,13 +63,13 @@ describe(MultiPlanetary.name, () => {
         });
 
         it("isOtherPlanetRequest", () => {
-            expect(multiPlanetary.isOtherPlanetRequest("odin")).toEqual(false);
-            expect(multiPlanetary.isOtherPlanetRequest("heimdall")).toEqual(
-                true
+            expect(multiPlanetary.isMainPlanetRequest("odin")).toEqual(true);
+            expect(multiPlanetary.isMainPlanetRequest("heimdall")).toEqual(
+                false
             );
 
-            expect(multiPlanetary.isOtherPlanetRequest("otherPlanet")).toEqual(
-                true
+            expect(multiPlanetary.isMainPlanetRequest("otherPlanet")).toEqual(
+                false
             );
         });
 

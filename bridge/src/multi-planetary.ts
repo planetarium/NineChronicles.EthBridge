@@ -7,9 +7,12 @@ export interface IPlanetVaultAddress {
     heimdall: string;
 }
 
+const MAIN_PLANET_NAME = "odin";
+
 export class MultiPlanetary {
     private readonly _planetIds: IPlanetIds;
     private readonly _planetVaultAddresses: IPlanetVaultAddress;
+
     constructor(
         planetIds: IPlanetIds,
         planetVaultAddresses: IPlanetVaultAddress
@@ -18,16 +21,16 @@ export class MultiPlanetary {
         this._planetVaultAddresses = planetVaultAddresses;
     }
 
-    isMultiPlanetRequest(_to: string): boolean {
+    isMultiPlanetRequestType(_to: string): boolean {
         const multiPlanetIdRegex = /^[0-9]0{10}[0-9]*$/;
         return multiPlanetIdRegex.test(_to.substring(2, 14));
     }
 
     getRequestPlanetName(_to: string): string {
-        let planetName = "odin";
+        let planetName = MAIN_PLANET_NAME;
 
-        if (!this.isMultiPlanetRequest(_to)) {
-            return "odin";
+        if (!this.isMultiPlanetRequestType(_to)) {
+            return MAIN_PLANET_NAME;
         }
 
         /**
@@ -44,8 +47,8 @@ export class MultiPlanetary {
         return planetName;
     }
 
-    isOtherPlanetRequest(planetName: string): boolean {
-        return planetName !== "odin";
+    isMainPlanetRequest(planetName: string): boolean {
+        return planetName === MAIN_PLANET_NAME;
     }
 
     getPlanetVaultAddress(planetName: string): string {

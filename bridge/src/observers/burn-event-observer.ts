@@ -90,7 +90,7 @@ export class EthereumBurnEventObserver
             console.log("_to", _to);
 
             const isMultiPlanetRequestType =
-                this._multiPlanetary.isMultiPlanetRequest(_to);
+                this._multiPlanetary.isMultiPlanetRequestType(_to);
 
             const requestPlanetName =
                 this._multiPlanetary.getRequestPlanetName(_to);
@@ -130,11 +130,9 @@ export class EthereumBurnEventObserver
 
             try {
                 console.log("Process Ethereum transaction", transactionHash);
-                const isOtherPlanetRequest =
-                    this._multiPlanetary.isOtherPlanetRequest(
-                        requestPlanetName
-                    );
-                if (isOtherPlanetRequest) {
+                const isMainPlanetRequest =
+                    this._multiPlanetary.isMainPlanetRequest(requestPlanetName);
+                if (!isMainPlanetRequest) {
                     console.log(`Send to other planet - ${requestPlanetName}`);
                 }
                 /**
@@ -143,15 +141,15 @@ export class EthereumBurnEventObserver
                  * memo is user's other planet's 9c Address.
                  */
                 const recipient =
-                    isMultiPlanetRequestType && isOtherPlanetRequest
+                    isMultiPlanetRequestType && !isMainPlanetRequest
                         ? this._multiPlanetary.getPlanetVaultAddress(
                               requestPlanetName
                           )
                         : user9cAddress;
 
-                const memo = isOtherPlanetRequest
-                    ? user9cAddress
-                    : transactionHash;
+                const memo = isMainPlanetRequest
+                    ? transactionHash
+                    : user9cAddress;
 
                 // Added logging for checking args
                 console.log({
