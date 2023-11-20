@@ -105,20 +105,19 @@ const SwapWncgPage: React.FC<SwapWncgPageProps> = ({ address }) => {
               event.preventDefault();
               console.log(contract);
 
+              // const planetId = "0x100000000001";
+              // 0x100000000000
+              /**
+               * Planet-Ids
+               * ODIN ( Internal ) : "0x100000000000"
+               * HEIMDALL ( Internal ) : " 0x100000000001"
+               */
               const planetId = "0x100000000001";
               const _to = (planetId + ncAddress.slice(2)).padEnd(66, "0");
 
               contract
                 .burn(BigNumber.from(burnAmount.toString()), _to)
                 .then(console.debug);
-
-              // Before Applied Mult-Planet
-              // contract
-              //   .burn(
-              //     BigNumber.from(burnAmount.toString()),
-              //     ncAddress + "0".repeat(24)
-              //   )
-              //   .then(console.debug);
             }}
           >
             Burn
