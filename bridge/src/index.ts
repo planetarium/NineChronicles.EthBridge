@@ -307,11 +307,8 @@ process.on("uncaughtException", console.error);
         true,
         "string"
     );
-    const HEIMDALL_VALUT_ADDRESS: string | undefined = Configuration.get(
-        "HEIMDALL_VALUT_ADDRESS",
-        true,
-        "string"
-    );
+    const ODIN_TO_HEIMDALL_VALUT_ADDRESS: string | undefined =
+        Configuration.get("ODIN_TO_HEIMDALL_VALUT_ADDRESS", true, "string");
 
     const CONFIRMATIONS = 10;
 
@@ -463,7 +460,7 @@ process.on("uncaughtException", console.error);
         heimdall: PLANET_HEIMDALL_ID,
     };
     const planetVaultAddress = {
-        heimdall: HEIMDALL_VALUT_ADDRESS,
+        heimdall: ODIN_TO_HEIMDALL_VALUT_ADDRESS,
     };
     const multiPlanetary = new MultiPlanetary(planetIds, planetVaultAddress);
 
