@@ -34,7 +34,9 @@ describe(FixedExchangeFeeRatioPolicy.name, () => {
             expect(policy.getFee(new Decimal(15000))).toEqual(new Decimal(250));
             expect(policy.getFee(new Decimal(20000))).toEqual(new Decimal(400));
             expect(policy.getFee(new Decimal(32500))).toEqual(new Decimal(775));
-            expect(policy.getFee(new Decimal(50000))).toEqual(new Decimal(1300));
+            expect(policy.getFee(new Decimal(50000))).toEqual(
+                new Decimal(1300)
+            );
         });
     });
 });
