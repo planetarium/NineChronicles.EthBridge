@@ -167,35 +167,35 @@ describe(EthereumBurnEventObserver.name, () => {
             );
         });
 
-        it("should post slack message every events", async () => {
-            const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
-            function makeEvent(
-                ncgRecipient: string,
-                amount: number,
-                txId: TxId
-            ): EventData & TransactionLocation {
-                return {
-                    blockHash: "BLOCK-HASH",
-                    address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-                    logIndex: 0,
-                    blockNumber: 0,
-                    event: "Burn",
-                    raw: {
-                        data: "",
-                        topics: [],
-                    },
-                    signature: "",
-                    transactionIndex: 0,
-                    transactionHash: txId,
-                    txId: txId,
-                    returnValues: {
-                        _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                        _to: ncgRecipient,
-                        amount: amount,
-                    },
-                };
-            }
+        function makeEvent(
+            ncgRecipient: string,
+            amount: number,
+            txId: TxId
+        ): EventData & TransactionLocation {
+            return {
+                blockHash: "BLOCK-HASH",
+                address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                logIndex: 0,
+                blockNumber: 0,
+                event: "Burn",
+                raw: {
+                    data: "",
+                    topics: [],
+                },
+                signature: "",
+                transactionIndex: 0,
+                transactionHash: txId,
+                txId,
+                returnValues: {
+                    _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    _to: ncgRecipient,
+                    amount,
+                },
+            };
+        }
+        const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
 
+        it("should post slack message every events", async () => {
             const events = [
                 makeEvent(ncgRecipient, 1000000000000000000, "TX-A"),
                 makeEvent(ncgRecipient, 1200000000000000000, "TX-B"),
@@ -268,43 +268,30 @@ describe(EthereumBurnEventObserver.name, () => {
         });
 
         it("should post slack message every events of Multi-Planet Request - Odin", async () => {
-            const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
-            function makeEvent(
-                ncgRecipient: string,
-                amount: number,
-                txId: TxId
-            ): EventData & TransactionLocation {
-                return {
-                    blockHash: "BLOCK-HASH",
-                    address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-                    logIndex: 0,
-                    blockNumber: 0,
-                    event: "Burn",
-                    raw: {
-                        data: "",
-                        topics: [],
-                    },
-                    signature: "",
-                    transactionIndex: 0,
-                    transactionHash: txId,
-                    txId: txId,
-                    returnValues: {
-                        _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                        // Multi-Planet Request Type
-                        _to: (planetIds.odin + ncgRecipient.slice(2)).padEnd(
-                            66,
-                            "0"
-                        ),
-                        amount: amount,
-                    },
-                };
-            }
-
+            const odinMultiPlanetNcgRecipient = (
+                planetIds.odin + ncgRecipient.slice(2)
+            ).padEnd(66, "0");
             const events = [
-                makeEvent(ncgRecipient, 1000000000000000000, "TX-ODIN-A"),
-                makeEvent(ncgRecipient, 1200000000000000000, "TX-ODIN-B"),
-                makeEvent(ncgRecipient, 10000000000000000, "TX-ODIN-C"),
-                makeEvent(ncgRecipient, 3225000000000000000, "TX-ODIN-D"),
+                makeEvent(
+                    odinMultiPlanetNcgRecipient,
+                    1000000000000000000,
+                    "TX-ODIN-A"
+                ),
+                makeEvent(
+                    odinMultiPlanetNcgRecipient,
+                    1200000000000000000,
+                    "TX-ODIN-B"
+                ),
+                makeEvent(
+                    odinMultiPlanetNcgRecipient,
+                    10000000000000000,
+                    "TX-ODIN-C"
+                ),
+                makeEvent(
+                    odinMultiPlanetNcgRecipient,
+                    3225000000000000000,
+                    "TX-ODIN-D"
+                ),
             ];
 
             await observer.notify({
@@ -377,42 +364,31 @@ describe(EthereumBurnEventObserver.name, () => {
         });
 
         it("should post slack message every events of Heimdall Request", async () => {
-            const ncgRecipient = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
-            function makeEvent(
-                ncgRecipient: string,
-                amount: number,
-                txId: TxId
-            ): EventData & TransactionLocation {
-                return {
-                    blockHash: "BLOCK-HASH",
-                    address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-                    logIndex: 0,
-                    blockNumber: 0,
-                    event: "Burn",
-                    raw: {
-                        data: "",
-                        topics: [],
-                    },
-                    signature: "",
-                    transactionIndex: 0,
-                    transactionHash: txId,
-                    txId: txId,
-                    returnValues: {
-                        _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
-                        // Multi-Planet Request Type
-                        _to: (
-                            planetIds.heimdall + ncgRecipient.slice(2)
-                        ).padEnd(66, "0"),
-                        amount: amount,
-                    },
-                };
-            }
+            const heimdallMultiPlanetNcgRecipient = (
+                planetIds.heimdall + ncgRecipient.slice(2)
+            ).padEnd(66, "0");
 
             const events = [
-                makeEvent(ncgRecipient, 1000000000000000000, "TX-HEIMDALL-A"),
-                makeEvent(ncgRecipient, 1200000000000000000, "TX-HEIMDALL-B"),
-                makeEvent(ncgRecipient, 10000000000000000, "TX-HEIMDALL-C"),
-                makeEvent(ncgRecipient, 3225000000000000000, "TX-HEIMDALL-D"),
+                makeEvent(
+                    heimdallMultiPlanetNcgRecipient,
+                    1000000000000000000,
+                    "TX-HEIMDALL-A"
+                ),
+                makeEvent(
+                    heimdallMultiPlanetNcgRecipient,
+                    1200000000000000000,
+                    "TX-HEIMDALL-B"
+                ),
+                makeEvent(
+                    heimdallMultiPlanetNcgRecipient,
+                    10000000000000000,
+                    "TX-HEIMDALL-C"
+                ),
+                makeEvent(
+                    heimdallMultiPlanetNcgRecipient,
+                    3225000000000000000,
+                    "TX-HEIMDALL-D"
+                ),
             ];
 
             await observer.notify({

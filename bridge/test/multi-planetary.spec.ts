@@ -13,6 +13,8 @@ describe(MultiPlanetary.name, () => {
 
     const ncAddress = "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e";
 
+    const defaultRequest = ncAddress + "0".repeat(24);
+
     const odinRequest = planetIds.odin + ncAddress.slice(2) + "0".repeat(12);
     const heimdallRequest =
         planetIds.heimdall + ncAddress.slice(2) + "0".repeat(12);
@@ -27,6 +29,10 @@ describe(MultiPlanetary.name, () => {
 
     describe("Check Methods of MultiPlanetary", () => {
         it("isMultiPlanetRequest", () => {
+            expect(
+                multiPlanetary.isMultiPlanetRequestType(defaultRequest)
+            ).toEqual(false);
+
             expect(
                 multiPlanetary.isMultiPlanetRequestType(odinRequest)
             ).toEqual(true);
@@ -62,7 +68,7 @@ describe(MultiPlanetary.name, () => {
             ).toEqual("heimdall");
         });
 
-        it("isOtherPlanetRequest", () => {
+        it("isMainPlanetRequest", () => {
             expect(multiPlanetary.isMainPlanetRequest("odin")).toEqual(true);
             expect(multiPlanetary.isMainPlanetRequest("heimdall")).toEqual(
                 false
