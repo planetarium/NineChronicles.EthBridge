@@ -8,6 +8,7 @@ export interface IPlanetVaultAddress {
 }
 
 const MAIN_PLANET_NAME = "odin";
+type PlanetName = keyof IPlanetIds;
 
 export class MultiPlanetary {
     private readonly _planetIds: IPlanetIds;
@@ -26,7 +27,7 @@ export class MultiPlanetary {
         return multiPlanetIdRegex.test(_to.substring(2, 14));
     }
 
-    getRequestPlanetName(_to: string): string {
+    getRequestPlanetName(_to: string): PlanetName {
         let planetName = MAIN_PLANET_NAME;
 
         if (!this.isMultiPlanetRequestType(_to)) {
@@ -44,7 +45,7 @@ export class MultiPlanetary {
             }
         }
 
-        return planetName;
+        return planetName as PlanetName;
     }
 
     isMainPlanetRequest(planetName: string): boolean {
