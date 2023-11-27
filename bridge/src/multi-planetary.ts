@@ -23,7 +23,7 @@ export class MultiPlanetary {
     }
 
     isMultiPlanetRequestType(_to: string): boolean {
-        const multiPlanetIdRegex = /^[0-9]0{10}[0-9]*$/;
+        const multiPlanetIdRegex = /^[0-9]0{10}[0-9]$/;
         return multiPlanetIdRegex.test(_to.substring(2, 14));
     }
 
