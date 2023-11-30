@@ -3,7 +3,7 @@ import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-rat
 
 describe(FixedExchangeFeeRatioPolicy.name, () => {
     const policy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(20000),
+        new Decimal(50000),
         new Decimal(10000),
         {
             criterion: new Decimal(1000),
@@ -33,6 +33,10 @@ describe(FixedExchangeFeeRatioPolicy.name, () => {
             expect(policy.getFee(new Decimal(12000))).toEqual(new Decimal(160));
             expect(policy.getFee(new Decimal(15000))).toEqual(new Decimal(250));
             expect(policy.getFee(new Decimal(20000))).toEqual(new Decimal(400));
+            expect(policy.getFee(new Decimal(32500))).toEqual(new Decimal(775));
+            expect(policy.getFee(new Decimal(50000))).toEqual(
+                new Decimal(1300)
+            );
         });
     });
 });

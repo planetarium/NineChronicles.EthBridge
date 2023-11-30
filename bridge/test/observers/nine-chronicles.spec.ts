@@ -83,7 +83,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(20000),
+        new Decimal(50000),
         new Decimal(10000),
         {
             criterion: new Decimal(1000),
@@ -102,7 +102,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const limitationPolicy = {
-        maximum: 20000,
+        maximum: 50000,
         whitelistMaximum: 200000,
         minimum: 100,
     };
@@ -622,7 +622,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
-                amount: 2500, // 20000 - ( 500 + 5000 + 12000 )
+                amount: 32500, // 50000 - ( 500 + 5000 + 12000 )
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -690,7 +690,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 [wrappedNcgRecipient, new Decimal(4950000000000000000000)], // Fee First Range ( 5000 NCG, Fee 0.01 )
                 // Fee Second Range ( 12000 NCG, Fee ( 0.01 for 12000 + 0.02 for 2000 )
                 [wrappedNcgRecipient, new Decimal(11840000000000000000000)],
-                [wrappedNcgRecipient, new Decimal(2475000000000000000000)],
+                // Fee Second Range ( left 32500 NCG, Fee ( 0.01 for 32500 + 0.02 for 22500 ) = 775 NCG
+                [wrappedNcgRecipient, new Decimal(31725000000000000000000)],
                 [allowlistRecipient, new Decimal(10870000000000000000000)],
                 [feeWaiverRecipient, new Decimal(11000000000000000000000)],
             ]);
