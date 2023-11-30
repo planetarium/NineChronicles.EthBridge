@@ -88,6 +88,7 @@ export class SpreadsheetClient {
         sender: string;
         recipient: string;
         amount: string;
+        planetName: string;
         error: string;
     }) {
         if (!this._useSpreadSheet) return;
@@ -105,6 +106,7 @@ export class SpreadsheetClient {
                             data.sender,
                             data.recipient,
                             data.amount,
+                            data.planetName,
                             data.error,
                             new Date().toLocaleString("sv"),
                         ],

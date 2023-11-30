@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UnwrappingRetryIgnoreEvent render snapshot 1`] = `
+Object {
+  "attachments": Array [
+    Object {
+      "author_name": "Bridge Warning",
+      "color": "#ffcc00",
+      "fallback": "wNCG → NCG event already seems executed so it skipped.",
+      "fields": Array [
+        Object {
+          "title": "Ethereum network transaction id",
+          "value": "0xf66fecc057335e29a911a5ea9e2b6b3b2329cfa2d3863552c4950a6a1184aa01",
+        },
+      ],
+    },
+  ],
+  "text": "wNCG → NCG event already seems executed so it skipped.",
+}
+`;

@@ -43,6 +43,7 @@ import { ethers } from "ethers";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
+import { MultiPlanetary } from "./multi-planetary";
 
 consoleStamp(console);
 
@@ -296,6 +297,19 @@ process.on("uncaughtException", console.error);
         "string"
     );
 
+    const PLANET_ODIN_ID: string | undefined = Configuration.get(
+        "PLANET_ODIN_ID",
+        true,
+        "string"
+    );
+    const PLANET_HEIMDALL_ID: string | undefined = Configuration.get(
+        "PLANET_HEIMDALL_ID",
+        true,
+        "string"
+    );
+    const ODIN_TO_HEIMDALL_VALUT_ADDRESS: string | undefined =
+        Configuration.get("ODIN_TO_HEIMDALL_VALUT_ADDRESS", true, "string");
+
     const CONFIRMATIONS = 10;
 
     const monitorStateStore: IMonitorStateStore =
@@ -441,6 +455,15 @@ process.on("uncaughtException", console.error);
 
     const slackChannel = new SlackChannel(slackWebClient, SLACK_CHANNEL_NAME);
     const slackMessageSender = new SlackMessageSender(slackChannel);
+    const planetIds = {
+        odin: PLANET_ODIN_ID,
+        heimdall: PLANET_HEIMDALL_ID,
+    };
+    const planetVaultAddress = {
+        heimdall: ODIN_TO_HEIMDALL_VALUT_ADDRESS,
+    };
+    const multiPlanetary = new MultiPlanetary(planetIds, planetVaultAddress);
+
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(
         ncgKmsTransfer,
         slackMessageSender,
@@ -452,7 +475,9 @@ process.on("uncaughtException", console.error);
         NCSCAN_URL,
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
-        integration
+        integration,
+        multiPlanetary,
+        FAILURE_SUBSCRIBERS
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
         web3,
