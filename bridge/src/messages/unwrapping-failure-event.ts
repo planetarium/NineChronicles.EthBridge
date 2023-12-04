@@ -12,6 +12,8 @@ export class UnwrappingFailureEvent implements Message {
     private readonly _txId: TxId;
     private readonly _amount: string;
     private readonly _error: string;
+    private readonly _planetName: string;
+    private readonly _subscribers: string;
 
     constructor(
         url: string,
@@ -19,7 +21,9 @@ export class UnwrappingFailureEvent implements Message {
         recipient: Address,
         amount: string,
         txId: TxId,
-        error: string
+        error: string,
+        planetName: string,
+        subscribers: string
     ) {
         this._url = url;
         this._sender = sender;
@@ -27,11 +31,13 @@ export class UnwrappingFailureEvent implements Message {
         this._amount = amount;
         this._txId = txId;
         this._error = error;
+        this._planetName = planetName;
+        this._subscribers = subscribers;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
         return {
-            text: "wNCG → NCG event failed.",
+            text: `wNCG → NCG event failed. ${this._subscribers}`,
             attachments: [
                 {
                     author_name: "Bridge Error",
@@ -52,6 +58,10 @@ export class UnwrappingFailureEvent implements Message {
                         {
                             title: "amount",
                             value: this._amount,
+                        },
+                        {
+                            title: "Planet Name",
+                            value: this._planetName,
                         },
                         {
                             title: "error",

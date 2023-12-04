@@ -33,9 +33,8 @@ import { Integration } from "./integrations";
 import { PagerDutyIntegration } from "./integrations/pagerduty";
 import { SlackMessageSender } from "./slack-message-sender";
 import {
-    ExchnageFeePolicies,
     FixedExchangeFeeRatioPolicy,
-    ZeroExchangeFeeRatioPolicy,
+    IExchangeFeeRatioPolicy,
 } from "./policies/exchange-fee-ratio";
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
@@ -44,6 +43,7 @@ import { ethers } from "ethers";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
+import { MultiPlanetary } from "./multi-planetary";
 
 consoleStamp(console);
 
@@ -99,6 +99,23 @@ process.on("uncaughtException", console.error);
         "float"
     );
     const BASE_FEE: number = Configuration.get("BASE_FEE", true, "float");
+    const FEE_RANGE_DIVIDER_AMOUNT: number = Configuration.get(
+        "FEE_RANGE_DIVIDER_AMOUNT",
+        true,
+        "float"
+    );
+
+    const FEE_RANGE1_RATIO: number = Configuration.get(
+        "FEE_RANGE1_RATIO",
+        true,
+        "float"
+    );
+    const FEE_RANGE2_RATIO: number = Configuration.get(
+        "FEE_RANGE2_RATIO",
+        true,
+        "float"
+    );
+
     const SLACK_WEB_TOKEN: string = Configuration.get("SLACK_WEB_TOKEN");
     const FAILURE_SUBSCRIBERS: string = Configuration.get(
         "FAILURE_SUBSCRIBERS"
@@ -156,6 +173,38 @@ process.on("uncaughtException", console.error);
     const SHEET_MINT: string = Configuration.get("SHEET_MINT");
     const SHEET_BURN: string = Configuration.get("SHEET_BURN");
 
+    if (BASE_FEE >= BASE_FEE_CRITERION) {
+        throw Error(
+            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
+        );
+    }
+
+    if (BASE_FEE_CRITERION > FEE_RANGE_DIVIDER_AMOUNT) {
+        throw Error(
+            `BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION}) should be less than or Equal FEE_RANGE_DIVIDER_AMOUNT(value: ${FEE_RANGE_DIVIDER_AMOUNT})`
+        );
+    }
+
+    if (FEE_RANGE_DIVIDER_AMOUNT > MAXIMUM_NCG) {
+        throw Error(
+            `FEE_RANGE_DIVIDER_AMOUNT(value: ${FEE_RANGE_DIVIDER_AMOUNT}) should be less than or Equal MAXIMUM_NCG(value: ${MAXIMUM_NCG})`
+        );
+    }
+
+    const ncgExchangeFeeRatioPolicy: IExchangeFeeRatioPolicy =
+        new FixedExchangeFeeRatioPolicy(
+            new Decimal(MAXIMUM_NCG),
+            new Decimal(FEE_RANGE_DIVIDER_AMOUNT),
+            {
+                criterion: new Decimal(BASE_FEE_CRITERION),
+                fee: new Decimal(BASE_FEE),
+            },
+            {
+                range1: new Decimal(FEE_RANGE1_RATIO),
+                range2: new Decimal(FEE_RANGE2_RATIO),
+            }
+        );
+
     const authorize = new google.auth.JWT(
         GOOGLE_CLIENT_EMAIL,
         undefined,
@@ -171,16 +220,12 @@ process.on("uncaughtException", console.error);
         googleSheet,
         GOOGLE_SPREADSHEET_ID,
         USE_GOOGLE_SPREAD_SHEET,
-        {
-            baseFeeCriterion: BASE_FEE_CRITERION,
-            baseFee: BASE_FEE,
-            feeRatio: 0.01,
-        },
         SLACK_URL,
         {
             mint: SHEET_MINT,
             burn: SHEET_BURN,
-        }
+        },
+        ncgExchangeFeeRatioPolicy
     );
 
     const PRIORITY_FEE: number = Configuration.get(
@@ -211,13 +256,6 @@ process.on("uncaughtException", console.error);
 
     const STAGE_HEADLESSES: string[] =
         Configuration.get("STAGE_HEADLESSES").split(",");
-
-    const ZERO_EXCHANGE_FEE_RATIO_ADDRESSES: string[] =
-        Configuration.get(
-            "ZERO_EXCHANGE_FEE_ADDRESSES",
-            false,
-            "string"
-        )?.split(",") || [];
 
     const USE_SAFE_WRAPPED_NCG_MINTER: boolean = Configuration.get(
         "USE_SAFE_WRAPPED_NCG_MINTER",
@@ -261,6 +299,19 @@ process.on("uncaughtException", console.error);
         USE_SAFE_WRAPPED_NCG_MINTER,
         "string"
     );
+
+    const PLANET_ODIN_ID: string | undefined = Configuration.get(
+        "PLANET_ODIN_ID",
+        true,
+        "string"
+    );
+    const PLANET_HEIMDALL_ID: string | undefined = Configuration.get(
+        "PLANET_HEIMDALL_ID",
+        true,
+        "string"
+    );
+    const ODIN_TO_HEIMDALL_VALUT_ADDRESS: string | undefined =
+        Configuration.get("ODIN_TO_HEIMDALL_VALUT_ADDRESS", true, "string");
 
     const CONFIRMATIONS = 10;
 
@@ -420,6 +471,15 @@ process.on("uncaughtException", console.error);
 
     const slackChannel = new SlackChannel(slackWebClient, SLACK_CHANNEL_NAME);
     const slackMessageSender = new SlackMessageSender(slackChannel);
+    const planetIds = {
+        odin: PLANET_ODIN_ID,
+        heimdall: PLANET_HEIMDALL_ID,
+    };
+    const planetVaultAddress = {
+        heimdall: ODIN_TO_HEIMDALL_VALUT_ADDRESS,
+    };
+    const multiPlanetary = new MultiPlanetary(planetIds, planetVaultAddress);
+
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(
         ncgKmsTransfer,
         slackMessageSender,
@@ -431,7 +491,9 @@ process.on("uncaughtException", console.error);
         NCSCAN_URL,
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
-        integration
+        integration,
+        multiPlanetary,
+        FAILURE_SUBSCRIBERS
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
         provider,
@@ -440,19 +502,6 @@ process.on("uncaughtException", console.error);
         CONFIRMATIONS
     );
     ethereumBurnEventMonitor.attach(ethereumBurnEventObserver);
-
-    if (BASE_FEE >= BASE_FEE_CRITERION) {
-        throw Error(
-            `BASE_FEE(value: ${BASE_FEE}) should be less than BASE_FEE_CRITERION(value: ${BASE_FEE_CRITERION})`
-        );
-    }
-
-    const ncgExchangeFeeRatioPolicy = new ExchnageFeePolicies([
-        ...ZERO_EXCHANGE_FEE_RATIO_ADDRESSES.map(
-            (address) => new ZeroExchangeFeeRatioPolicy(address)
-        ),
-        new FixedExchangeFeeRatioPolicy(new Decimal(0.01)),
-    ]);
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(
         ncgKmsTransfer,
@@ -467,10 +516,6 @@ process.on("uncaughtException", console.error);
         USE_NCSCAN_URL,
         ETHERSCAN_ROOT_URL,
         ncgExchangeFeeRatioPolicy,
-        {
-            criterion: BASE_FEE_CRITERION,
-            fee: BASE_FEE,
-        },
         {
             maximum: MAXIMUM_NCG,
             whitelistMaximum: MAXIMUM_WHITELIST_NCG,

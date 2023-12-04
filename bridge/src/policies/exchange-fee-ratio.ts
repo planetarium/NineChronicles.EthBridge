@@ -1,52 +1,60 @@
 import Decimal from "decimal.js";
-import { Address } from "../types/address";
 
 export interface IExchangeFeeRatioPolicy {
-    getFee(address: Address): Decimal | false;
+    getFee(amount: Decimal): Decimal;
+}
+
+export interface BaseFeePolicy {
+    criterion: Decimal;
+    fee: Decimal;
+}
+
+export interface FeeRatios {
+    range1: Decimal;
+    range2: Decimal;
 }
 
 export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
-    private readonly _fee: Decimal;
+    private readonly _baseFeePolicy: BaseFeePolicy;
+    private readonly _maximumNCG: Decimal;
+    private readonly _feeRangeDividerAmount: Decimal;
+    private readonly _feeRatios: FeeRatios;
 
-    constructor(fee: Decimal) {
-        this._fee = fee;
+    constructor(
+        maximumNCG: Decimal,
+        feeRangeDividerAmount: Decimal,
+        baseFeePolicy: BaseFeePolicy,
+        feeRatios: FeeRatios
+    ) {
+        this._maximumNCG = maximumNCG;
+        this._feeRangeDividerAmount = feeRangeDividerAmount;
+        this._baseFeePolicy = baseFeePolicy;
+        this._feeRatios = feeRatios;
     }
 
-    getFee(address: string): Decimal | false {
-        return this._fee;
-    }
-}
-
-export class ZeroExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
-    private readonly _address: Address;
-
-    constructor(address: Address) {
-        this._address = address;
-    }
-
-    getFee(address: string): Decimal | false {
-        if (address === this._address) {
-            return new Decimal(0);
+    getFee(amount: Decimal): Decimal {
+        /**
+         * BASE FEE
+         * If exchangeFeeRatio == 0.01 (1%), it exchanges only 0.99 (= 1 - 0.01 = 99%) of amount.
+         * Applied Base Fee Policy, base Fee = 10 when Transfer( NCG -> WNCG ) under 1000 NCG
+         */
+        if (amount.lessThan(this._baseFeePolicy.criterion)) {
+            return this._baseFeePolicy.fee;
         }
 
-        return false;
-    }
-}
+        let fee = new Decimal(amount.mul(this._feeRatios.range1).toFixed(2));
 
-export class ExchnageFeePolicies implements IExchangeFeeRatioPolicy {
-    private readonly _policies: IExchangeFeeRatioPolicy[];
-
-    constructor(policies: IExchangeFeeRatioPolicy[]) {
-        this._policies = policies;
-    }
-
-    getFee(address: string): Decimal | false {
-        for (const policy of this._policies) {
-            const fee = policy.getFee(address);
-            if (fee !== false) {
-                return fee;
-            }
+        if (
+            amount.greaterThan(this._feeRangeDividerAmount) &&
+            amount.lessThanOrEqualTo(this._maximumNCG)
+        ) {
+            const overAmount = amount.sub(this._feeRangeDividerAmount);
+            const surCharge = new Decimal(
+                overAmount.mul(this._feeRatios.range2).toFixed(2)
+            );
+            fee = fee.add(surCharge);
         }
-        return false;
+
+        return fee;
     }
 }

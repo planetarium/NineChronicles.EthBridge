@@ -25,12 +25,16 @@ Object {
           "value": "100",
         },
         Object {
+          "title": "Planet Name",
+          "value": "odin",
+        },
+        Object {
           "title": "error",
           "value": "Error: error",
         },
       ],
     },
   ],
-  "text": "wNCG → NCG event failed.",
+  "text": "wNCG → NCG event failed. @gamefi-be",
 }
 `;

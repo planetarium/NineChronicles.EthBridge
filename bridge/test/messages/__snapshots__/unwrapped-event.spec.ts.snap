@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`UnwrappedEvent render snapshot 1`] = `
+exports[`UnwrappedEvent render heimdall request snapshot 1`] = `
 Object {
   "attachments": Array [
     Object {
@@ -27,6 +27,53 @@ Object {
         Object {
           "title": "amount",
           "value": "100",
+        },
+        Object {
+          "title": "Planet-Name",
+          "value": "heimdall",
+        },
+      ],
+    },
+  ],
+  "text": "wNCG → NCG event occurred.",
+}
+`;
+
+exports[`UnwrappedEvent render odin request snapshot 1`] = `
+Object {
+  "attachments": Array [
+    Object {
+      "author_name": "Bridge Event",
+      "color": "#42f5aa",
+      "fallback": "wNCG 0xDac65eCE9CB3E7a538773e08DE31F973233F064f → NCG 0xCbfC996ad185c61a031f40CeeE80a055e6D83005",
+      "fields": Array [
+        Object {
+          "title": "9c network transaction",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction?3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043",
+        },
+        Object {
+          "title": "Ethereum network transaction",
+          "value": "https://ropsten.etherscan.io/tx/0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc7",
+        },
+        Object {
+          "title": "sender (Ethereum)",
+          "value": "0xDac65eCE9CB3E7a538773e08DE31F973233F064f",
+        },
+        Object {
+          "title": "recipient (NineChronicles)",
+          "value": "0xCbfC996ad185c61a031f40CeeE80a055e6D83005",
+        },
+        Object {
+          "title": "amount",
+          "value": "100",
+        },
+        Object {
+          "title": "Planet-Name",
+          "value": "odin",
+        },
+        Object {
+          "title": "Not Multi-Planet Request Type",
+          "value": "This Transfer Request is not a multi-planet request type.",
         },
       ],
     },

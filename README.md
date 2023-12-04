@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/planetarium/NineChronicles.EthBridge/graph/badge.svg?token=tYyiZNv83x)](https://codecov.io/gh/planetarium/NineChronicles.EthBridge)
+
 # NineChronicles.EthBridge
 
 A project to bridge NCG between NineChronicles network and Ethereum network.
