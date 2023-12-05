@@ -1,29 +1,28 @@
-import Web3 from "web3";
-import { Contract, EventData } from "web3-eth-contract";
+import { EventData } from "web3-eth-contract";
 import { TriggerableMonitor } from "./triggerable-monitor";
 import { ContractDescription } from "../types/contract-description";
 import { TransactionLocation } from "../types/transaction-location";
-
-const BURN_EVENT_NAME = "Burn";
+import { ethers } from "ethers";
 
 export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
-    private readonly _web3: Web3;
-    private readonly _contract: Contract;
+    private readonly _provider: ethers.providers.FallbackProvider;
+    private readonly _contract: ethers.Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
 
     constructor(
-        web3: Web3,
+        provider: ethers.providers.FallbackProvider,
         contractDescription: ContractDescription,
         latestTransactionLocation: TransactionLocation | null,
         confirmations: number
     ) {
         super(latestTransactionLocation);
 
-        this._web3 = web3;
-        this._contract = new this._web3.eth.Contract(
+        this._provider = provider;
+        this._contract = new ethers.Contract(
+            contractDescription.address,
             contractDescription.abi,
-            contractDescription.address
+            this._provider
         );
         this._contractDescription = contractDescription;
         this._confirmations = confirmations;
@@ -34,7 +33,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         );
         const events = await this.getEvents(blockIndex);
         const returnEvents = [];
-        let skip: boolean = true;
+        let skip = true;
         for (const event of events) {
             if (skip) {
                 if (event.txId === transactionLocation.txId) {
@@ -67,34 +66,50 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     }
 
     protected async getBlockIndex(blockHash: string) {
-        const block = await this._web3.eth.getBlock(blockHash);
+        const block = await this._provider.getBlock(blockHash);
         return block.number;
     }
 
     protected getTipIndex(): Promise<number> {
-        return this._web3.eth.getBlockNumber();
+        return this._provider.getBlockNumber();
     }
 
     protected async getBlockHash(blockIndex: number): Promise<string> {
-        const block = await this._web3.eth.getBlock(blockIndex);
+        const block = await this._provider.getBlock(blockIndex);
         return block.hash;
     }
 
     protected async getEvents(blockIndex: number) {
-        // 0xc3599666213715dfabdf658c56a97b9adfad2cd9689690c70c79b20bc61940c9
-        const BURN_EVENT_HASH = Web3.utils.sha3(
-            "Burn(address,bytes32,uint256)"
-        );
-        const pastEvents = await this._contract.getPastEvents(BURN_EVENT_NAME, {
+        const BURN_EVENT_SIG = "Burn(address,bytes32,uint256)";
+
+        const filter = {
             address: this._contractDescription.address,
-            topics: [BURN_EVENT_HASH],
+            topics: [ethers.utils.id(BURN_EVENT_SIG)], // This is equal with Web3.utils.sha3
             fromBlock: blockIndex,
             toBlock: blockIndex,
-        });
-        return pastEvents.map((x) => {
+        };
+
+        const pastEvents = await this._provider.getLogs(filter);
+        const parsedEvents = pastEvents.map((log) =>
+            this._contract.interface.parseLog(log)
+        );
+
+        return parsedEvents.map((parsedEvent, idx) => {
             return {
-                txId: x.transactionHash,
-                ...x,
+                ...pastEvents[idx],
+                ...parsedEvent,
+                txId: pastEvents[idx].transactionHash,
+                returnValues: {
+                    ...parsedEvent.args,
+                    amount: ethers.BigNumber.from(
+                        parsedEvent.args.amount
+                    ).toString(),
+                },
+                raw: {
+                    data: pastEvents[idx].data,
+                    topics: pastEvents[idx].topics,
+                },
+                event: parsedEvent.name,
             };
         });
     }
