@@ -382,8 +382,8 @@ process.on("uncaughtException", console.error);
 
     const provider = new ethers.providers.FallbackProvider(
         [
-            { provider: providerMain, priority: 0 },
-            { provider: providerSub, priority: 1 },
+            { provider: providerMain, priority: 1, weight: 2 },
+            { provider: providerSub, priority: 2, weight: 1 },
         ],
         1
     );
