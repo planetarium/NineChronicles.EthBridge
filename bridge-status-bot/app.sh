@@ -70,15 +70,15 @@ GAP between :wncg: and :ncg::                           *$GAP*
 :ether: Ether Bridge BSC Operator balance: *$ETH_BRIDGE_BSC_OPERATOR_BALANCE*\\n"
 
 if [ $(echo "${ETH_BALANCE} <= ${ETH_BALANCE_THRESHOLD}" | bc) -eq 1 ];then
-    TEXT+="Ether Balance is lower than the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
+    TEXT+="Ether Balance is lower than or equal to the threshold (*$ETH_BALANCE_THRESHOLD ETH*). <!here>\\n"
 fi
 
 if [ $(echo "${ETH_SAFE_EXECUTOR_BALANCE} <= ${ETH_SAFE_EXECUTOR_THRESHOLD}" | bc) -eq 1 ];then
-    TEXT+="Ether Safe Executor Balance is lower than the threshold (*$ETH_SAFE_EXECUTOR_THRESHOLD ETH*). <!here>\\n"
+    TEXT+="Ether Safe Executor Balance is lower than or equal to the threshold (*$ETH_SAFE_EXECUTOR_THRESHOLD ETH*). <!here>\\n"
 fi
 
 if [ $(echo "${ETH_BRIDGE_BSC_OPERATOR_BALANCE} <= ${ETH_BRIDGE_BSC_OPERATOR_THRESHOLD}" | bc) -eq 1 ];then
-    TEXT+="Ether Bridge BSC Operator Balance is lower than the threshold (*$ETH_BRIDGE_BSC_OPERATOR_THRESHOLD ETH*). <!here>\\n"
+    TEXT+="Ether Bridge BSC Operator Balance is lower than or equal to the threshold (*$ETH_BRIDGE_BSC_OPERATOR_THRESHOLD ETH*). <!here>\\n"
 fi
 
 DATA="{\"channel\":\"$SLACK_CHANNEL\",\"text\":\"$TEXT\",\"mrkdwn\":true}"
