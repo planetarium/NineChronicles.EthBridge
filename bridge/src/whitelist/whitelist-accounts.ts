@@ -26,8 +26,20 @@ export const whitelistAccounts: WhitelistAccount[] = [
     },
     {
         type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
+        from: "0x368440201eB5823a103f4Fb0eF94840365bE838E",
+        to: "0x06C2cbDF104da9b6CA26EE2B61df647bb55C6030",
+        description: "Nine Corporation (Ops)",
+    },
+    {
+        type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
         from: "0xdF81374a4e4853340CCef6485083Cc1ba9100E2B",
         to: "0x96B32355C206d21E82cC868dd00B1C13fABdd831",
         description: "Planetarium Labs",
+    },
+    {
+        type: ACCOUNT_TYPE.ALLOWED,
+        from: "0x5107492e877157f5774863539464C0e67da9ca71",
+        to: "0x1e7600a1B8841C48df4833D9691AE5062ee70FFb",
+        description: "Hashed",
     },
 ];
