@@ -37,6 +37,12 @@ export const whitelistAccounts: WhitelistAccount[] = [
         description: "Planetarium Labs",
     },
     {
+        type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
+        from: "0xE8D6c4b15269754fE7b26DA243052ECD2a88db07",
+        to: "0x96B32355C206d21E82cC868dd00B1C13fABdd831",
+        description: "Planetarium Labs (Ops)",
+    },
+    {
         type: ACCOUNT_TYPE.ALLOWED,
         from: "0x5107492e877157f5774863539464C0e67da9ca71",
         to: "0x1e7600a1B8841C48df4833D9691AE5062ee70FFb",
