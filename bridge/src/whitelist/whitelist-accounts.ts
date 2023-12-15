@@ -27,7 +27,7 @@ export const whitelistAccounts: WhitelistAccount[] = [
     {
         type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
         from: "0x368440201eB5823a103f4Fb0eF94840365bE838E",
-        to: "0x06C2cbDF104da9b6CA26EE2B61df647bb55C6030",
+        to: "0xbfA59D285ee3D40D9729da9eB8ebF5082F6D9F84",
         description: "Nine Corporation (Ops)",
     },
     {
