@@ -48,4 +48,10 @@ export const whitelistAccounts: WhitelistAccount[] = [
         to: "0x1e7600a1B8841C48df4833D9691AE5062ee70FFb",
         description: "Hashed",
     },
+    {
+        type: ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED,
+        from: "0x32db663F1B895146F3dcd47B57B950e3CeACceCA",
+        to: "0x09b59D3486C9Ad9eA4F1dc5EdfCEdCbCDa82b89e",
+        description: "9C Ecosystem Fund",
+    }
 ];
