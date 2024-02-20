@@ -367,7 +367,9 @@ export class NCGTransferredEventObserver
                  */
                 if (accountType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
                     fee = new Decimal(0);
-                } else if (accountType === ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED) {
+                } else if (
+                    accountType === ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED
+                ) {
                     fee = new Decimal(limitedAmount.mul(0.01).toFixed(2));
                 }
 
