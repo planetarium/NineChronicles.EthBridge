@@ -5,6 +5,7 @@
  */
 export enum ACCOUNT_TYPE {
     ALLOWED = "allowed",
+    ONE_PERCENT_FEE_ALLOWED = "onePercentFeeAllowed",
     FEE_WAIVER_ALLOWED = "feeWavierAllowed",
     NORMAL = "normal",
 }

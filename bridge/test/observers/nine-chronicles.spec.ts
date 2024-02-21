@@ -149,6 +149,11 @@ describe(NCGTransferredEventObserver.name, () => {
     const feeWaiverSender = "0xb134048eC2892d111b4fbAB224400847544FC871";
     const feeWaiverRecipient = "0xd1EF2BDd39323D8C17eD4a122aa910301cf1eDAA";
 
+    const onePercentFeeAllowlistSender =
+        "0xc134048eC2892d111b4fbAB224400847544FC871";
+    const onePercentFeeAllowlistReciptent =
+        "0x185B5c3d26c12F2BB2A228d209D83eD80CAa03aF";
+
     const observer = new NCGTransferredEventObserver(
         mockNcgTransfer,
         mockWrappedNcgMinter,
@@ -176,6 +181,11 @@ describe(NCGTransferredEventObserver.name, () => {
                 type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
                 from: feeWaiverSender,
                 to: feeWaiverRecipient,
+            },
+            {
+                type: ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED,
+                from: onePercentFeeAllowlistSender,
+                to: onePercentFeeAllowlistReciptent,
             },
         ]
     );
@@ -381,13 +391,15 @@ describe(NCGTransferredEventObserver.name, () => {
 
             function makeWhitelistEvent(
                 whitelistSender: string,
-                whitelistTRecipient: string,
+                whitelistRecipient: string,
                 amount: string,
                 txId: TxId
             ) {
+                console.log(whitelistSender, whitelistRecipient);
+
                 return {
                     amount: amount,
-                    memo: whitelistTRecipient,
+                    memo: whitelistRecipient,
                     blockHash: "BLOCK-HASH",
                     txId: txId,
                     recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
@@ -428,9 +440,13 @@ describe(NCGTransferredEventObserver.name, () => {
                     "11000",
                     "TX-FEE-WAIVER"
                 ),
+                makeWhitelistEvent(
+                    onePercentFeeAllowlistSender,
+                    onePercentFeeAllowlistReciptent,
+                    "11000",
+                    "TX-ONE-PERCENT-FEE-ALLOWLIST"
+                ),
             ];
-
-            console.log("HERE");
 
             await observer.notify({
                 blockHash: "BLOCK-HASH",
@@ -555,6 +571,15 @@ describe(NCGTransferredEventObserver.name, () => {
                 {
                     blockHash: "BLOCK-HASH",
                     txId: "TX-FEE-WAIVER",
+                }
+            );
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                15,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-ONE-PERCENT-FEE-ALLOWLIST",
                 }
             );
 
@@ -684,6 +709,15 @@ describe(NCGTransferredEventObserver.name, () => {
                 tx_id: "TX-FEE-WAIVER",
             });
 
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(15, {
+                amount: 11000,
+                network: "nineChronicles",
+                recipient: onePercentFeeAllowlistReciptent,
+                sender: onePercentFeeAllowlistSender,
+                timestamp: expect.any(String),
+                tx_id: "TX-ONE-PERCENT-FEE-ALLOWLIST",
+            });
+
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
                 [wrappedNcgRecipient, new Decimal(490000000000000000000)], // Base Fee ( 500 NCG, BaseFee 10 NCG )
@@ -694,6 +728,11 @@ describe(NCGTransferredEventObserver.name, () => {
                 [wrappedNcgRecipient, new Decimal(31725000000000000000000)],
                 [allowlistRecipient, new Decimal(10870000000000000000000)],
                 [feeWaiverRecipient, new Decimal(11000000000000000000000)],
+                // Allowlist - One Percent Fee ( 11000 NCG, Fee 0.01 = 10890 )
+                [
+                    onePercentFeeAllowlistReciptent,
+                    new Decimal(10890000000000000000000),
+                ],
             ]);
         });
 
