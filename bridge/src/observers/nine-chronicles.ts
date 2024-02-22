@@ -359,13 +359,19 @@ export class NCGTransferredEventObserver
                         refundTxId
                     );
 
-                    if (limitedAmount.lessThan(this._limitationPolicy.minimum)) {
-                        console.log('Amount Ncg to transfer after refunded is lower than minimum', limitedAmount.toString())
-                        const smallAmountRefundTxId = await this._ncgTransfer.transfer(
-                            sender,
-                            limitedAmount.toString(),
-                            `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
+                    if (
+                        limitedAmount.lessThan(this._limitationPolicy.minimum)
+                    ) {
+                        console.log(
+                            "Amount Ncg to transfer after refunded is lower than minimum",
+                            limitedAmount.toString()
                         );
+                        const smallAmountRefundTxId =
+                            await this._ncgTransfer.transfer(
+                                sender,
+                                limitedAmount.toString(),
+                                `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
+                            );
                         await this._slackMessageSender.sendMessage(
                             new RefundEvent(
                                 this._explorerUrl,
