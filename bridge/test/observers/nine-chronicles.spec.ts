@@ -736,6 +736,107 @@ describe(NCGTransferredEventObserver.name, () => {
             ]);
         });
 
+        it("If overflowed amount is lower than minimum, then refund check", async () => {
+            const amounts = new Map<string, number>();
+            mockExchangeHistoryStore.put.mockImplementation(
+                ({ sender, amount }) => {
+                    if (!amounts.has(sender)) {
+                        amounts.set(sender, amount);
+                    } else {
+                        console.log(
+                            "mockImpl",
+                            sender,
+                            amounts.get(sender)!,
+                            amount
+                        );
+                        amounts.set(sender, amounts.get(sender)! + amount);
+                    }
+
+                    return Promise.resolve();
+                }
+            );
+
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockImplementation(
+                (_, sender) => {
+                    return Promise.resolve(amounts.get(sender) || 0);
+                }
+            );
+
+            const sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
+            const wrappedNcgRecipient =
+                "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
+            function makeEvent(
+                wrappedNcgRecipient: string,
+                amount: string,
+                txId: TxId
+            ) {
+                return {
+                    amount: amount,
+                    memo: wrappedNcgRecipient,
+                    blockHash: "BLOCK-HASH",
+                    txId: txId,
+                    recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    sender: sender,
+                };
+            }
+
+            const events = [
+                makeEvent(wrappedNcgRecipient, "49950", "TX-A"),
+                makeEvent(wrappedNcgRecipient, "150", "TX-SHOULD-REFUND"),
+            ];
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events,
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                1,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-A",
+                }
+            );
+
+            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                2,
+                "nineChronicles",
+                {
+                    blockHash: "BLOCK-HASH",
+                    txId: "TX-SHOULD-REFUND",
+                }
+            );
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
+                amount: 49950,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-A",
+            });
+
+            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
+                amount: 50,
+                network: "nineChronicles",
+                recipient: wrappedNcgRecipient,
+                sender: sender,
+                timestamp: expect.any(String),
+                tx_id: "TX-SHOULD-REFUND",
+            });
+
+            // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
+            expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                [wrappedNcgRecipient, new Decimal(48651500000000000000000)],
+            ]);
+
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
+        });
+
         for (const invalidMemo of [
             "0x",
             "",

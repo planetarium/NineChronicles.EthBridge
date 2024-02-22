@@ -358,6 +358,41 @@ export class NCGTransferredEventObserver
                         `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`,
                         refundTxId
                     );
+
+                    if (limitedAmount.lessThan(this._limitationPolicy.minimum)) {
+                        console.log('Amount Ncg to transfer after refunded is lower than minimum', limitedAmount.toString())
+                        const smallAmountRefundTxId = await this._ncgTransfer.transfer(
+                            sender,
+                            limitedAmount.toString(),
+                            `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
+                        );
+                        await this._slackMessageSender.sendMessage(
+                            new RefundEvent(
+                                this._explorerUrl,
+                                this._ncscanUrl,
+                                this._useNcscan,
+                                sender,
+                                txId,
+                                limitedAmount,
+                                smallAmountRefundTxId,
+                                limitedAmount,
+                                `Overflowed Amount ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG.`
+                            )
+                        );
+                        this._opensearchClient.to_opensearch("error", {
+                            content: "NCG -> wNCG request failure",
+                            cause: `Overflowed Amount ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG.`,
+                            libplanetTxId: txId,
+                            sender: sender,
+                            recipient: recipient,
+                            amount: amount.toNumber(),
+                        });
+                        console.log(
+                            `Overflowed Amount after refund ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG. The transaction's id is`,
+                            smallAmountRefundTxId
+                        );
+                        continue;
+                    }
                 }
 
                 let fee = this._exchangeFeeRatioPolicy.getFee(limitedAmount);
