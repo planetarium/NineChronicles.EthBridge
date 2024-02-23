@@ -1,5 +1,165 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`NCGTransferredEventObserver notify If overflowed amount is lower than minimum, then refund check 1`] = `
+Array [
+  Array [
+    "info",
+    Object {
+      "amount": 48651.5,
+      "content": "NCG -> wNCG request success",
+      "ethereumTxId": "TRANSACTION-HASH",
+      "fee": 1298.5,
+      "libplanetTxId": "TX-A",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+  Array [
+    "error",
+    Object {
+      "amount": 150,
+      "cause": "24 hr transfer maximum 50000 reached. User transferred 49950 NCGs in 24 hrs.",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-SHOULD-REFUND",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "refundAmount": 100,
+      "refundTxId": "TX-ID",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+  Array [
+    "error",
+    Object {
+      "amount": 150,
+      "cause": "Overflowed Amount 50 is lower than minimum NCG. Refund NCG.",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-SHOULD-REFUND",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify If overflowed amount is lower than minimum, then refund check 2`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Event",
+          "color": "#42f5aa",
+          "fallback": "NCG 0x2734048eC2892d111b4fbAB224400847544FC872 → wNCG 0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-A",
+            },
+            Object {
+              "title": "Ethereum network transaction",
+              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH",
+            },
+            Object {
+              "title": "sender (NineChronicles)",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "recipient (Ethereum)",
+              "value": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+            },
+            Object {
+              "title": "amount",
+              "value": "48651.5",
+            },
+            Object {
+              "title": "fee",
+              "value": "1298.5",
+            },
+          ],
+        },
+      ],
+      "text": "NCG → wNCG event occurred.",
+    },
+  ],
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Event",
+          "color": "#42f5aa",
+          "fallback": "Refund NCG 100 in 150 to 0x2734048eC2892d111b4fbAB224400847544FC872",
+          "fields": Array [
+            Object {
+              "title": "Reason",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872 tried to exchange 150 and already exchanged 49950 and users can exchange until 50000 in 24 hours so refund NCG as 100",
+            },
+            Object {
+              "title": "Address",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "Request transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-SHOULD-REFUND",
+            },
+            Object {
+              "title": "Request Amount",
+              "value": "150",
+            },
+            Object {
+              "title": "Refund transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
+            },
+            Object {
+              "title": "Refund Amount",
+              "value": "100",
+            },
+          ],
+        },
+      ],
+      "text": "NCG refund event occurred.",
+    },
+  ],
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Event",
+          "color": "#42f5aa",
+          "fallback": "Refund NCG 50 in 50 to 0x2734048eC2892d111b4fbAB224400847544FC872",
+          "fields": Array [
+            Object {
+              "title": "Reason",
+              "value": "Overflowed Amount 50 is lower than minimum NCG. Refund NCG.",
+            },
+            Object {
+              "title": "Address",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
+            },
+            Object {
+              "title": "Request transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-SHOULD-REFUND",
+            },
+            Object {
+              "title": "Request Amount",
+              "value": "50",
+            },
+            Object {
+              "title": "Refund transaction",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
+            },
+            Object {
+              "title": "Refund Amount",
+              "value": "50",
+            },
+          ],
+        },
+      ],
+      "text": "NCG refund event occurred.",
+    },
+  ],
+]
+`;
+
 exports[`NCGTransferredEventObserver notify pagerduty ethereum transfer error message - snapshot 1`] = `
 Array [
   Array [
