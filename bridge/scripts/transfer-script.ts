@@ -30,6 +30,11 @@ async function transfer() {
 transfer();
 
 async function transferNcg(user9cAddress: string, amount: string) {
+    if (Number(amount) > 1000000) {
+        console.log("Cannot transfer over 1000000 - Cancel transfer ...");
+        process.exit(1);
+    }
+
     const isValidAddress = (address: string) => {
         const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
         return (
