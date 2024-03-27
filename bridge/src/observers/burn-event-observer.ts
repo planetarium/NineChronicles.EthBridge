@@ -191,6 +191,7 @@ export class EthereumBurnEventObserver
                     recipient: user9cAddress,
                     amount: amount.toNumber(),
                     planetName: requestPlanetName,
+                    network: "ETH",
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
@@ -228,6 +229,7 @@ export class EthereumBurnEventObserver
                     recipient: user9cAddress,
                     amount: amount.toNumber(),
                     planetName: requestPlanetName,
+                    network: "ETH",
                 });
                 await this._integration.error(
                     "Unexpected error during unwrapping NCG",
