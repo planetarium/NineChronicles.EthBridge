@@ -129,6 +129,10 @@ Array [
               "value": "odin",
             },
             Object {
+              "title": "Network",
+              "value": "Ethereum",
+            },
+            Object {
               "title": "Not Multi-Planet Request Type",
               "value": "This Transfer Request is not a multi-planet request type.",
             },

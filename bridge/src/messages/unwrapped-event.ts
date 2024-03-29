@@ -71,6 +71,10 @@ export class UnwrappedEvent extends WrappingEvent {
                             title: "Planet-Name",
                             value: this._planetName,
                         },
+                        {
+                            title: "Network",
+                            value: "Ethereum",
+                        },
                     ],
                     fallback: `wNCG ${this._sender} → NCG ${this._recipient}`,
                 },
