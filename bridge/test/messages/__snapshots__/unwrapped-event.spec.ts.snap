@@ -32,6 +32,10 @@ Object {
           "title": "Planet-Name",
           "value": "heimdall",
         },
+        Object {
+          "title": "Network",
+          "value": "Ethereum",
+        },
       ],
     },
   ],
@@ -70,6 +74,10 @@ Object {
         Object {
           "title": "Planet-Name",
           "value": "odin",
+        },
+        Object {
+          "title": "Network",
+          "value": "Ethereum",
         },
         Object {
           "title": "Not Multi-Planet Request Type",
