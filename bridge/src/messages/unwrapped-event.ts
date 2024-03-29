@@ -74,7 +74,7 @@ export class UnwrappedEvent extends WrappingEvent {
                         {
                             title: "Network",
                             value: "Ethereum",
-                        }
+                        },
                     ],
                     fallback: `wNCG ${this._sender} → NCG ${this._recipient}`,
                 },
