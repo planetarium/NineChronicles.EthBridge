@@ -57,11 +57,13 @@ async function transferNcg(user9cAddress: string, amount: string) {
     const KMS_PROVIDER_AWS_ACCESSKEY = process.env.KMS_PROVIDER_AWS_ACCESSKEY!;
     const KMS_PROVIDER_AWS_SECRETKEY = process.env.KMS_PROVIDER_AWS_SECRETKEY!;
     const KMS_PROVIDER_PUBLIC_KEY = process.env.KMS_PROVIDER_PUBLIC_KEY!;
+    const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY!;
 
     const GRAPHQL_REQUEST_RETRY = 5;
     const headlessGraphQLCLient = new HeadlessGraphQLClient(
         GRAPHQL_API_ENDPOINT,
-        GRAPHQL_REQUEST_RETRY
+        GRAPHQL_REQUEST_RETRY,
+        JWT_SECRET_KEY
     );
 
     const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {

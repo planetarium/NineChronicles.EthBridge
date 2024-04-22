@@ -2,12 +2,12 @@ import { KmsSigner } from "@planetarium/aws-kms-provider";
 import { Configuration } from "./configuration";
 import { HeadlessGraphQLClient } from "./headless-graphql-client";
 import { KMSNCGSigner } from "./kms-ncg-signer";
-import crypto from "crypto";
 
 const ACTION = "ACTIVATE_ACCOUNT_PLAIN_VALUE";
 const headlessGraphQLClient = new HeadlessGraphQLClient(
     Configuration.get("GRAPHQL_API_ENDPOINT"),
-    5
+    5,
+    Configuration.get("JWT_SECRET_KEY")
 );
 
 const kmsSigner = new KmsSigner(
