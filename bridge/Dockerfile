@@ -2,7 +2,7 @@ FROM node:20.4 AS build-env
 
 COPY . /build
 WORKDIR /build
-RUN yarn
+RUN npm build
 RUN yarn tsc --project tsconfig.production.json
 RUN wget https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.2/napi-v6-linux-musl-x64.tar.gz && tar -xvzf napi-v6-linux-musl-x64.tar.gz
 RUN mv ./napi-v6-linux-musl-x64 /build/node_modules/sqlite3/lib/binding
