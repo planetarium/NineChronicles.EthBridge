@@ -327,12 +327,19 @@ process.on("uncaughtException", console.error);
     );
 
     const GRAPHQL_REQUEST_RETRY = 5;
+    const JWT_SECRET_KEY = Configuration.get("JWT_SECRET_KEY");
     const headlessGraphQLCLient = new HeadlessGraphQLClient(
         GRAPHQL_API_ENDPOINT,
-        GRAPHQL_REQUEST_RETRY
+        GRAPHQL_REQUEST_RETRY,
+        JWT_SECRET_KEY
     );
     const stageGraphQLClients = STAGE_HEADLESSES.map(
-        (endpoint) => new HeadlessGraphQLClient(endpoint, GRAPHQL_REQUEST_RETRY)
+        (endpoint) =>
+            new HeadlessGraphQLClient(
+                endpoint,
+                GRAPHQL_REQUEST_RETRY,
+                JWT_SECRET_KEY
+            )
     );
     const integration: Integration = new PagerDutyIntegration(
         PAGERDUTY_ROUTING_KEY

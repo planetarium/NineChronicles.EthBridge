@@ -3,6 +3,7 @@ import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
 import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
+import jwt from "jsonwebtoken";
 
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => {
@@ -21,10 +22,21 @@ interface GraphQLRequestBody {
 export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     private readonly _apiEndpoint: string;
     private readonly _maxRetry: number;
+    private readonly _jwtToken: string;
 
-    constructor(apiEndpoint: string, maxRetry: number) {
+    constructor(apiEndpoint: string, maxRetry: number, secretKey: string) {
         this._apiEndpoint = apiEndpoint;
         this._maxRetry = maxRetry;
+        this._jwtToken = this.createJwtToken(secretKey);
+    }
+
+    private createJwtToken(secretKey: string) {
+        const payload = {
+            iss: "planetariumhq.com",
+            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365,
+        };
+
+        return jwt.sign(payload, secretKey);
     }
 
     get endpoint(): string {
@@ -189,6 +201,7 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
             const response = await axios.post(this._apiEndpoint, body, {
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${this._jwtToken}`,
                 },
                 timeout: 10 * 1000,
             });

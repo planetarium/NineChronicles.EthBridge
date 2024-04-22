@@ -30,7 +30,8 @@ describe(NCGKMSTransfer.name, () => {
     });
     const headlessGraphQLCLient = new HeadlessGraphQLClient(
         Configuration.get("TEST_GRAPHQL_API_ENDPOINT"),
-        5
+        5,
+        "jwt_secret_key_for_test"
     );
     const ncgKmsTransfer = new NCGKMSTransfer(
         [headlessGraphQLCLient],
