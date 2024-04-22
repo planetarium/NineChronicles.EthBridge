@@ -5,7 +5,6 @@ import Decimal from "decimal.js";
 import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { IGasPricePolicy } from "./policies/gas-price";
-import { AbiItem } from "web3-utils";
 
 export class WrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _web3: Web3;
@@ -32,7 +31,7 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
         this._web3 = web3;
         this._contractDescription = contractDescription;
         this._contract = new this._web3.eth.Contract(
-            this._contractDescription.abi as AbiItem[],
+            this._contractDescription.abi as never[],
             this._contractDescription.address
         );
         this._minterAddress = minterAddress;
