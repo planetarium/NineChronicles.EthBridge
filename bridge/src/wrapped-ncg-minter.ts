@@ -1,8 +1,6 @@
 import Web3 from "web3";
-import { TransactionReceipt, TransactionConfig } from "web3-core";
 import { Contract } from "web3-eth-contract";
 import Decimal from "decimal.js";
-import { PromiEvent } from "web3-core";
 
 import { ContractDescription } from "./types/contract-description";
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
