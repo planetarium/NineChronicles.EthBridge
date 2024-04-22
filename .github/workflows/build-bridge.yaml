@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - run: yarn install
+      - run: npm install
         working-directory: ./bridge
       - run: yarn prettier --check src test
         working-directory: ./bridge
