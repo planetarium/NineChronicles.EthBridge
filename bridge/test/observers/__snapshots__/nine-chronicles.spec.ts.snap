@@ -27,17 +27,6 @@ Array [
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
     },
   ],
-  Array [
-    "error",
-    Object {
-      "amount": 150,
-      "cause": "Overflowed Amount 50 is lower than minimum NCG. Refund NCG.",
-      "content": "NCG -> wNCG request failure",
-      "libplanetTxId": "TX-SHOULD-REFUND",
-      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
-      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
-    },
-  ],
 ]
 `;
 
@@ -112,44 +101,6 @@ Array [
             Object {
               "title": "Refund Amount",
               "value": "100",
-            },
-          ],
-        },
-      ],
-      "text": "NCG refund event occurred.",
-    },
-  ],
-  Array [
-    Object {
-      "attachments": Array [
-        Object {
-          "author_name": "Bridge Event",
-          "color": "#42f5aa",
-          "fallback": "Refund NCG 50 in 50 to 0x2734048eC2892d111b4fbAB224400847544FC872",
-          "fields": Array [
-            Object {
-              "title": "Reason",
-              "value": "Overflowed Amount 50 is lower than minimum NCG. Refund NCG.",
-            },
-            Object {
-              "title": "Address",
-              "value": "0x2734048eC2892d111b4fbAB224400847544FC872",
-            },
-            Object {
-              "title": "Request transaction",
-              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-SHOULD-REFUND",
-            },
-            Object {
-              "title": "Request Amount",
-              "value": "50",
-            },
-            Object {
-              "title": "Refund transaction",
-              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
-            },
-            Object {
-              "title": "Refund Amount",
-              "value": "50",
             },
           ],
         },
@@ -406,7 +357,7 @@ Array [
     "error",
     Object {
       "amount": 1.23,
-      "cause": "Invalid 9c transaction ID",
+      "cause": "Invalid recipient 9c address in memo",
       "content": "NCG -> wNCG request failure",
       "libplanetTxId": "TX-ID",
       "recipient": "0x0000000000000000000000000000000000000000",

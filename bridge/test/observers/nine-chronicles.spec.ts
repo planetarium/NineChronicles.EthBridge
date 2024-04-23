@@ -212,6 +212,10 @@ describe(NCGTransferredEventObserver.name, () => {
                     txId: null,
                 }
             );
+
+            expect(mockExchangeHistoryStore.put).not.toHaveBeenCalled();
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });
 
         it("shouldn't do anything if the amount is zero", async () => {
@@ -927,9 +931,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(
-                mockOpenSearchClient.to_opensearch.mock.calls
-            ).toMatchSnapshot();
+            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
