@@ -143,15 +143,17 @@ describe(NCGTransferredEventObserver.name, () => {
 
     const failureSubscribers = "@gamefi-be";
 
-    const allowlistSender = "0xa134048eC2892d111b4fbAB224400847544FC871";
-    const allowlistRecipient = "0x954941eC7FACf9A81e2f026A356fF83F54a5827F";
+    const noLimitRegularFeeSender =
+        "0xa134048eC2892d111b4fbAB224400847544FC871";
+    const noLimitRegularFeeRecipient =
+        "0x954941eC7FACf9A81e2f026A356fF83F54a5827F";
 
-    const feeWaiverSender = "0xb134048eC2892d111b4fbAB224400847544FC871";
-    const feeWaiverRecipient = "0xd1EF2BDd39323D8C17eD4a122aa910301cf1eDAA";
+    const noLimitNoFeeSender = "0xb134048eC2892d111b4fbAB224400847544FC871";
+    const noLimitNoFeeRecipient = "0xd1EF2BDd39323D8C17eD4a122aa910301cf1eDAA";
 
-    const onePercentFeeAllowlistSender =
+    const noLimitOnePercentFeeSender =
         "0xc134048eC2892d111b4fbAB224400847544FC871";
-    const onePercentFeeAllowlistReciptent =
+    const noLimitOnePercentFeeRecipient =
         "0x185B5c3d26c12F2BB2A228d209D83eD80CAa03aF";
 
     const observer = new NCGTransferredEventObserver(
@@ -173,19 +175,19 @@ describe(NCGTransferredEventObserver.name, () => {
         failureSubscribers,
         [
             {
-                type: ACCOUNT_TYPE.ALLOWED,
-                from: allowlistSender,
-                to: allowlistRecipient,
+                type: ACCOUNT_TYPE.NO_LIMIT_REGULAR_FEE,
+                from: noLimitRegularFeeSender,
+                to: noLimitRegularFeeRecipient,
             },
             {
-                type: ACCOUNT_TYPE.FEE_WAIVER_ALLOWED,
-                from: feeWaiverSender,
-                to: feeWaiverRecipient,
+                type: ACCOUNT_TYPE.NO_LIMIT_NO_FEE,
+                from: noLimitNoFeeSender,
+                to: noLimitNoFeeRecipient,
             },
             {
-                type: ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED,
-                from: onePercentFeeAllowlistSender,
-                to: onePercentFeeAllowlistReciptent,
+                type: ACCOUNT_TYPE.NO_LIMIT_ONE_PERCENT_FEE,
+                from: noLimitOnePercentFeeSender,
+                to: noLimitOnePercentFeeRecipient,
             },
         ]
     );
@@ -433,22 +435,22 @@ describe(NCGTransferredEventObserver.name, () => {
                     "TX-SHOULD-REFUND-J"
                 ),
                 makeWhitelistEvent(
-                    allowlistSender,
-                    allowlistRecipient,
+                    noLimitRegularFeeSender,
+                    noLimitRegularFeeRecipient,
                     "11000",
-                    "TX-ALLOWLIST"
+                    "TX-NO-LIMIT-REGULAR-FEE"
                 ),
                 makeWhitelistEvent(
-                    feeWaiverSender,
-                    feeWaiverRecipient,
+                    noLimitNoFeeSender,
+                    noLimitNoFeeRecipient,
                     "11000",
-                    "TX-FEE-WAIVER"
+                    "TX-NO-LIMIT-NO-FEE"
                 ),
                 makeWhitelistEvent(
-                    onePercentFeeAllowlistSender,
-                    onePercentFeeAllowlistReciptent,
+                    noLimitOnePercentFeeSender,
+                    noLimitOnePercentFeeRecipient,
                     "11000",
-                    "TX-ONE-PERCENT-FEE-ALLOWLIST"
+                    "TX-NO-LIMIT-ONE-PERCENT-FEE"
                 ),
             ];
 
@@ -566,7 +568,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-ALLOWLIST",
+                    txId: "TX-NO-LIMIT-REGULAR-FEE",
                 }
             );
             expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
@@ -574,7 +576,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-FEE-WAIVER",
+                    txId: "TX-NO-LIMIT-NO-FEE",
                 }
             );
 
@@ -583,7 +585,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 "nineChronicles",
                 {
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-ONE-PERCENT-FEE-ALLOWLIST",
+                    txId: "TX-NO-LIMIT-ONE-PERCENT-FEE",
                 }
             );
 
@@ -698,43 +700,56 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(13, {
                 amount: 11000,
                 network: "nineChronicles",
-                recipient: allowlistRecipient,
-                sender: allowlistSender,
+                recipient: noLimitRegularFeeRecipient,
+                sender: noLimitRegularFeeSender,
                 timestamp: expect.any(String),
-                tx_id: "TX-ALLOWLIST",
+                tx_id: "TX-NO-LIMIT-REGULAR-FEE",
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(14, {
                 amount: 11000,
                 network: "nineChronicles",
-                recipient: feeWaiverRecipient,
-                sender: feeWaiverSender,
+                recipient: noLimitNoFeeRecipient,
+                sender: noLimitNoFeeSender,
                 timestamp: expect.any(String),
-                tx_id: "TX-FEE-WAIVER",
+                tx_id: "TX-NO-LIMIT-NO-FEE",
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(15, {
                 amount: 11000,
                 network: "nineChronicles",
-                recipient: onePercentFeeAllowlistReciptent,
-                sender: onePercentFeeAllowlistSender,
+                recipient: noLimitOnePercentFeeRecipient,
+                sender: noLimitOnePercentFeeSender,
                 timestamp: expect.any(String),
-                tx_id: "TX-ONE-PERCENT-FEE-ALLOWLIST",
+                tx_id: "TX-NO-LIMIT-ONE-PERCENT-FEE",
             });
 
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(490000000000000000000)], // Base Fee ( 500 NCG, BaseFee 10 NCG )
-                [wrappedNcgRecipient, new Decimal(4950000000000000000000)], // Fee First Range ( 5000 NCG, Fee 0.01 )
-                // Fee Second Range ( 12000 NCG, Fee ( 0.01 for 12000 + 0.02 for 2000 )
-                [wrappedNcgRecipient, new Decimal(11840000000000000000000)],
-                // Fee Second Range ( left 32500 NCG, Fee ( 0.01 for 32500 + 0.02 for 22500 ) = 775 NCG
-                [wrappedNcgRecipient, new Decimal(31725000000000000000000)],
-                [allowlistRecipient, new Decimal(10870000000000000000000)],
-                [feeWaiverRecipient, new Decimal(11000000000000000000000)],
-                // Allowlist - One Percent Fee ( 11000 NCG, Fee 0.01 = 10890 )
+                // accumulated 0, transfer amount 500
+                //  -> base fee 10 -> 490 should be sent
+                [wrappedNcgRecipient, new Decimal(490000000000000000000)],
+                // accumulated 500, transfer amount 5000
+                //  -> base 1%, fee 50 -> 4950 should be sent
+                [wrappedNcgRecipient, new Decimal(4950000000000000000000)],
+                // accumulated 5500, transfer amount 12000
+                //  -> base 1% for 4500, base + surcharge 3% for 7500 -> fee 270 -> 11730 should be sent
+                [wrappedNcgRecipient, new Decimal(11730000000000000000000)],
+                // accumulated 17500, transfer amount 32500
+                //  -> base + surcharge 3% for 32500 -> fee 975 -> 31525 should be sent
+                [wrappedNcgRecipient, new Decimal(31525000000000000000000)],
+                // accumulated 0, transfer amount 11000
+                //  -> base 1% for 10000, base + surcharge 3% for 1000 -> fee 130 -> 10870 should be sent
                 [
-                    onePercentFeeAllowlistReciptent,
+                    noLimitRegularFeeRecipient,
+                    new Decimal(10870000000000000000000),
+                ],
+                // no fee anyways, transfer amount 11000 -> 11000 should be sent
+                [noLimitNoFeeRecipient, new Decimal(11000000000000000000000)],
+                // accumulated 0, transfer amount 11000
+                //  -> static 1% for all amount -> fee 110 -> 10890 should be sent
+                [
+                    noLimitOnePercentFeeRecipient,
                     new Decimal(10890000000000000000000),
                 ],
             ]);
@@ -931,7 +946,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
