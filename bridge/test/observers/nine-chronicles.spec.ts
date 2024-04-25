@@ -931,7 +931,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockOpenSearchClient.to_opensearch.mock.calls).toMatchSnapshot();
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 

@@ -109,8 +109,14 @@ export class NCGTransferredEventObserver
     }): Promise<void> {
         const { blockHash, events } = data;
 
-        let recorded = false;  // whether the tx is recorded in _monitorStateStore
-        for (const {blockHash, txId, sender, amount: amountString, memo: recipient} of events) {
+        let recorded = false; // whether the tx is recorded in _monitorStateStore
+        for (const {
+            blockHash,
+            txId,
+            sender,
+            amount: amountString,
+            memo: recipient,
+        } of events) {
             try {
                 console.log("Process NineChronicles transaction", txId);
                 if (this._addressBanPolicy.isBannedAddress(sender)) {
@@ -121,56 +127,101 @@ export class NCGTransferredEventObserver
 
                 if (await this._exchangeHistoryStore.exist(txId)) {
                     // ignore if the tx has already been processed before
-                    this._ignoreDuplicatedTxRequest(txId, sender, recipient!, amountString);
+                    this._ignoreDuplicatedTxRequest(
+                        txId,
+                        sender,
+                        recipient!,
+                        amountString
+                    );
                     continue;
                 }
 
                 // to limit the amount of NCG that can be transferred in 24 hours
                 const transferredAmountInLast24Hours = new Decimal(
-                    await this._exchangeHistoryStore.transferredAmountInLast24Hours("nineChronicles", sender)
+                    await this._exchangeHistoryStore.transferredAmountInLast24Hours(
+                        "nineChronicles",
+                        sender
+                    )
                 );
 
-                const { accountType, description: whitelistDescription } = this._getAccountType(sender, recipient!);
+                const { accountType, description: whitelistDescription } =
+                    this._getAccountType(sender, recipient!);
                 console.log("accountType", accountType);
                 const amount = new Decimal(amountString);
-                const maximum = new Decimal(this._getPolicyMaximum(accountType));
+                const maximum = new Decimal(
+                    this._getPolicyMaximum(accountType)
+                );
                 const minimum = new Decimal(this._limitationPolicy.minimum);
                 const isAmountBelowMinimum = amount.cmp(minimum) === -1;
-                const isAmountOver24HourMaximum = transferredAmountInLast24Hours.cmp(maximum) >= 0;
-                const maxExchangableAmount = maximum.sub(transferredAmountInLast24Hours);
-                const limitedAmount: Decimal = Decimal.min(maxExchangableAmount, amount);
-                const isInvalidRecipient = recipient === null || !isValidAddress(recipient);
+                const isAmountOver24HourMaximum =
+                    transferredAmountInLast24Hours.cmp(maximum) >= 0;
+                const maxExchangableAmount = maximum.sub(
+                    transferredAmountInLast24Hours
+                );
+                const limitedAmount: Decimal = Decimal.min(
+                    maxExchangableAmount,
+                    amount
+                );
+                const isInvalidRecipient =
+                    recipient === null || !isValidAddress(recipient);
                 const isInvalidAmount = !amount.isFinite() || amount.isNaN();
                 const isInvalidTx = isInvalidRecipient || isInvalidAmount;
-                const isExchangableTx = !isInvalidTx && !isAmountBelowMinimum && !isAmountOver24HourMaximum;
+                const isExchangableTx =
+                    !isInvalidTx &&
+                    !isAmountBelowMinimum &&
+                    !isAmountOver24HourMaximum;
 
                 // Record the transaction to stores
                 recorded = await this._recordTxToStores(
-                    blockHash, txId, sender, recipient, limitedAmount, isExchangableTx
+                    blockHash,
+                    txId,
+                    sender,
+                    recipient,
+                    limitedAmount,
+                    isExchangableTx
                 );
 
                 if (isInvalidRecipient) {
                     // ignore invalid recepient request
-                    await this._ignoreInvalidRecepientRequest(sender, amountString, txId, amount, recipient);
+                    await this._ignoreInvalidRecepientRequest(
+                        sender,
+                        amountString,
+                        txId,
+                        amount,
+                        recipient
+                    );
                     continue;
                 }
 
                 if (amount.eq(0) || isInvalidAmount) {
                     // ignore zero amount or invalid amount request
-                    console.log("It doesn't need any operation because amount is 0 or invalid.");
+                    console.log(
+                        "It doesn't need any operation because amount is 0 or invalid."
+                    );
                     continue;
                 }
 
                 if (isAmountBelowMinimum) {
                     // ignore below minimum request
-                    this._ignoreAmountBelowMinimumRequest(sender, amountString, txId, amount, recipient);
+                    this._ignoreAmountBelowMinimumRequest(
+                        sender,
+                        amountString,
+                        txId,
+                        amount,
+                        recipient
+                    );
                     continue;
                 }
 
                 if (isAmountOver24HourMaximum) {
                     // ignore over 24 hour maximum request
                     this._ignoreAmountOver24HourMaximumRequest(
-                        sender, amountString, txId, amount, recipient, transferredAmountInLast24Hours
+                        sender,
+                        amountString,
+                        txId,
+                        amount,
+                        recipient,
+                        transferredAmountInLast24Hours
                     );
                     continue;
                 }
@@ -180,37 +231,69 @@ export class NCGTransferredEventObserver
                 let refundTxId: string | null = null;
                 const isAmountOverflowed =
                     !isAmountOver24HourMaximum &&
-                    transferredAmountInLast24Hours.add(amount).cmp(maximum) === 1;
+                    transferredAmountInLast24Hours.add(amount).cmp(maximum) ===
+                        1;
                 if (isAmountOverflowed) {
                     // refund overflowed amount
                     refundTxId = await this._refundOverflowedAmount(
-                        sender, amountString, txId, amount, recipient,
-                        transferredAmountInLast24Hours, maximum
+                        sender,
+                        amountString,
+                        txId,
+                        amount,
+                        recipient,
+                        transferredAmountInLast24Hours,
+                        maximum
                     );
 
-                    if (limitedAmount.lessThan(this._limitationPolicy.minimum)) {
+                    if (
+                        limitedAmount.lessThan(this._limitationPolicy.minimum)
+                    ) {
                         // refund if the remaining amount is below policy minimum
-                        this._refundBelowMinimumAmount(sender, txId, amount, recipient, limitedAmount);
+                        this._refundBelowMinimumAmount(
+                            sender,
+                            txId,
+                            amount,
+                            recipient,
+                            limitedAmount
+                        );
                         continue;
                     }
                 }
 
                 // mint wrapped NCG, finally
                 const decimals = new Decimal(10).pow(18);
-                const isWhitelistEvent: boolean = accountType !== ACCOUNT_TYPE.NORMAL;
+                const isWhitelistEvent: boolean =
+                    accountType !== ACCOUNT_TYPE.NORMAL;
                 await this._mintRequest(
-                    txId, sender, recipient, limitedAmount, decimals, accountType,
-                    whitelistDescription, isWhitelistEvent, refundAmount, refundTxId
+                    txId,
+                    sender,
+                    recipient,
+                    limitedAmount,
+                    decimals,
+                    accountType,
+                    whitelistDescription,
+                    isWhitelistEvent,
+                    refundAmount,
+                    refundTxId
                 );
             } catch (e) {
                 // handle unexpected error
-                await this._failedRequest(sender, recipient, amountString, txId, e);
+                await this._failedRequest(
+                    sender,
+                    recipient,
+                    amountString,
+                    txId,
+                    e
+                );
             }
         }
 
         if (!recorded) {
             // If no tx is recorded, store the blockHash with null txId
-            await this._monitorStateStore.store("nineChronicles", {blockHash, txId: null});
+            await this._monitorStateStore.store("nineChronicles", {
+                blockHash,
+                txId: null,
+            });
         }
     }
 
@@ -276,16 +359,13 @@ export class NCGTransferredEventObserver
             amount: amountString,
         });
 
-        this._integration.error(
-            "Unexpected error during wrapping NCG",
-            {
-                errorMessage,
-                sender,
-                recipient,
-                txId,
-                amountString,
-            }
-        );
+        this._integration.error("Unexpected error during wrapping NCG", {
+            errorMessage,
+            sender,
+            recipient,
+            txId,
+            amountString,
+        });
     }
 
     private async _mintRequest(
@@ -307,9 +387,7 @@ export class NCGTransferredEventObserver
          */
         if (accountType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
             fee = new Decimal(0);
-        } else if (
-            accountType === ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED
-        ) {
+        } else if (accountType === ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED) {
             fee = new Decimal(limitedAmount.mul(0.01).toFixed(2));
         }
 
@@ -356,18 +434,21 @@ export class NCGTransferredEventObserver
     }
 
     private async _refundBelowMinimumAmount(
-        sender: string, txId: string, amount: Decimal, recipient: string | null, limitedAmount: Decimal
+        sender: string,
+        txId: string,
+        amount: Decimal,
+        recipient: string | null,
+        limitedAmount: Decimal
     ): Promise<void> {
         console.log(
             "Amount Ncg to transfer after refunded is lower than minimum",
             limitedAmount.toString()
         );
-        const smallAmountRefundTxId =
-            await this._ncgTransfer.transfer(
-                sender,
-                limitedAmount.toString(),
-                `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
-            );
+        const smallAmountRefundTxId = await this._ncgTransfer.transfer(
+            sender,
+            limitedAmount.toString(),
+            `I'm bridge and you should transfer more NCG than ${this._limitationPolicy.minimum}.`
+        );
         this._slackMessageSender.sendMessage(
             new RefundEvent(
                 this._explorerUrl,
@@ -396,8 +477,13 @@ export class NCGTransferredEventObserver
     }
 
     private async _refundOverflowedAmount(
-        sender: string, amountString: string, txId: string, amount: Decimal, recipient: string | null,
-        transferredAmountInLast24Hours: Decimal, maximum: Decimal
+        sender: string,
+        amountString: string,
+        txId: string,
+        amount: Decimal,
+        recipient: string | null,
+        transferredAmountInLast24Hours: Decimal,
+        maximum: Decimal
     ): Promise<string> {
         // Should equal with amount - limitedAmount
         const refundAmount = transferredAmountInLast24Hours
@@ -440,7 +526,12 @@ export class NCGTransferredEventObserver
     }
 
     private async _ignoreAmountOver24HourMaximumRequest(
-        sender: string, amountString: string, txId: string, amount: Decimal, recipient: string | null, transferredAmountInLast24Hours: Decimal
+        sender: string,
+        amountString: string,
+        txId: string,
+        amount: Decimal,
+        recipient: string | null,
+        transferredAmountInLast24Hours: Decimal
     ): Promise<void> {
         const nineChroniclesTxId = await this._ncgTransfer.transfer(
             sender,
@@ -475,9 +566,14 @@ export class NCGTransferredEventObserver
     }
 
     private _recordTxToStores(
-        blockHash: BlockHash, txId: string, sender: string, recipient: string | null, limitedAmount: Decimal, isExchangableTx: boolean
+        blockHash: BlockHash,
+        txId: string,
+        sender: string,
+        recipient: string | null,
+        limitedAmount: Decimal,
+        isExchangableTx: boolean
     ): boolean {
-        this._monitorStateStore.store("nineChronicles", {blockHash, txId});
+        this._monitorStateStore.store("nineChronicles", { blockHash, txId });
         this._exchangeHistoryStore.put({
             network: "nineChronicles",
             tx_id: txId,
@@ -490,7 +586,11 @@ export class NCGTransferredEventObserver
     }
 
     private async _ignoreAmountBelowMinimumRequest(
-        sender: string, amountString: string, txId: string, amount: Decimal, recipient: string | null
+        sender: string,
+        amountString: string,
+        txId: string,
+        amount: Decimal,
+        recipient: string | null
     ): Promise<void> {
         const nineChroniclesTxId = await this._ncgTransfer.transfer(
             sender,
@@ -526,7 +626,11 @@ export class NCGTransferredEventObserver
 
     // refund NCG if the memo is invalid, then notify on slack and log on opensearch/console
     private async _ignoreInvalidRecepientRequest(
-        sender: string, amountString: string, txId: string, amount: Decimal, recipient: string | null
+        sender: string,
+        amountString: string,
+        txId: string,
+        amount: Decimal,
+        recipient: string | null
     ): Promise<void> {
         const nineChroniclesTxId = await this._ncgTransfer.transfer(
             sender,
@@ -554,20 +658,33 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
-        console.log("Valid memo doesn't exist so refund NCG. The transaction's id is", nineChroniclesTxId);
+        console.log(
+            "Valid memo doesn't exist so refund NCG. The transaction's id is",
+            nineChroniclesTxId
+        );
     }
 
     // nofity on slack and log on console
-    private async _ignoreBannedUserRequest(sender: string, txId: string): Promise<void> {
-        this._slackMessageSender.sendMessage(new WrappingBannedUserEvent(sender, txId));
+    private async _ignoreBannedUserRequest(
+        sender: string,
+        txId: string
+    ): Promise<void> {
+        this._slackMessageSender.sendMessage(
+            new WrappingBannedUserEvent(sender, txId)
+        );
         console.log(`Sender ${sender} is banned.`);
     }
 
     // notify on slack and log on opensearch
     private async _ignoreDuplicatedTxRequest(
-        txId: string, sender: string, recipient: string, amountString: string
+        txId: string,
+        sender: string,
+        recipient: string,
+        amountString: string
     ): Promise<void> {
-        this._slackMessageSender.sendMessage(new WrappingRetryIgnoreEvent(txId));
+        this._slackMessageSender.sendMessage(
+            new WrappingRetryIgnoreEvent(txId)
+        );
         this._opensearchClient.to_opensearch("error", {
             content: "NCG -> wNCG request failure",
             cause: "Exchange history exist",
@@ -582,12 +699,20 @@ export class NCGTransferredEventObserver
      * checks if <Sender, Recipient> Pair is in Whitelist and returns the account type
      */
     private _getAccountType(
-        sender: string, recipient: string
+        sender: string,
+        recipient: string
     ): { accountType: ACCOUNT_TYPE; description?: string } {
-        if (!this._whitelistAccounts.length) return { accountType: ACCOUNT_TYPE.NORMAL };
+        if (!this._whitelistAccounts.length)
+            return { accountType: ACCOUNT_TYPE.NORMAL };
         for (const whitelistAccount of this._whitelistAccounts) {
-            if (whitelistAccount.from === sender && whitelistAccount.to === recipient) {
-                return { accountType: whitelistAccount.type, description: whitelistAccount.description };
+            if (
+                whitelistAccount.from === sender &&
+                whitelistAccount.to === recipient
+            ) {
+                return {
+                    accountType: whitelistAccount.type,
+                    description: whitelistAccount.description,
+                };
             }
         }
         return { accountType: ACCOUNT_TYPE.NORMAL };
