@@ -251,7 +251,7 @@ export class NCGTransferredEventObserver
                         limitedAmount.lessThan(this._limitationPolicy.minimum)
                     ) {
                         // refund if the remaining amount is below policy minimum
-                        this._refundBelowMinimumAmount(
+                        await this._refundBelowMinimumAmount(
                             sender,
                             txId,
                             amount,
