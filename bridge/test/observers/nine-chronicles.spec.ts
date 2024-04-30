@@ -212,6 +212,10 @@ describe(NCGTransferredEventObserver.name, () => {
                     txId: null,
                 }
             );
+
+            expect(mockExchangeHistoryStore.put).not.toHaveBeenCalled();
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });
 
         it("shouldn't do anything if the amount is zero", async () => {

@@ -406,7 +406,7 @@ Array [
     "error",
     Object {
       "amount": 1.23,
-      "cause": "Invalid 9c transaction ID",
+      "cause": "Invalid recipient 9c address in memo",
       "content": "NCG -> wNCG request failure",
       "libplanetTxId": "TX-ID",
       "recipient": "0x0000000000000000000000000000000000000000",
