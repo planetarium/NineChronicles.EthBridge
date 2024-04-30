@@ -2,6 +2,7 @@ import { combineNcExplorerUrl, combineUrl } from "./messages/utils";
 import { sheets_v4 } from "googleapis";
 import { IExchangeFeeRatioPolicy } from "./policies/exchange-fee-ratio";
 import Decimal from "decimal.js";
+import { ACCOUNT_TYPE } from "./whitelist/account-type";
 
 interface SheetIndexes {
     mint: string;
@@ -41,13 +42,19 @@ export class SpreadsheetClient {
         sender: string;
         recipient: string;
         amount: string;
+        accountType: ACCOUNT_TYPE;
+        transferredAmountInLast24Hours: Decimal;
         error: string;
     }) {
         if (!this._useSpreadSheet) return;
 
         try {
             const amountDecimal = new Decimal(Number(data.amount));
-            const fee = this._exchangeFeeRatioPolicy.getFee(amountDecimal);
+            const fee = this._exchangeFeeRatioPolicy.getFee(
+                amountDecimal,
+                data.transferredAmountInLast24Hours,
+                data.accountType
+            );
             const amountFeeApplied = amountDecimal.sub(fee).toString();
 
             return await this._googleSheet.spreadsheets.values.append({
