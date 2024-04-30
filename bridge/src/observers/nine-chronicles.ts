@@ -117,36 +117,38 @@ export class NCGTransferredEventObserver
             amount: amountString,
             memo: recipient,
         } of events) {
-            try {
-                console.log("Process NineChronicles transaction", txId);
-                if (this._addressBanPolicy.isBannedAddress(sender)) {
-                    // ignore banned user request
-                    this._ignoreBannedUserRequest(sender, txId);
-                    continue;
-                }
+            console.log("Process NineChronicles transaction", txId);
 
-                if (await this._exchangeHistoryStore.exist(txId)) {
-                    // ignore if the tx has already been processed before
-                    this._ignoreDuplicatedTxRequest(
-                        txId,
-                        sender,
-                        recipient!,
-                        amountString
-                    );
-                    continue;
-                }
+            if (this._addressBanPolicy.isBannedAddress(sender)) {
+                // ignore banned user request
+                this._ignoreBannedUserRequest(sender, txId);
+                continue;
+            }
 
-                // to limit the amount of NCG that can be transferred in 24 hours
-                const transferredAmountInLast24Hours = new Decimal(
-                    await this._exchangeHistoryStore.transferredAmountInLast24Hours(
-                        "nineChronicles",
-                        sender
-                    )
+            if (await this._exchangeHistoryStore.exist(txId)) {
+                // ignore if the tx has already been processed before
+                this._ignoreDuplicatedTxRequest(
+                    txId,
+                    sender,
+                    recipient!,
+                    amountString
                 );
+                continue;
+            }
 
-                const { accountType, description: whitelistDescription } =
-                    this._getAccountType(sender, recipient!);
-                console.log("accountType", accountType);
+            // below values are needed for failure handling so it should be declared before the try block
+            // to limit the amount of NCG that can be transferred in 24 hours & to apply fee
+            const transferredAmountInLast24Hours = new Decimal(
+                await this._exchangeHistoryStore.transferredAmountInLast24Hours(
+                    "nineChronicles",
+                    sender
+                )
+            );
+            const { accountType, description: whitelistDescription } =
+                this._getAccountType(sender, recipient!);
+            console.log("accountType", accountType);
+
+            try {
                 const amount = new Decimal(amountString);
                 const maximum = new Decimal(
                     this._getPolicyMaximum(accountType)
@@ -261,20 +263,16 @@ export class NCGTransferredEventObserver
                 }
 
                 // mint wrapped NCG, finally
-                const decimals = new Decimal(10).pow(18);
-                const isWhitelistEvent: boolean =
-                    accountType !== ACCOUNT_TYPE.NORMAL;
                 await this._mintRequest(
                     txId,
                     sender,
                     recipient,
                     limitedAmount,
-                    decimals,
                     accountType,
                     whitelistDescription,
-                    isWhitelistEvent,
                     refundAmount,
-                    refundTxId
+                    refundTxId,
+                    transferredAmountInLast24Hours
                 );
             } catch (e) {
                 // handle unexpected error
@@ -283,6 +281,8 @@ export class NCGTransferredEventObserver
                     recipient,
                     amountString,
                     txId,
+                    accountType,
+                    transferredAmountInLast24Hours,
                     e
                 );
             }
@@ -302,7 +302,7 @@ export class NCGTransferredEventObserver
      * applied whitelistMaximum for Maximum NCG Transfer Amount of Limitation Policy
      */
     private _getPolicyMaximum(accountType: ACCOUNT_TYPE): number {
-        return accountType === ACCOUNT_TYPE.NORMAL
+        return accountType === ACCOUNT_TYPE.GENERAL
             ? this._limitationPolicy.maximum
             : this._limitationPolicy.whitelistMaximum;
     }
@@ -312,6 +312,8 @@ export class NCGTransferredEventObserver
         recipient: string | null,
         amountString: string,
         txId: string,
+        accountType: ACCOUNT_TYPE,
+        transferredAmountInLast24Hours: Decimal,
         e: any
     ) {
         console.log("EERRRR", e);
@@ -347,10 +349,12 @@ export class NCGTransferredEventObserver
             sender,
             recipient: String(recipient),
             amount: amountString,
+            accountType,
+            transferredAmountInLast24Hours,
             error: errorMessage,
         });
 
-        await this._opensearchClient.to_opensearch("error", {
+        this._opensearchClient.to_opensearch("error", {
             content: "NCG -> wNCG request failure",
             cause: errorMessage,
             libplanetTxId: txId,
@@ -373,26 +377,21 @@ export class NCGTransferredEventObserver
         sender: string,
         recipient: string | null,
         limitedAmount: Decimal,
-        decimals: Decimal,
         accountType: ACCOUNT_TYPE,
         whitelistDescription: string | undefined,
-        isWhitelistEvent: boolean,
         refundAmount: string | null,
-        refundTxId: string | null
+        refundTxId: string | null,
+        transferredAmountInLast24Hours: Decimal
     ): Promise<void> {
-        let fee = this._exchangeFeeRatioPolicy.getFee(limitedAmount);
-        /**
-         * If <Sender, Recipient> Pair is in WhiteList and It's type is FEE_WAIVER_ALLOWED,
-         * set Transfer ( NCG -> WNCG ) Fee to 0 ( Zero )
-         */
-        if (accountType === ACCOUNT_TYPE.FEE_WAIVER_ALLOWED) {
-            fee = new Decimal(0);
-        } else if (accountType === ACCOUNT_TYPE.ONE_PERCENT_FEE_ALLOWED) {
-            fee = new Decimal(limitedAmount.mul(0.01).toFixed(2));
-        }
-
-        const exchangeAmount = limitedAmount.sub(fee);
-        const ethereumExchangeAmount = exchangeAmount.mul(decimals);
+        const fee: Decimal = this._exchangeFeeRatioPolicy.getFee(
+            limitedAmount,
+            transferredAmountInLast24Hours,
+            accountType
+        );
+        const exchangeAmount: Decimal = limitedAmount.sub(fee);
+        const ethereumDecimals = new Decimal(10).pow(18);
+        const ethereumExchangeAmount: Decimal =
+            exchangeAmount.mul(ethereumDecimals);
 
         console.log("limitedAmount", limitedAmount);
         console.log("fee", fee);
@@ -404,6 +403,8 @@ export class NCGTransferredEventObserver
         );
 
         console.log("Receipt", transactionHash);
+
+        const isWhitelistEvent: boolean = accountType !== ACCOUNT_TYPE.GENERAL;
         this._slackMessageSender.sendMessage(
             new WrappedEvent(
                 this._explorerUrl,
@@ -422,7 +423,7 @@ export class NCGTransferredEventObserver
                 whitelistDescription
             )
         );
-        await this._opensearchClient.to_opensearch("info", {
+        this._opensearchClient.to_opensearch("info", {
             content: "NCG -> wNCG request success",
             libplanetTxId: txId,
             ethereumTxId: transactionHash,
@@ -703,7 +704,7 @@ export class NCGTransferredEventObserver
         recipient: string
     ): { accountType: ACCOUNT_TYPE; description?: string } {
         if (!this._whitelistAccounts.length)
-            return { accountType: ACCOUNT_TYPE.NORMAL };
+            return { accountType: ACCOUNT_TYPE.GENERAL };
         for (const whitelistAccount of this._whitelistAccounts) {
             if (
                 whitelistAccount.from === sender &&
@@ -715,6 +716,6 @@ export class NCGTransferredEventObserver
                 };
             }
         }
-        return { accountType: ACCOUNT_TYPE.NORMAL };
+        return { accountType: ACCOUNT_TYPE.GENERAL };
     }
 }
