@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v3
         with:
           node-version: 20
@@ -30,8 +32,7 @@ jobs:
         working-directory: ./bridge
       - run: npm run coverage
         working-directory: ./bridge
-      - run: bash <(curl -s https://codecov.io/bash)
-        name: codecov
-        working-directory: ./bridge
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN}}
