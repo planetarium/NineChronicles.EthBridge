@@ -32,8 +32,7 @@ jobs:
         working-directory: ./bridge
       - run: npm run coverage
         working-directory: ./bridge
-      - run: bash <(curl -s https://codecov.io/bash)
-        name: codecov
-        working-directory: ./bridge
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN}}
