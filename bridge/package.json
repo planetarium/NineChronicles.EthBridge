@@ -9,7 +9,7 @@
     "test:aws": "jest --config=./aws.jest.config.js",
     "test:bridge": "jest --config=./bridge.jest.config.js",
     "coverage": "jest --coverage --config=./bridge.jest.config.js",
-    "lint": "eslint src --ext .ts",
+    "lint": "prettier --check src test",
     "build": "tsc",
     "mint": "node scripts/mint-script.js mint",
     "transfer": "node scripts/transfer-script.js transfer"
