@@ -15,6 +15,7 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
+import { WrappingRetryIgnoreEvent } from "../../src/messages/wrapping-retry-ignore-event";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -220,6 +221,40 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });
 
+        it("should ignore the tx if has processed before", async () => {
+            const duplicatedTxId = "TX-ID";
+            mockExchangeHistoryStore.exist.mockImplementationOnce(
+                async (tx_id: string) => {
+                    if (tx_id === duplicatedTxId) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100",
+                        blockHash: "BLOCK-HASH",
+                        txId: duplicatedTxId,
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+            expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
+        });
+
         it("shouldn't do anything if the amount is zero", async () => {
             mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
                 0
@@ -250,7 +285,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
         });
 
-        it("shouldn skip if the sender is banned", async () => {
+        it("should skip if the sender is banned", async () => {
             await observer.notify({
                 blockHash: "BLOCK-HASH",
                 events: [
