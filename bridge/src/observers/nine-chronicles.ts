@@ -703,8 +703,6 @@ export class NCGTransferredEventObserver
         sender: string,
         recipient: string
     ): { accountType: ACCOUNT_TYPE; description?: string } {
-        if (!this._whitelistAccounts.length)
-            return { accountType: ACCOUNT_TYPE.GENERAL };
         for (const whitelistAccount of this._whitelistAccounts) {
             if (
                 whitelistAccount.from === sender &&

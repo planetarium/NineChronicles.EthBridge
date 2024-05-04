@@ -175,6 +175,45 @@ Array [
 ]
 `;
 
+exports[`NCGTransferredEventObserver notify should ignore the tx if has processed before 1`] = `
+Array [
+  Array [
+    "error",
+    Object {
+      "amount": "100",
+      "cause": "Exchange history exist",
+      "content": "NCG -> wNCG request failure",
+      "libplanetTxId": "TX-ID",
+      "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+      "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
+    },
+  ],
+]
+`;
+
+exports[`NCGTransferredEventObserver notify should ignore the tx if has processed before 2`] = `
+Array [
+  Array [
+    Object {
+      "attachments": Array [
+        Object {
+          "author_name": "Bridge Warning",
+          "color": "#ffcc00",
+          "fallback": "NCG → wNCG event already seems executed so it skipped.",
+          "fields": Array [
+            Object {
+              "title": "9c network transaction id",
+              "value": "TX-ID",
+            },
+          ],
+        },
+      ],
+      "text": "NCG → wNCG event already seems executed so it skipped.",
+    },
+  ],
+]
+`;
+
 exports[`NCGTransferredEventObserver notify slack/opensearch ethereum transfer error message - snapshot 1`] = `
 Array [
   Array [

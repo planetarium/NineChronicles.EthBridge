@@ -47,7 +47,7 @@ export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
     getFee(
         amount: Decimal,
         transferredAmountInLast24Hours: Decimal,
-        accountType?: ACCOUNT_TYPE
+        accountType: ACCOUNT_TYPE = ACCOUNT_TYPE.GENERAL
     ): Decimal {
         // no fee for NO_LIMIT_NO_FEE account
         if (accountType === ACCOUNT_TYPE.NO_LIMIT_NO_FEE) {
@@ -135,14 +135,14 @@ export class FixedExchangeFeeRatioPolicy implements IExchangeFeeRatioPolicy {
         // reject if the amount is more than this._maximumNCG from general accounts
         if (amount.greaterThan(this._maximumNCG)) {
             throw new Error(
-                `The transfer amount should be less than ${this._maximumNCG} NCG`
+                `The transfer amount should be less than or equal to ${this._maximumNCG} NCG`
             );
         }
 
         // reject if the after-transfer amount is more than this._maximumNCG from general accounts
         if (afterTransferAmount.greaterThan(this._maximumNCG)) {
             throw new Error(
-                `24hr transfer amount should be less than ${this._maximumNCG} NCG`
+                `24hr transfer amount should be less than or equal to ${this._maximumNCG} NCG`
             );
         }
     }

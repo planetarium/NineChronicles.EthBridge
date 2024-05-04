@@ -17,6 +17,45 @@ describe(FixedExchangeFeeRatioPolicy.name, () => {
     );
 
     describe(FixedExchangeFeeRatioPolicy.prototype.getFee.name, () => {
+        it("should throw error if transfer amount < 100 for general account type", () => {
+            const expectedError = new Error(
+                "The transfer amount should be greater than 100 NCG"
+            );
+            expect(() => {
+                policy.getFee(new Decimal(99), new Decimal(0));
+            }).toThrow(expectedError);
+            expect(() => {
+                policy.getFee(new Decimal(-1), new Decimal(0));
+            }).toThrow(expectedError);
+            expect(() => {
+                policy.getFee(new Decimal(0), new Decimal(0));
+            }).toThrow(expectedError);
+            expect(() => {
+                policy.getFee(new Decimal(1), new Decimal(0));
+            }).toThrow(expectedError);
+        });
+
+        it("should throw error if 50000 < transfer amount for general account type", () => {
+            const expectedError = new Error(
+                "The transfer amount should be less than or equal to 50000 NCG"
+            );
+            expect(() => {
+                policy.getFee(new Decimal(50001), new Decimal(0));
+            }).toThrow(expectedError);
+        });
+
+        it("should throw error if 50000 < after-transfer amount for general account type", () => {
+            const expectedError = new Error(
+                "24hr transfer amount should be less than or equal to 50000 NCG"
+            );
+            expect(() => {
+                policy.getFee(new Decimal(101), new Decimal(49900));
+            }).toThrow(expectedError);
+            expect(() => {
+                policy.getFee(new Decimal(49900), new Decimal(101));
+            }).toThrow(expectedError);
+        });
+
         it("should return value of exchange fee ratio information", () => {
             /**
              * transferredAmountInLast24Hours == 0
@@ -277,7 +316,7 @@ describe(FixedExchangeFeeRatioPolicy.name, () => {
             expect(
                 policy.getFee(new Decimal(39999), new Decimal(10001))
             ).toEqual(new Decimal(1199.97));
-            expect(policy.getFee(new Decimal(1), new Decimal(49999))).toEqual(
+            expect(policy.getFee(new Decimal(100), new Decimal(49900))).toEqual(
                 new Decimal(10)
             );
 
