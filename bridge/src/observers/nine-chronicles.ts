@@ -705,8 +705,8 @@ export class NCGTransferredEventObserver
     ): { accountType: ACCOUNT_TYPE; description?: string } {
         for (const whitelistAccount of this._whitelistAccounts) {
             if (
-                whitelistAccount.from === sender &&
-                whitelistAccount.to === recipient
+                whitelistAccount.from.toLowerCase() === sender.toLowerCase() &&
+                whitelistAccount.to.toLowerCase() === recipient.toLowerCase()
             ) {
                 return {
                     accountType: whitelistAccount.type,
