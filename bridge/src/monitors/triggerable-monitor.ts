@@ -20,6 +20,8 @@ type RemainedEvent<TEventData> = {
     events: (TEventData & TransactionLocation)[];
 };
 
+export const DefaultDelayMilliseconds = 15 * 1000;
+
 export abstract class TriggerableMonitor<TEventData> extends Monitor<
     TEventData & TransactionLocation
 > {
@@ -27,15 +29,18 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
 
     private readonly _latestTransactionLocation: TransactionLocation | null;
     private readonly _delayMilliseconds: number;
+    private readonly _intervalWithTipIndex: number;
 
     constructor(
         latestTransactionLocation: TransactionLocation | null,
-        delayMilliseconds: number = 15 * 1000
+        delayMilliseconds: number = DefaultDelayMilliseconds,
+        intervalWithTipIndex = 0
     ) {
         super();
 
         this._latestTransactionLocation = latestTransactionLocation;
         this._delayMilliseconds = delayMilliseconds;
+        this._intervalWithTipIndex = intervalWithTipIndex;
     }
 
     async *loop(): AsyncIterableIterator<{
@@ -62,7 +67,10 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                     "Try to check trigger at",
                     this.latestBlockNumber + 1
                 );
-                if (this.latestBlockNumber + 1 <= tipIndex) {
+                if (
+                    this.latestBlockNumber + 1 + this._intervalWithTipIndex <=
+                    tipIndex
+                ) {
                     const trigerredBlockIndexes = this.triggerredBlocks(
                         this.latestBlockNumber + 1
                     );

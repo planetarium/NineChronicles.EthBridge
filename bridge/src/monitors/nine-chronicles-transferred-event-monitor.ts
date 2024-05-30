@@ -1,4 +1,7 @@
-import { TriggerableMonitor } from "./triggerable-monitor";
+import {
+    DefaultDelayMilliseconds,
+    TriggerableMonitor,
+} from "./triggerable-monitor";
 import { IHeadlessGraphQLClient } from "../interfaces/headless-graphql-client";
 import { NCGTransferredEvent } from "../types/ncg-transferred-event";
 import { TransactionLocation } from "../types/transaction-location";
@@ -14,7 +17,7 @@ export class NineChroniclesTransferredEventMonitor extends TriggerableMonitor<NC
         headlessGraphQLClient: IHeadlessGraphQLClient,
         address: string
     ) {
-        super(latestTransactionLocation);
+        super(latestTransactionLocation, DefaultDelayMilliseconds, 1);
 
         this._headlessGraphQLClient = headlessGraphQLClient;
         this._address = address;
