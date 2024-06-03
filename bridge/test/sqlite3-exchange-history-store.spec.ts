@@ -26,7 +26,7 @@ describe("Sqlite3ExchangeHistoryStore", () => {
         });
 
         it("should return true if it exist.", async () => {
-            store.put({
+            await store.put({
                 amount: 0,
                 network: "9c-main",
                 recipient: "ADDRESS",
