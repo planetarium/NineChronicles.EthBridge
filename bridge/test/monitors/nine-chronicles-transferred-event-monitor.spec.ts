@@ -71,10 +71,7 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                     );
                 }
 
-                while (
-                    mockObserver.notify.mock.calls.length <
-                    yieldCase - 1
-                ) {
+                while (mockObserver.notify.mock.calls.length < yieldCase - 1) {
                     jest.runAllTimers();
                     await Promise.resolve();
                 }
