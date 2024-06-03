@@ -24,12 +24,12 @@ jobs:
           node-version: 16
           cache: 'yarn'
           cache-dependency-path: bridge-www/yarn.lock
-      - run: yarn
+      - run: npm install
         working-directory: ./bridge-www
       - run: |
           cp package.json /tmp/package.json
           jq --arg repository "$REPOSITORY" '.homepage = ($repository | split("/") | "https://\(.[0]).github.io/\(.[1])")' < /tmp/package.json > package.json
-          yarn build
+          npm run build
         working-directory: ./bridge-www
         env:
           REPOSITORY: ${{ github.repository }}
