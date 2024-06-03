@@ -51,6 +51,17 @@ describe("NineChroniclesTransferredEventMonitor", () => {
             jest.clearAllMocks();
         });
 
+        it("should set default values for delayMilliseconds and intervalWithTipIndex", () => {
+            const monitor = new NineChroniclesTransferredEventMonitor(
+                null,
+                mockHeadlessGraphQLClient,
+                ""
+            );
+
+            expect(monitor['_delayMilliseconds']).toEqual(15 * 1000);
+            expect(monitor['_intervalWithTipIndex']).toEqual(1);
+        });
+
         for (const yieldCase of [51, 101, 151]) {
             it(`should yield ${yieldCase} events`, async () => {
                 const monitor = new NineChroniclesTransferredEventMonitor(
