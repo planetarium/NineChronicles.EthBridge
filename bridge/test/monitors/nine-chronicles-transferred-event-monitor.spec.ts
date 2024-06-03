@@ -58,8 +58,8 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 ""
             );
 
-            expect(monitor['_delayMilliseconds']).toEqual(15 * 1000);
-            expect(monitor['_intervalWithTipIndex']).toEqual(1);
+            expect(monitor["_delayMilliseconds"]).toEqual(15 * 1000);
+            expect(monitor["_intervalWithTipIndex"]).toEqual(1);
         });
 
         for (const yieldCase of [51, 101, 151]) {
