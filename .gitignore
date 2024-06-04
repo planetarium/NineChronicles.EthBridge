@@ -1,3 +1,4 @@
 # Coverage directory used by tools like istanbul
 coverage
 *.lcov
+*/node_modules/*

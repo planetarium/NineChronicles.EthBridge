@@ -90,7 +90,7 @@ describe(EthereumBurnEventObserver.name, () => {
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
         new Decimal(100000),
-        new Decimal(50000),
+        new Decimal(10000),
         {
             criterion: new Decimal(1000),
             fee: new Decimal(10),

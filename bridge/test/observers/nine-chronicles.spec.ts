@@ -84,7 +84,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const exchangeFeeRatioPolicy = new FixedExchangeFeeRatioPolicy(
-        new Decimal(50000),
+        new Decimal(100000),
         new Decimal(10000),
         {
             criterion: new Decimal(1000),
