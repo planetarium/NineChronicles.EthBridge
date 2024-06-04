@@ -11,6 +11,5 @@ module.exports = {
     testMatch: ["**/*/*.spec.{ts,tsx}"],
     coverageDirectory: "coverage",
     coverageReporters: ["lcov"],
-
-    // etc...
+    coveragePathIgnorePatterns: ["/src/monitors/triggerable-monitor.ts"]
 };

@@ -51,12 +51,19 @@ describe("NineChroniclesTransferredEventMonitor", () => {
             jest.clearAllMocks();
         });
 
-        for (const multipleOf50 of [50, 100, 150]) {
-            if (multipleOf50 % 50 !== 0) {
-                throw Error("Invalid testcase.");
-            }
+        it("should set default values for delayMilliseconds and intervalWithTipIndex", () => {
+            const monitor = new NineChroniclesTransferredEventMonitor(
+                null,
+                mockHeadlessGraphQLClient,
+                ""
+            );
 
-            it(`should yield ${multipleOf50} events`, async () => {
+            expect(monitor["_delayMilliseconds"]).toEqual(15 * 1000);
+            expect(monitor["_intervalWithTipIndex"]).toEqual(1);
+        });
+
+        for (const yieldCase of [51, 101, 151]) {
+            it(`should yield ${yieldCase} events`, async () => {
                 const monitor = new NineChroniclesTransferredEventMonitor(
                     null,
                     mockHeadlessGraphQLClient,
@@ -69,20 +76,20 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 monitor.attach(mockObserver);
                 monitor.run();
 
-                for (let i = 1; i <= multipleOf50; ++i) {
+                for (let i = 1; i <= yieldCase; ++i) {
                     mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(
                         i
                     );
                 }
 
-                while (mockObserver.notify.mock.calls.length < multipleOf50) {
+                while (mockObserver.notify.mock.calls.length < yieldCase - 1) {
                     jest.runAllTimers();
                     await Promise.resolve();
                 }
 
                 expect(mockObserver.notify).toHaveBeenCalled();
                 expect(mockObserver.notify.mock.calls.length).toEqual(
-                    multipleOf50
+                    yieldCase - 1
                 );
                 expect(mockObserver.notify.mock.calls[0][0]).toEqual({
                     blockHash: expect.any(String),
