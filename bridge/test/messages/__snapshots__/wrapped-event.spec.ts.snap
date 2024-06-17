@@ -32,6 +32,10 @@ Object {
           "title": "fee",
           "value": "1",
         },
+        Object {
+          "title": "9c network transaction (fee transfer)",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction",
+        },
       ],
     },
   ],
@@ -70,6 +74,10 @@ Object {
         Object {
           "title": "fee",
           "value": "1",
+        },
+        Object {
+          "title": "9c network transaction (fee transfer)",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction",
         },
         Object {
           "title": "refund amount",
@@ -117,6 +125,10 @@ Object {
         Object {
           "title": "fee",
           "value": "1",
+        },
+        Object {
+          "title": "9c network transaction (fee transfer)",
+          "value": "https://explorer.libplanet.io/9c-internal/transaction",
         },
         Object {
           "title": "description",

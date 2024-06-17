@@ -9,6 +9,7 @@ Array [
       "content": "NCG -> wNCG request success",
       "ethereumTxId": "TRANSACTION-HASH",
       "fee": 1298.5,
+      "feeTransferTxId": "TX-ID",
       "libplanetTxId": "TX-A",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
@@ -74,6 +75,10 @@ Array [
             Object {
               "title": "fee",
               "value": "1298.5",
+            },
+            Object {
+              "title": "9c network transaction (fee transfer)",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
             },
           ],
         },
@@ -278,6 +283,7 @@ Array [
       "content": "NCG -> wNCG request success",
       "ethereumTxId": "TRANSACTION-HASH",
       "fee": 10,
+      "feeTransferTxId": "TX-ID",
       "libplanetTxId": "TX-ID",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
@@ -319,6 +325,10 @@ Array [
             Object {
               "title": "fee",
               "value": "10",
+            },
+            Object {
+              "title": "9c network transaction (fee transfer)",
+              "value": "https://explorer.libplanet.io/9c-internal/transaction?TX-ID",
             },
           ],
         },

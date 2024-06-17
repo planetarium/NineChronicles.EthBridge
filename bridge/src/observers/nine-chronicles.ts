@@ -64,6 +64,7 @@ export class NCGTransferredEventObserver
 
     private readonly _integration: Integration;
     private readonly _whitelistAccounts: WhitelistAccount[];
+    private readonly _feeCollectorAddress: string;
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -82,7 +83,8 @@ export class NCGTransferredEventObserver
         addressBanPolicy: IAddressBanPolicy,
         integration: Integration,
         failureSubscribers: string,
-        whitelistAccounts: WhitelistAccount[]
+        whitelistAccounts: WhitelistAccount[],
+        feeCollectorAddress: string
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -101,6 +103,7 @@ export class NCGTransferredEventObserver
         this._integration = integration;
         this._failureSubscribers = failureSubscribers;
         this._whitelistAccounts = whitelistAccounts;
+        this._feeCollectorAddress = feeCollectorAddress;
     }
 
     async notify(data: {
@@ -401,8 +404,15 @@ export class NCGTransferredEventObserver
             recipient!,
             ethereumExchangeAmount
         );
+        console.log("WNCG mint tx", transactionHash);
 
-        console.log("Receipt", transactionHash);
+        // Transfer fee to fee collector
+        const feeTransferTxId = await this._ncgTransfer.transfer(
+            this._feeCollectorAddress,
+            fee.toString(),
+            "I'm bridge and the fee is sent to fee colllecor."
+        );
+        console.log("Fee transfer tx", feeTransferTxId);
 
         const isWhitelistEvent: boolean = accountType !== ACCOUNT_TYPE.GENERAL;
         this._slackMessageSender.sendMessage(
@@ -420,7 +430,8 @@ export class NCGTransferredEventObserver
                 refundAmount,
                 refundTxId,
                 isWhitelistEvent,
-                whitelistDescription
+                whitelistDescription,
+                feeTransferTxId
             )
         );
         this._opensearchClient.to_opensearch("info", {
@@ -428,6 +439,7 @@ export class NCGTransferredEventObserver
             libplanetTxId: txId,
             ethereumTxId: transactionHash,
             fee: fee.toNumber(),
+            feeTransferTxId: feeTransferTxId,
             sender: sender,
             recipient: recipient,
             amount: exchangeAmount.toNumber(),

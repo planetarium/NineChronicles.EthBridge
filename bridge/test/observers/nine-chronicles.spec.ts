@@ -15,7 +15,6 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
-import { WrappingRetryIgnoreEvent } from "../../src/messages/wrapping-retry-ignore-event";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -157,6 +156,8 @@ describe(NCGTransferredEventObserver.name, () => {
     const noLimitOnePercentFeeRecipient =
         "0x185B5c3d26c12F2BB2A228d209D83eD80CAa03aF";
 
+    const feeCollectorAddress = "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e";
+
     const observer = new NCGTransferredEventObserver(
         mockNcgTransfer,
         mockWrappedNcgMinter,
@@ -190,7 +191,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 from: noLimitOnePercentFeeSender,
                 to: noLimitOnePercentFeeRecipient,
             },
-        ]
+        ],
+        feeCollectorAddress
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
