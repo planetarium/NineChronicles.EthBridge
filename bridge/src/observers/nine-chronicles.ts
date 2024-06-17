@@ -410,7 +410,7 @@ export class NCGTransferredEventObserver
         const feeTransferTxId = await this._ncgTransfer.transfer(
             this._feeCollectorAddress,
             fee.toString(),
-            "I'm bridge and the fee is sent to fee colllecor."
+            "I'm bridge and the fee is sent to fee collector."
         );
         console.log("Fee transfer tx", feeTransferTxId);
 

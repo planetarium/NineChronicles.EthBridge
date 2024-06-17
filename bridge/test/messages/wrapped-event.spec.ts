@@ -17,7 +17,7 @@ describe("WrappedEvent", () => {
                 "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8043";
             const FEE = new Decimal(1);
             const IS_WHITELIST_EVENT = false;
-            const FEE_TRASNFER_TX_ID =
+            const FEE_TRANSFER_TX_ID =
                 "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc8";
             expect(
                 new WrappedEvent(
@@ -35,7 +35,7 @@ describe("WrappedEvent", () => {
                     null,
                     IS_WHITELIST_EVENT,
                     undefined,
-                    FEE_TRASNFER_TX_ID
+                    FEE_TRANSFER_TX_ID
                 ).render()
             ).toMatchSnapshot();
         });
@@ -57,7 +57,7 @@ describe("WrappedEvent", () => {
             const REFUND_TX_ID =
                 "a3cd151aa0cb24b3e692f433b857f08bd347dad0d2d6ca3666f26420b8b8d096";
             const IS_WHITELIST_EVENT = false;
-            const FEE_TRASNFER_TX_ID =
+            const FEE_TRANSFER_TX_ID =
                 "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc8";
             expect(
                 new WrappedEvent(
@@ -75,7 +75,7 @@ describe("WrappedEvent", () => {
                     REFUND_TX_ID,
                     IS_WHITELIST_EVENT,
                     undefined,
-                    FEE_TRASNFER_TX_ID
+                    FEE_TRANSFER_TX_ID
                 ).render()
             ).toMatchSnapshot();
         });
@@ -94,7 +94,7 @@ describe("WrappedEvent", () => {
                 "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8044";
             const FEE = new Decimal(1);
             const IS_WHITELIST_EVENT = true;
-            const FEE_TRASNFER_TX_ID =
+            const FEE_TRANSFER_TX_ID =
                 "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc8";
             expect(
                 new WrappedEvent(
@@ -112,7 +112,7 @@ describe("WrappedEvent", () => {
                     null,
                     IS_WHITELIST_EVENT,
                     "test description",
-                    FEE_TRASNFER_TX_ID
+                    FEE_TRANSFER_TX_ID
                 ).render()
             ).toMatchSnapshot();
         });
