@@ -406,13 +406,16 @@ export class NCGTransferredEventObserver
         );
         console.log("WNCG mint tx", transactionHash);
 
-        // Transfer fee to fee collector
-        const feeTransferTxId = await this._ncgTransfer.transfer(
-            this._feeCollectorAddress,
-            fee.toString(),
-            "I'm bridge and the fee is sent to fee collector."
-        );
-        console.log("Fee transfer tx", feeTransferTxId);
+        // Transfer fee to the fee collector address if any
+        let feeTransferTxId: string = "No Fee Incurred";
+        if (fee.greaterThan(0)) {
+            feeTransferTxId = await this._ncgTransfer.transfer(
+                this._feeCollectorAddress,
+                fee.toString(),
+                "I'm bridge and the fee is sent to fee collector."
+            );
+            console.log("Fee transfer tx", feeTransferTxId);
+        }
 
         const isWhitelistEvent: boolean = accountType !== ACCOUNT_TYPE.GENERAL;
         this._slackMessageSender.sendMessage(

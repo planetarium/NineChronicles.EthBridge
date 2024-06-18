@@ -5,10 +5,10 @@ Array [
   Array [
     "info",
     Object {
-      "amount": 48651.5,
+      "amount": 97151.5,
       "content": "NCG -> wNCG request success",
       "ethereumTxId": "TRANSACTION-HASH",
-      "fee": 1298.5,
+      "fee": 2798.5,
       "feeTransferTxId": "TX-ID",
       "libplanetTxId": "TX-A",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
@@ -19,7 +19,7 @@ Array [
     "error",
     Object {
       "amount": 150,
-      "cause": "24 hr transfer maximum 50000 reached. User transferred 49950 NCGs in 24 hrs.",
+      "cause": "24 hr transfer maximum 100000 reached. User transferred 99950 NCGs in 24 hrs.",
       "content": "NCG -> wNCG request failure",
       "libplanetTxId": "TX-SHOULD-REFUND",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
@@ -70,11 +70,11 @@ Array [
             },
             Object {
               "title": "amount",
-              "value": "48651.5",
+              "value": "97151.5",
             },
             Object {
               "title": "fee",
-              "value": "1298.5",
+              "value": "2798.5",
             },
             Object {
               "title": "9c network transaction (fee transfer)",
@@ -96,7 +96,7 @@ Array [
           "fields": Array [
             Object {
               "title": "Reason",
-              "value": "0x2734048eC2892d111b4fbAB224400847544FC872 tried to exchange 150 and already exchanged 49950 and users can exchange until 50000 in 24 hours so refund NCG as 100",
+              "value": "0x2734048eC2892d111b4fbAB224400847544FC872 tried to exchange 150 and already exchanged 99950 and users can exchange until 100000 in 24 hours so refund NCG as 100",
             },
             Object {
               "title": "Address",
