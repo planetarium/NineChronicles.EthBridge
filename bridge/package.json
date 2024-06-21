@@ -12,7 +12,8 @@
     "lint": "prettier --check src test",
     "build": "tsc",
     "mint": "node scripts/mint-script.js mint",
-    "transfer": "node scripts/transfer-script.js transfer"
+    "transfer": "node scripts/transfer-script.js transfer",
+    "feeTransfer": "node scripts/fee-transfer.js feeTransfer"
   },
   "repository": {
     "type": "git",
