@@ -16,6 +16,7 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _refundTxId: string | null;
     private readonly _isWhitelistEvent: boolean;
     private readonly _description: string | undefined;
+    private readonly _feeTransferTxId: TxId;
 
     constructor(
         explorerUrl: string,
@@ -31,7 +32,8 @@ export class WrappedEvent extends WrappingEvent {
         refundAmount: string | null,
         refundTxId: TxId | null,
         isWhitelistEvent: boolean,
-        description: string | undefined
+        description: string | undefined,
+        feeTransferTxId: TxId
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -45,6 +47,7 @@ export class WrappedEvent extends WrappingEvent {
         this._refundTxId = refundTxId;
         this._isWhitelistEvent = isWhitelistEvent;
         this._description = description;
+        this._feeTransferTxId = feeTransferTxId;
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
@@ -97,6 +100,10 @@ export class WrappedEvent extends WrappingEvent {
                         {
                             title: "fee",
                             value: this._fee.toString(),
+                        },
+                        {
+                            title: "9c network transaction (fee transfer)",
+                            value: this.toExplorerUrl(this._feeTransferTxId),
                         },
                         ...refundFields,
                     ],

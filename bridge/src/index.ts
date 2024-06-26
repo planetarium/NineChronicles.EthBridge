@@ -360,9 +360,7 @@ process.on("uncaughtException", console.error);
     };
 
     if (!web3.utils.isAddress(NCG_MINTER)) {
-        throw Error(
-            "NCG_MINTER variable seems invalid because it is not valid address format."
-        );
+        throw Error("NCG_MINTER is invalid - it is not valid address format.");
     }
 
     const kmsAddresses = await kmsProvider.getAccounts();
@@ -394,6 +392,15 @@ process.on("uncaughtException", console.error);
         ],
         1
     );
+
+    const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
+        "FEE_COLLECTOR_ADDRESS"
+    );
+    if (!web3.utils.isAddress(FEE_COLLECTOR_ADDRESS)) {
+        throw Error(
+            "FEE_COLLECTOR_ADDRESS is invalid - it is not valid address format."
+        );
+    }
 
     async function makeSafeWrappedNCGMinter(): Promise<SafeWrappedNCGMinter> {
         if (
@@ -531,7 +538,8 @@ process.on("uncaughtException", console.error);
         addressBanPolicy,
         integration,
         FAILURE_SUBSCRIBERS,
-        whitelistAccounts
+        whitelistAccounts,
+        FEE_COLLECTOR_ADDRESS
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),

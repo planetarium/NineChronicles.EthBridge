@@ -15,7 +15,6 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
-import { WrappingRetryIgnoreEvent } from "../../src/messages/wrapping-retry-ignore-event";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -103,8 +102,8 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const limitationPolicy = {
-        maximum: 50000,
-        whitelistMaximum: 200000,
+        maximum: 100000,
+        whitelistMaximum: 1000000,
         minimum: 100,
     };
     const BANNED_ADDRESS = "0x47D082a115c63E7b58B1532d20E631538eaFADde";
@@ -157,6 +156,8 @@ describe(NCGTransferredEventObserver.name, () => {
     const noLimitOnePercentFeeRecipient =
         "0x185B5c3d26c12F2BB2A228d209D83eD80CAa03aF";
 
+    const feeCollectorAddress = "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e";
+
     const observer = new NCGTransferredEventObserver(
         mockNcgTransfer,
         mockWrappedNcgMinter,
@@ -190,7 +191,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 from: noLimitOnePercentFeeSender,
                 to: noLimitOnePercentFeeRecipient,
             },
-        ]
+        ],
+        feeCollectorAddress
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
@@ -355,7 +357,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "100.11",
+                        amount: "100.23",
                         memo: "0xa2D738C3442609d92F1C62BDF051D0385F644b8E",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
@@ -377,13 +379,15 @@ describe(NCGTransferredEventObserver.name, () => {
 
             expect(mockExchangeHistoryStore.put).toHaveBeenCalledTimes(1);
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
-                amount: 100.11,
+                amount: 100.23,
                 network: "nineChronicles",
                 recipient: "0xa2D738C3442609d92F1C62BDF051D0385F644b8E",
                 sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
                 timestamp: expect.any(String),
                 tx_id: "TX-ID",
             });
+
+            expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
         });
 
         it("should post slack message every events", async () => {
@@ -688,7 +692,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
-                amount: 32500, // 50000 - ( 500 + 5000 + 12000 )
+                amount: 82500,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -770,9 +774,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 // accumulated 5500, transfer amount 12000
                 //  -> base 1% for 4500, base + surcharge 3% for 7500 -> fee 270 -> 11730 should be sent
                 [wrappedNcgRecipient, new Decimal(11730000000000000000000)],
-                // accumulated 17500, transfer amount 32500
-                //  -> base + surcharge 3% for 32500 -> fee 975 -> 31525 should be sent
-                [wrappedNcgRecipient, new Decimal(31525000000000000000000)],
+                // accumulated 17500, transfer amount 82500
+                //  -> base + surcharge 3% for 82500 -> fee 2475 -> 80025 should be sent
+                [wrappedNcgRecipient, new Decimal(80025000000000000000000)],
                 // accumulated 0, transfer amount 11000
                 //  -> base 1% for 10000, base + surcharge 3% for 1000 -> fee 130 -> 10870 should be sent
                 [
@@ -786,6 +790,97 @@ describe(NCGTransferredEventObserver.name, () => {
                 [
                     noLimitOnePercentFeeRecipient,
                     new Decimal(10890000000000000000000),
+                ],
+            ]);
+
+            // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
+            expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "1",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "1.2",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "0.01",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "3.22",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
+                // accumulated 0, transfer amount 500
+                //  -> base fee 10 -> 490 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "10",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                // accumulated 500, transfer amount 5000
+                //  -> base 1%, fee 50 -> 4950 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "50",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                // accumulated 5500, transfer amount 12000
+                //  -> base 1% for 4500, base + surcharge 3% for 7500 -> fee 270 -> 11730 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "270",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "9999917500",
+                    "I'm bridge and you should transfer less NCG than 100000.",
+                ],
+                // accumulated 17500, transfer amount 32500
+                //  -> base + surcharge 3% for 82500 -> fee 2475 -> 80025 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "2475",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "99",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "100.01",
+                    "I'm bridge and you can exchange until 100000 for 24 hours.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "100000",
+                    "I'm bridge and you can exchange until 100000 for 24 hours.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "99999.99",
+                    "I'm bridge and you can exchange until 100000 for 24 hours.",
+                ],
+                // accumulated 0, transfer amount 11000
+                //  -> base 1% for 10000, base + surcharge 3% for 1000 -> fee 130 -> 10870 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "130",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                // accumulated 0, transfer amount 11000
+                //  -> static 1% for all amount -> fee 110 -> 10890 should be sent
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "110",
+                    "I'm bridge and the fee is sent to fee collector.",
                 ],
             ]);
         });
@@ -835,7 +930,7 @@ describe(NCGTransferredEventObserver.name, () => {
             }
 
             const events = [
-                makeEvent(wrappedNcgRecipient, "49950", "TX-A"),
+                makeEvent(wrappedNcgRecipient, "99950", "TX-A"),
                 makeEvent(wrappedNcgRecipient, "150", "TX-SHOULD-REFUND"),
             ];
 
@@ -863,7 +958,7 @@ describe(NCGTransferredEventObserver.name, () => {
             );
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
-                amount: 49950,
+                amount: 99950,
                 network: "nineChronicles",
                 recipient: wrappedNcgRecipient,
                 sender: sender,
@@ -882,7 +977,25 @@ describe(NCGTransferredEventObserver.name, () => {
 
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
             expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                [wrappedNcgRecipient, new Decimal(48651500000000000000000)],
+                [wrappedNcgRecipient, new Decimal(97151500000000000000000)],
+            ]);
+
+            expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                [
+                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                    "2798.5",
+                    "I'm bridge and the fee is sent to fee collector.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "100",
+                    "I'm bridge and you should transfer less NCG than 100000.",
+                ],
+                [
+                    "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    "50",
+                    "I'm bridge and you should transfer more NCG than 100.",
+                ],
             ]);
 
             expect(
