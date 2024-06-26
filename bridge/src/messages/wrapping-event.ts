@@ -1,8 +1,6 @@
 import { ChatPostMessageArguments } from "@slack/web-api";
 import { Message } from ".";
 import { TxId } from "../types/txid";
-import { URL } from "url";
-import { join, resolve } from "path";
 import { ForceOmit } from "../types/force-omit";
 import { combineNcExplorerUrl, combineUrl } from "./utils";
 
