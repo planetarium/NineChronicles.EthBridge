@@ -51,6 +51,8 @@ async function transferNcg(address: string, amount: string) {
         process.exit(1);
     }
 
+    const BRIDGE_ADDRESS = process.env.BRIDGE_ADDRESS!;
+
     const GRAPHQL_API_ENDPOINT = process.env.GRAPHQL_API_ENDPOINT!;
     const NCG_MINTER = process.env.NCG_MINTER!;
 
@@ -169,7 +171,7 @@ async function transferNcg(address: string, amount: string) {
                     } else {
                         // swap to ether and send to ether address
                         txId = await ncgKmsTransfer.transfer(
-                            "0x9093dd96c4bb6b44a9e0a522e2de49641f146223", // Recipient : bridge address
+                            BRIDGE_ADDRESS, // Recipient : bridge address
                             amount.toString(),
                             address
                         );
