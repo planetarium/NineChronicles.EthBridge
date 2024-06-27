@@ -16,7 +16,7 @@ export class WrappedEvent extends WrappingEvent {
     private readonly _refundTxId: string | null;
     private readonly _isWhitelistEvent: boolean;
     private readonly _description: string | undefined;
-    private readonly _feeTransferTxId: TxId;
+    private readonly _feeTransferTxId: TxId | null;
 
     constructor(
         explorerUrl: string,
@@ -33,7 +33,7 @@ export class WrappedEvent extends WrappingEvent {
         refundTxId: TxId | null,
         isWhitelistEvent: boolean,
         description: string | undefined,
-        feeTransferTxId: TxId
+        feeTransferTxId: TxId | null
     ) {
         super(explorerUrl, ncscanUrl, useNcscan, etherscanUrl);
 
@@ -61,6 +61,15 @@ export class WrappedEvent extends WrappingEvent {
                       {
                           title: "refund transaction",
                           value: this.toExplorerUrl(this._refundTxId),
+                      },
+                  ]
+                : [];
+        const feeTransferTxIdField =
+            this._feeTransferTxId !== null
+                ? [
+                      {
+                          title: "9c network transaction (fee transfer)",
+                          value: this.toExplorerUrl(this._feeTransferTxId),
                       },
                   ]
                 : [];
@@ -101,10 +110,7 @@ export class WrappedEvent extends WrappingEvent {
                             title: "fee",
                             value: this._fee.toString(),
                         },
-                        {
-                            title: "9c network transaction (fee transfer)",
-                            value: this.toExplorerUrl(this._feeTransferTxId),
-                        },
+                        ...feeTransferTxIdField,
                         ...refundFields,
                     ],
                     fallback: `NCG ${this._sender} → wNCG ${this._recipient}`,

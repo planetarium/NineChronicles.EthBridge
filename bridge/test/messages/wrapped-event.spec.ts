@@ -85,8 +85,8 @@ describe("WrappedEvent", () => {
             const NCSCAN_URL = "https://9cscan.com";
             const USE_NCSCAN_URL = false;
             const ETHERSCAN_URL = "https://ropsten.etherscan.io";
-            const SENDER = "0xCbfC996ad185c61a031f40CeeE80a055e6D83005";
-            const RECIPIENT = "0xDac65eCE9CB3E7a538773e08DE31F973233F064f";
+            const SENDER = "0x27303a4c77c466fc5c631066d64516f1c9a28426";
+            const RECIPIENT = "0x50a2aC5E97050bCC3A34dc27858B5DfDF77c4C83";
             const AMOUNT = "200";
             const ETHEREUM_TRANSACTION_HASH =
                 "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc8";
@@ -94,8 +94,7 @@ describe("WrappedEvent", () => {
                 "3409cdbaa24ec6f7c8d2c0f636325a2b2e9611e5e6df5c593cfcd299860d8044";
             const FEE = new Decimal(1);
             const IS_WHITELIST_EVENT = true;
-            const FEE_TRANSFER_TX_ID =
-                "0x9360cd40682a91a71f0afbfac3dd381866cdb319dc01c13531dfe648f8a28bc8";
+            const FEE_TRANSFER_TX_ID = null;
             expect(
                 new WrappedEvent(
                     EXPLORER_URL,
