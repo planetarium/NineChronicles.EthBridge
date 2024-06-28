@@ -106,7 +106,7 @@ describe(NCGTransferredEventObserver.name, () => {
         whitelistMaximum: 1000000,
         minimum: 100,
     };
-    const BANNED_ADDRESS = "0xMockedBannedAddress";
+    const BANNED_ADDRESS = "0x47D082a115c63E7b58B1532d20E631538eaFADde";
     const addressBanPolicy: jest.Mocked<IAddressBanPolicy> = {
         isBannedAddress: jest
             .fn()
