@@ -59,7 +59,7 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const mockWrappedNcgMinter: jest.Mocked<IWrappedNCGMinter> = {
-        mint: jest.fn().mockResolvedValue("TRANSACTION-HASH"),
+        mint: jest.fn().mockResolvedValue("MOCKED-TX-HASH"),
     };
 
     const mockSlackChannel: jest.Mocked<ISlackChannel> = {
@@ -70,7 +70,7 @@ describe(NCGTransferredEventObserver.name, () => {
     );
 
     const mockOpenSearchClient = new OpenSearchClient(
-        "https://www.random-url.com",
+        "https://www.mocked-opensearch-url.com",
         "auth",
         "9c-eth-bridge"
     ) as OpenSearchClient & {
@@ -106,7 +106,7 @@ describe(NCGTransferredEventObserver.name, () => {
         whitelistMaximum: 1000000,
         minimum: 100,
     };
-    const BANNED_ADDRESS = "0x47D082a115c63E7b58B1532d20E631538eaFADde";
+    const BANNED_ADDRESS = "0xMockedBannedAddress";
     const addressBanPolicy: jest.Mocked<IAddressBanPolicy> = {
         isBannedAddress: jest
             .fn()
@@ -118,10 +118,10 @@ describe(NCGTransferredEventObserver.name, () => {
     };
 
     const authorize = new google.auth.JWT(
-        "randemail@rand.com",
+        "mockedEmail@inTest.com",
         undefined,
-        "rand-key",
-        ["spreadsheet-url"]
+        "mockedJwtKey",
+        ["mocked-google-spreadsheet-url"]
     );
 
     const googleSheet = google.sheets({
@@ -131,9 +131,9 @@ describe(NCGTransferredEventObserver.name, () => {
 
     const mockSpreadSheetClient = new SpreadsheetClient(
         googleSheet,
-        "random-id",
+        "mocked-google-spreadsheet-id",
         false,
-        "slack-url",
+        "mocked-slack-url",
         {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
@@ -167,9 +167,9 @@ describe(NCGTransferredEventObserver.name, () => {
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",
-        "https://9cscan.com",
+        "https://internal.9cscan.com",
         false,
-        "https://ropsten.etherscan.io",
+        "https://sepolia.etherscan.io",
         exchangeFeeRatioPolicy,
         limitationPolicy,
         addressBanPolicy,

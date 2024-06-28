@@ -45,7 +45,7 @@ Array [
           "fields": Array [
             Object {
               "title": "Ethereum transaction",
-              "value": "https://ropsten.etherscan.io/tx/TX-ID",
+              "value": "https://sepolia.etherscan.io/tx/TX-ID",
             },
             Object {
               "title": "sender (Ethereum)",
@@ -110,7 +110,7 @@ Array [
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TX-ID",
+              "value": "https://sepolia.etherscan.io/tx/TX-ID",
             },
             Object {
               "title": "sender (Ethereum)",
