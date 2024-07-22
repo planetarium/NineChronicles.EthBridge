@@ -78,4 +78,10 @@ export const whitelistAccounts: WhitelistAccount[] = [
         to: "0xc97612d670232d28a517d8d35168b6ef36f5ab76",
         description: "Planetarium Labs (Bridge Fee Collector, PROD)",
     },
+    {
+        type: ACCOUNT_TYPE.NO_LIMIT_REGULAR_FEE,
+        from: "0x3cFF304c784a2c3B3fC754c6B1bc5654A6a92329",
+        to: "0x8b8Fe50b40EAa0cb120bF9cE4EF3b509Ae53C0b0",
+        description: "9C Ecosystem Fund",
+    },
 ];
