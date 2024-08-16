@@ -15,6 +15,7 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
+import { send } from "process";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -224,14 +225,10 @@ describe(NCGTransferredEventObserver.name, () => {
         });
 
         it("should ignore the tx if has processed before", async () => {
-            const duplicatedTxId = "TX-ID";
+            const duplicatedTxId = "DUPLICATED-TX-ID";
             mockExchangeHistoryStore.exist.mockImplementationOnce(
                 async (tx_id: string) => {
-                    if (tx_id === duplicatedTxId) {
-                        return true;
-                    } else {
-                        return false;
-                    }
+                    return tx_id === duplicatedTxId;
                 }
             );
 
@@ -292,7 +289,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "0",
+                        amount: "1000",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
@@ -329,7 +326,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 blockHash: "BLOCK-HASH",
                 events: [
                     {
-                        amount: "0",
+                        amount: "1500",
                         blockHash: "BLOCK-HASH",
                         txId: "TX-ID-A",
                         memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
@@ -390,7 +387,8 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
         });
 
-        it("should post slack message every events", async () => {
+        describe("events", () => {
+            // describe-scoped mock implementations
             const amounts = new Map<string, number>();
             mockExchangeHistoryStore.put.mockImplementation(
                 ({ sender, amount }) => {
@@ -416,13 +414,13 @@ describe(NCGTransferredEventObserver.name, () => {
                 }
             );
 
-            const sender = "0x2734048eC2892d111b4fbAB224400847544FC872";
             const wrappedNcgRecipient =
                 "0x4029bC50b4747A037d38CF2197bCD335e22Ca301";
             function makeEvent(
                 wrappedNcgRecipient: string,
                 amount: string,
-                txId: TxId
+                txId: TxId,
+                sender: string
             ) {
                 return {
                     amount: amount,
@@ -440,8 +438,6 @@ describe(NCGTransferredEventObserver.name, () => {
                 amount: string,
                 txId: TxId
             ) {
-                console.log(whitelistSender, whitelistRecipient);
-
                 return {
                     amount: amount,
                     memo: whitelistRecipient,
@@ -452,437 +448,521 @@ describe(NCGTransferredEventObserver.name, () => {
                 };
             }
 
-            const events = [
-                makeEvent(wrappedNcgRecipient, "1", "TX-INVALID-A"),
-                makeEvent(wrappedNcgRecipient, "1.2", "TX-INVALID-B"),
-                makeEvent(wrappedNcgRecipient, "0.01", "TX-INVALID-C"),
-                makeEvent(wrappedNcgRecipient, "3.22", "TX-INVALID-D"),
-                makeEvent(wrappedNcgRecipient, "500", "TX-E"), // Success TX - Base Fee
-                makeEvent(wrappedNcgRecipient, "5000", "TX-FEE-FIRST-RANGE"), //Success TX - fee first range
-                makeEvent(wrappedNcgRecipient, "12000", "TX-FEE-SECOND-RANGE"), //Success TX - fee second range
-                makeEvent(
-                    wrappedNcgRecipient,
-                    "10000000000",
-                    "TX-SHOULD-REFUND-PART-F"
-                ),
-                makeEvent(wrappedNcgRecipient, "99", "TX-SHOULD-REFUND-G"),
-                makeEvent(wrappedNcgRecipient, "100.01", "TX-SHOULD-REFUND-H"),
-                makeEvent(wrappedNcgRecipient, "100000", "TX-SHOULD-REFUND-I"),
-                makeEvent(
-                    wrappedNcgRecipient,
-                    "99999.99",
-                    "TX-SHOULD-REFUND-J"
-                ),
-                makeWhitelistEvent(
-                    noLimitRegularFeeSender,
-                    noLimitRegularFeeRecipient,
-                    "11000",
-                    "TX-NO-LIMIT-REGULAR-FEE"
-                ),
-                makeWhitelistEvent(
-                    noLimitNoFeeSender,
-                    noLimitNoFeeRecipient,
-                    "11000",
-                    "TX-NO-LIMIT-NO-FEE"
-                ),
-                makeWhitelistEvent(
-                    noLimitOnePercentFeeSender,
-                    noLimitOnePercentFeeRecipient,
-                    "11000",
-                    "TX-NO-LIMIT-ONE-PERCENT-FEE"
-                ),
-            ];
+            it("should not mint if request amount is less than 100", async () => {
+                const sender = "0x3FCDB15f45D7796c7d2D15c9C00dc512AaE1A74A";
+                const events = [
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "99",
+                        "TX-INVALID-A",
+                        sender
+                    ),
+                ];
 
-            await observer.notify({
-                blockHash: "BLOCK-HASH",
-                events,
-            });
-
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                1,
-                "nineChronicles",
-                {
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-INVALID-A",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                2,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-INVALID-A",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    network: "nineChronicles",
+                    tx_id: "TX-INVALID-A",
+                    sender: sender,
+                    recipient: wrappedNcgRecipient,
+                    timestamp: expect.any(String),
+                    amount: 0,
+                });
+
+                expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    [
+                        sender, // refund to sender
+                        "99",
+                        "I'm bridge and you should transfer more NCG than 100.",
+                    ],
+                ]);
+            });
+
+            it("should collect base fee if the transfer amount is less than 1000 NCG", async () => {
+                const sender = "0x59480cfaF6A4103e414640592Fb477caB0cE5207";
+                const events = [
+                    makeEvent(wrappedNcgRecipient, "500", "TX-E", sender),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-INVALID-B",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                3,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-E",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    amount: 500,
+                    network: "nineChronicles",
+                    recipient: wrappedNcgRecipient,
+                    sender: sender,
+                    timestamp: expect.any(String),
+                    tx_id: "TX-E",
+                });
+
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    [wrappedNcgRecipient, new Decimal(490000000000000000000)],
+                ]);
+
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "10",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                ]);
+            });
+
+            it("should collect fees based on the ranges", async () => {
+                const sender = "0xe0983Bff4Af677fE4d98E42f5cDcc6e593546daf";
+                const events = [
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "5000",
+                        "TX-FEE-BASE-RANGE",
+                        sender
+                    ),
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "12000",
+                        "TX-FEE-MIXED-RANGE",
+                        sender
+                    ),
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "83000",
+                        "TX-FEE-SURCHARE-RANGE",
+                        sender
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-INVALID-C",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                4,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                    1,
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-BASE-RANGE",
+                    }
+                );
+
+                expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                    2,
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-MIXED-RANGE",
+                    }
+                );
+
+                expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
+                    3,
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-SURCHARE-RANGE",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    1,
+                    {
+                        amount: 5000,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-FEE-BASE-RANGE",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    2,
+                    {
+                        amount: 12000,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-FEE-MIXED-RANGE",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    3,
+                    {
+                        amount: 83000,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-FEE-SURCHARE-RANGE",
+                    }
+                );
+
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    // accumulated 0, transfer amount 5000
+                    //  -> base 1% fee 50 -> 4950 should be sent
+                    [wrappedNcgRecipient, new Decimal(4950000000000000000000)],
+                    // accumulated 5000, transfer amount 12000
+                    //  -> base 1% for 5000, base + surcharge 3% for 7000 -> fee 260 -> 11740 should be sent
+                    [wrappedNcgRecipient, new Decimal(11740000000000000000000)],
+                    // accumulated 17000, transfer amount 83000
+                    //  -> base + surcharge 3% for 83000 -> fee 2490 -> 80510 should be sent
+                    [wrappedNcgRecipient, new Decimal(80510000000000000000000)],
+                ]);
+
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    // fee 50
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "50",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                    // fee 260
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "260",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                    // fee 2490
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "2490",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                ]);
+            });
+
+            it("should refund over 24hr transfer limit and apply fee", async () => {
+                const sender = "0xe358c6E13346a454aB65bA359ba8879B3414Ec11";
+                const events = [
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "10000000000",
+                        "TX-SHOULD-REFUND-PART",
+                        sender
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-INVALID-D",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                5,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-SHOULD-REFUND-PART",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    amount: 100_000, // 24hr transfer limit which will be transferred
+                    network: "nineChronicles",
+                    recipient: wrappedNcgRecipient,
+                    sender: sender,
+                    timestamp: expect.any(String),
+                    tx_id: "TX-SHOULD-REFUND-PART",
+                });
+
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    // base 1% for 10k + surcharge 3% for 90k -> fee 2800 -> 97200 should be sent
+                    [wrappedNcgRecipient, new Decimal(97200000000000000000000)],
+                ]);
+
+                // transfer 100,000 and refund 9,999,900,000
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    [
+                        sender, // refund to sender
+                        "9999900000",
+                        "I'm bridge and you should transfer less NCG than 100000.",
+                    ],
+                    // fee 2800
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "2800",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                ]);
+            });
+
+            it("should reject and refund requests if 24hr limit is over", async () => {
+                const sender = "0x94DeBB8d05B5c29F99F3518B5F18031A110B6036";
+                const events = [
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "100000",
+                        "TX-SHOULD-BE-TRANSFERRED",
+                        sender
+                    ),
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "99",
+                        "TX-SHOULD-BE-REJECTED",
+                        sender
+                    ),
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "100.01",
+                        "TX-SHOULD-BE-REFUNDED-A",
+                        sender
+                    ),
+                    makeEvent(
+                        wrappedNcgRecipient,
+                        "99999.99",
+                        "TX-SHOULD-BE-REFUNDED-B",
+                        sender
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-E",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                6,
-                "nineChronicles",
-                {
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    1,
+                    {
+                        amount: 100_000, // 24hr transfer limit which will be transferred
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-SHOULD-BE-TRANSFERRED",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    2,
+                    {
+                        amount: 0,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-SHOULD-BE-REJECTED",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    3,
+                    {
+                        amount: 0,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-SHOULD-BE-REFUNDED-A",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(
+                    4,
+                    {
+                        amount: 0,
+                        network: "nineChronicles",
+                        recipient: wrappedNcgRecipient,
+                        sender: sender,
+                        timestamp: expect.any(String),
+                        tx_id: "TX-SHOULD-BE-REFUNDED-B",
+                    }
+                );
+
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    // base 1% for 10k + surcharge 3% for 90k -> fee 2800 -> 97200 should be sent
+                    [wrappedNcgRecipient, new Decimal(97200000000000000000000)],
+                ]);
+
+                // transfer 100,000 and refund 9,999,900,000
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    // fee 2800
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "2800",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                    [
+                        sender, // refund to sender
+                        "99",
+                        "I'm bridge and you should transfer more NCG than 100.",
+                    ],
+                    [
+                        sender, // refund to sender
+                        "100.01",
+                        "I'm bridge and you can exchange until 100000 for 24 hours.",
+                    ],
+                    [
+                        sender, // refund to sender
+                        "99999.99",
+                        "I'm bridge and you can exchange until 100000 for 24 hours.",
+                    ],
+                ]);
+            });
+
+            it("should allow more than 100,000 NCG transfer and charge regular fees if allowlisted as NO_LIMIT_REGULAR_FEE", async () => {
+                const amountMillion = 1_000_000;
+                const events = [
+                    makeWhitelistEvent(
+                        noLimitRegularFeeSender,
+                        noLimitRegularFeeRecipient,
+                        amountMillion.toString(),
+                        "TX-NO-LIMIT-REGULAR-FEE"
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-FEE-FIRST-RANGE",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                7,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-NO-LIMIT-REGULAR-FEE",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    amount: amountMillion,
+                    network: "nineChronicles",
+                    recipient: noLimitRegularFeeRecipient,
+                    sender: noLimitRegularFeeSender,
+                    timestamp: expect.any(String),
+                    tx_id: "TX-NO-LIMIT-REGULAR-FEE",
+                });
+
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "29800",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                ]);
+
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    [
+                        noLimitRegularFeeRecipient,
+                        new Decimal(970200000000000000000000),
+                    ],
+                ]);
+            });
+
+            it("should allow more than 100,000 NCG transfer and charge no fee if allowlisted as NO_LIMIT_NO_FEE", async () => {
+                const amountMillion = 1_000_000;
+                const events = [
+                    makeWhitelistEvent(
+                        noLimitNoFeeSender,
+                        noLimitNoFeeRecipient,
+                        amountMillion.toString(),
+                        "TX-NO-LIMIT-NO-FEE"
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-FEE-SECOND-RANGE",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                8,
-                "nineChronicles",
-                {
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-NO-LIMIT-NO-FEE",
+                    }
+                );
+
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    amount: amountMillion,
+                    network: "nineChronicles",
+                    recipient: noLimitNoFeeRecipient,
+                    sender: noLimitNoFeeSender,
+                    timestamp: expect.any(String),
+                    tx_id: "TX-NO-LIMIT-NO-FEE",
+                });
+
+                expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    [
+                        noLimitNoFeeRecipient,
+                        new Decimal(1000000000000000000000000),
+                    ],
+                ]);
+            });
+
+            it("should allow more than 100,000 NCG transfer and charge 1% fee if allowlisted as NO_LIMIT_ONE_PERCENT_FEE", async () => {
+                const amountMillion = 1_000_000;
+                const events = [
+                    makeWhitelistEvent(
+                        noLimitOnePercentFeeSender,
+                        noLimitOnePercentFeeRecipient,
+                        amountMillion.toString(),
+                        "TX-NO-LIMIT-ONE-PERCENT-FEE"
+                    ),
+                ];
+
+                await observer.notify({
                     blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-PART-F",
-                }
-            );
+                    events,
+                });
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                9,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-G",
-                }
-            );
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                10,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-H",
-                }
-            );
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                11,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-I",
-                }
-            );
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                12,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-SHOULD-REFUND-J",
-                }
-            );
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                13,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-NO-LIMIT-REGULAR-FEE",
-                }
-            );
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                14,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-NO-LIMIT-NO-FEE",
-                }
-            );
+                expect(mockMonitorStateStore.store).toHaveBeenCalledWith(
+                    "nineChronicles",
+                    {
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-NO-LIMIT-ONE-PERCENT-FEE",
+                    }
+                );
 
-            expect(mockMonitorStateStore.store).toHaveBeenNthCalledWith(
-                15,
-                "nineChronicles",
-                {
-                    blockHash: "BLOCK-HASH",
-                    txId: "TX-NO-LIMIT-ONE-PERCENT-FEE",
-                }
-            );
+                expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith({
+                    amount: amountMillion,
+                    network: "nineChronicles",
+                    recipient: noLimitOnePercentFeeRecipient,
+                    sender: noLimitOnePercentFeeSender,
+                    timestamp: expect.any(String),
+                    tx_id: "TX-NO-LIMIT-ONE-PERCENT-FEE",
+                });
 
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(1, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-INVALID-A",
+                expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
+                    [
+                        noLimitOnePercentFeeRecipient,
+                        new Decimal(990000000000000000000000),
+                    ],
+                ]);
+
+                expect(mockNcgTransfer.transfer.mock.calls).toEqual([
+                    [
+                        "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
+                        "10000",
+                        "I'm bridge and the fee is sent to fee collector.",
+                    ],
+                ]);
             });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-INVALID-B",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(3, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-INVALID-C",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(4, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-INVALID-D",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(5, {
-                amount: 500,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-E",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(6, {
-                amount: 5000,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-FEE-FIRST-RANGE",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(7, {
-                amount: 12000,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-FEE-SECOND-RANGE",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(8, {
-                amount: 82500,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-PART-F",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(9, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-G",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(10, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-H",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(11, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-I",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(12, {
-                amount: 0,
-                network: "nineChronicles",
-                recipient: wrappedNcgRecipient,
-                sender: sender,
-                timestamp: expect.any(String),
-                tx_id: "TX-SHOULD-REFUND-J",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(13, {
-                amount: 11000,
-                network: "nineChronicles",
-                recipient: noLimitRegularFeeRecipient,
-                sender: noLimitRegularFeeSender,
-                timestamp: expect.any(String),
-                tx_id: "TX-NO-LIMIT-REGULAR-FEE",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(14, {
-                amount: 11000,
-                network: "nineChronicles",
-                recipient: noLimitNoFeeRecipient,
-                sender: noLimitNoFeeSender,
-                timestamp: expect.any(String),
-                tx_id: "TX-NO-LIMIT-NO-FEE",
-            });
-
-            expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(15, {
-                amount: 11000,
-                network: "nineChronicles",
-                recipient: noLimitOnePercentFeeRecipient,
-                sender: noLimitOnePercentFeeSender,
-                timestamp: expect.any(String),
-                tx_id: "TX-NO-LIMIT-ONE-PERCENT-FEE",
-            });
-
-            // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
-            expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
-                // accumulated 0, transfer amount 500
-                //  -> base fee 10 -> 490 should be sent
-                [wrappedNcgRecipient, new Decimal(490000000000000000000)],
-                // accumulated 500, transfer amount 5000
-                //  -> base 1%, fee 50 -> 4950 should be sent
-                [wrappedNcgRecipient, new Decimal(4950000000000000000000)],
-                // accumulated 5500, transfer amount 12000
-                //  -> base 1% for 4500, base + surcharge 3% for 7500 -> fee 270 -> 11730 should be sent
-                [wrappedNcgRecipient, new Decimal(11730000000000000000000)],
-                // accumulated 17500, transfer amount 82500
-                //  -> base + surcharge 3% for 82500 -> fee 2475 -> 80025 should be sent
-                [wrappedNcgRecipient, new Decimal(80025000000000000000000)],
-                // accumulated 0, transfer amount 11000
-                //  -> base 1% for 10000, base + surcharge 3% for 1000 -> fee 130 -> 10870 should be sent
-                [
-                    noLimitRegularFeeRecipient,
-                    new Decimal(10870000000000000000000),
-                ],
-                // no fee anyways, transfer amount 11000 -> 11000 should be sent
-                [noLimitNoFeeRecipient, new Decimal(11000000000000000000000)],
-                // accumulated 0, transfer amount 11000
-                //  -> static 1% for all amount -> fee 110 -> 10890 should be sent
-                [
-                    noLimitOnePercentFeeRecipient,
-                    new Decimal(10890000000000000000000),
-                ],
-            ]);
-
-            // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
-            expect(mockNcgTransfer.transfer.mock.calls).toEqual([
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "1",
-                    "I'm bridge and you should transfer more NCG than 100.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "1.2",
-                    "I'm bridge and you should transfer more NCG than 100.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "0.01",
-                    "I'm bridge and you should transfer more NCG than 100.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "3.22",
-                    "I'm bridge and you should transfer more NCG than 100.",
-                ],
-                // accumulated 0, transfer amount 500
-                //  -> base fee 10 -> 490 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "10",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-                // accumulated 500, transfer amount 5000
-                //  -> base 1%, fee 50 -> 4950 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "50",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-                // accumulated 5500, transfer amount 12000
-                //  -> base 1% for 4500, base + surcharge 3% for 7500 -> fee 270 -> 11730 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "270",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "9999917500",
-                    "I'm bridge and you should transfer less NCG than 100000.",
-                ],
-                // accumulated 17500, transfer amount 32500
-                //  -> base + surcharge 3% for 82500 -> fee 2475 -> 80025 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "2475",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "99",
-                    "I'm bridge and you should transfer more NCG than 100.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "100.01",
-                    "I'm bridge and you can exchange until 100000 for 24 hours.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "100000",
-                    "I'm bridge and you can exchange until 100000 for 24 hours.",
-                ],
-                [
-                    "0x2734048eC2892d111b4fbAB224400847544FC872",
-                    "99999.99",
-                    "I'm bridge and you can exchange until 100000 for 24 hours.",
-                ],
-                // accumulated 0, transfer amount 11000
-                //  -> base 1% for 10000, base + surcharge 3% for 1000 -> fee 130 -> 10870 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "130",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-                // accumulated 0, transfer amount 11000
-                //  -> static 1% for all amount -> fee 110 -> 10890 should be sent
-                [
-                    "0x5aFDEB6f53C5F9BAf2ff1E9932540Cd6dc45F07e",
-                    "110",
-                    "I'm bridge and the fee is sent to fee collector.",
-                ],
-            ]);
         });
 
         it("If overflowed amount is lower than minimum, then refund check", async () => {

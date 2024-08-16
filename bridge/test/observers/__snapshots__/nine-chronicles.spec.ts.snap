@@ -188,7 +188,7 @@ Array [
       "amount": "100",
       "cause": "Exchange history exist",
       "content": "NCG -> wNCG request failure",
-      "libplanetTxId": "TX-ID",
+      "libplanetTxId": "DUPLICATED-TX-ID",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
     },
@@ -208,7 +208,7 @@ Array [
           "fields": Array [
             Object {
               "title": "9c network transaction id",
-              "value": "TX-ID",
+              "value": "DUPLICATED-TX-ID",
             },
           ],
         },
