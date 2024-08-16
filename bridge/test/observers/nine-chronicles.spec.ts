@@ -15,7 +15,6 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
-import { send } from "process";
 
 jest.mock("@slack/web-api", () => {
     return {
