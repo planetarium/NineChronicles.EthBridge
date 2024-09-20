@@ -7,6 +7,7 @@ import { KMSNCGSigner } from "../src/kms-ncg-signer";
 import { isAddress } from "web3-utils";
 import { Command } from "commander";
 import readline from "readline";
+import { WebClient } from "@slack/web-api";
 
 async function transfer() {
     const program = new Command();
@@ -20,16 +21,48 @@ async function transfer() {
         .description("transfer ( ad-hoc transfer )")
         .argument("<address>", "destination( 9c address )")
         .argument("<amount>", "amount( to transfer )")
-        .action(async (address: string, amount: string) => {
-            await transferNcg(address, amount);
-        });
+        .argument("<planetName>", "planetName")
+        .argument("<operator>", "operator who run this command")
+        .action(
+            async (
+                address: string,
+                amount: string,
+                planetName: string,
+                operator: string
+            ) => {
+                await transferNcg(address, amount, planetName, operator);
+            }
+        );
 
     program.parseAsync();
 }
 
 transfer();
 
-async function transferNcg(user9cAddress: string, amount: string) {
+async function sendSlackMessage(text: string): Promise<void> {
+    const slackWebClient = new WebClient(process.env.SLACK_WEB_TOKEN);
+    const slackChannel = process.env.SLACK_CHANNEL_NAME!;
+
+    await slackWebClient.chat.postMessage({
+        channel: slackChannel,
+        text,
+    });
+}
+
+async function transferNcg(
+    user9cAddress: string,
+    amount: string,
+    planetName: string,
+    operator: string
+) {
+    if (!["odin", "heimdall"].includes(planetName)) {
+        console.log(`Wrong planeName ${planetName} Cancel transfer ...`);
+        const slackMessageText = `Wrong planeName  ( ${planetName} ) inserted. ${process.env.FAILURE_SUBSCRIBERS}`;
+        await sendSlackMessage(slackMessageText);
+
+        process.exit(1);
+    }
+
     if (Number(amount) > 1000000) {
         console.log("Cannot transfer over 1000000 - Cancel transfer ...");
         process.exit(1);
@@ -79,6 +112,8 @@ async function transferNcg(user9cAddress: string, amount: string) {
     const kmsAddresses = await kmsProvider.getAccounts();
     if (kmsAddresses.length != 1) {
         console.log("NineChronicles.EthBridge is supported only one address.");
+        const slackMessageText = `More than 1 KMS account found. Aborted ${process.env.FAILURE_SUBSCRIBERS}`;
+        await sendSlackMessage(slackMessageText);
         process.exit(1);
     }
     const kmsAddress = kmsAddresses[0];
@@ -102,6 +137,9 @@ async function transferNcg(user9cAddress: string, amount: string) {
         console.log(
             "KMS_PROVIDER_PUBLIC_KEY variable seems invalid because it doesn't match to address from KMS."
         );
+        const slackMessageText = `KMS_PROVIDER_PUBLIC_KEY variable seems invalid because it doesn't match to address from KMS. ${process.env.FAILURE_SUBSCRIBERS}`;
+        await sendSlackMessage(slackMessageText);
+
         process.exit(1);
     }
 
@@ -117,7 +155,7 @@ async function transferNcg(user9cAddress: string, amount: string) {
         "==========================================================================================================="
     );
     console.log(
-        `Are you trying to Transfer NCG. To: ${user9cAddress}, Amount: ${amount} ??`
+        `Are you trying to Transfer NCG. To: ${user9cAddress}, Amount: ${amount} PlanetName: ${planetName} ??`
     );
     console.log('If Correct, Enter "yes", If not Enter anything');
 
@@ -135,15 +173,29 @@ async function transferNcg(user9cAddress: string, amount: string) {
         }
 
         console.log(
-            `Transferring NCG to ${user9cAddress}, amount: ${amount}...`
+            `Transferring NCG to ${user9cAddress}, amount: ${amount}, PlanetName: ${planetName} ...`
         );
 
+        const recipient =
+            planetName === "odin"
+                ? user9cAddress
+                : process.env.ODIN_TO_HEIMDALL_VALUT_ADDRESS!;
+
+        const memo = planetName === "odin" ? null : user9cAddress;
+
         const txId = await ncgKmsTransfer.transfer(
-            user9cAddress,
+            recipient,
             amount.toString(),
-            null
+            memo
         );
 
         console.log("txId", txId);
+
+        const slackMessageText = `:ncg: NCG transferred from 9c-ETH bridge account sent. Operator: ${operator}\n
+        user9cAddress: ${user9cAddress}\n
+        amount: ${amount.toString()}\n
+        planet: ${planetName}\n
+        txId: ${txId}`;
+        await sendSlackMessage(slackMessageText);
     });
 }
