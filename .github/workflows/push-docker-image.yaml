@@ -1,11 +1,8 @@
 on:
   push:
-    paths:
-      - bridge/**/*
-
+    branches:
+      - main
   pull_request:
-    paths:
-      - bridge/**/*
 
 name: push docker image
 jobs:
