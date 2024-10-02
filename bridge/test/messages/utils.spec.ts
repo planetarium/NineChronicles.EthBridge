@@ -14,8 +14,8 @@ describe(combineUrl.name, () => {
     });
 
     it("without query", () => {
-        expect(combineUrl("https://9cscan.com/", "/tx/TX-ID")).toEqual(
-            "https://9cscan.com/tx/TX-ID"
+        expect(combineUrl("https://internal.9cscan.com/", "/tx/TX-ID")).toEqual(
+            "https://internal.9cscan.com/tx/TX-ID"
         );
     });
 });
@@ -25,7 +25,7 @@ describe(combineNcExplorerUrl.name, () => {
         expect(
             combineNcExplorerUrl(
                 "https://explorer.libplanet.io/9c-internal/",
-                "https://9cscan.com/",
+                "https://internal.9cscan.com/",
                 false,
                 "TX-ID"
             )
@@ -38,11 +38,11 @@ describe(combineNcExplorerUrl.name, () => {
         expect(
             combineNcExplorerUrl(
                 "https://explorer.libplanet.io/9c-internal/",
-                "https://9cscan.com/",
+                "https://internal.9cscan.com/",
                 true,
                 "TX-ID"
             )
-        ).toEqual("https://9cscan.com/tx/TX-ID");
+        ).toEqual("https://internal.9cscan.com/tx/TX-ID");
     });
 
     it("requires ncscanUrl argument when useNcscan is true", () => {

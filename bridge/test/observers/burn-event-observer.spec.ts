@@ -66,7 +66,7 @@ describe(EthereumBurnEventObserver.name, () => {
     );
 
     const mockOpenSearchClient = new OpenSearchClient(
-        "https://www.random-url.com",
+        "https://www.mocked-opensearch-url.com",
         "auth",
         "9c-eth-bridge"
     ) as OpenSearchClient & {
@@ -102,10 +102,10 @@ describe(EthereumBurnEventObserver.name, () => {
     );
 
     const authorize = new google.auth.JWT(
-        "randemail@rand.com",
+        "mockedEmail@inTest.com",
         undefined,
-        "rand-key",
-        ["spreadsheet-url"]
+        "mockedJwtKey",
+        ["mocked-google-spreadsheet-url"]
     );
 
     const googleSheet = google.sheets({
@@ -115,9 +115,9 @@ describe(EthereumBurnEventObserver.name, () => {
 
     const mockSpreadSheetClient = new SpreadsheetClient(
         googleSheet,
-        "random-id",
+        "mocked-google-spreadsheet-id",
         false,
-        "slack-url",
+        "mocked-slack-url",
         {
             mint: "NCGtoWNCG",
             burn: "WNCGtoNCG",
@@ -143,9 +143,9 @@ describe(EthereumBurnEventObserver.name, () => {
         mockMonitorStateStore,
         mockExchangeHistoryStore,
         "https://explorer.libplanet.io/9c-internal",
-        "https://9cscan.com",
+        "https://internal.9cscan.com",
         false,
-        "https://ropsten.etherscan.io",
+        "https://sepolia.etherscan.io",
         mockIntegration,
         multiPlanetary,
         failureSubscribers

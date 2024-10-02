@@ -7,7 +7,7 @@ Array [
     Object {
       "amount": 97151.5,
       "content": "NCG -> wNCG request success",
-      "ethereumTxId": "TRANSACTION-HASH",
+      "ethereumTxId": "MOCKED-TX-HASH",
       "fee": 2798.5,
       "feeTransferTxId": "TX-ID",
       "libplanetTxId": "TX-A",
@@ -58,7 +58,7 @@ Array [
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH",
+              "value": "https://sepolia.etherscan.io/tx/MOCKED-TX-HASH",
             },
             Object {
               "title": "sender (NineChronicles)",
@@ -188,7 +188,7 @@ Array [
       "amount": "100",
       "cause": "Exchange history exist",
       "content": "NCG -> wNCG request failure",
-      "libplanetTxId": "TX-ID",
+      "libplanetTxId": "DUPLICATED-TX-ID",
       "recipient": "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
       "sender": "0x2734048eC2892d111b4fbAB224400847544FC872",
     },
@@ -208,7 +208,7 @@ Array [
           "fields": Array [
             Object {
               "title": "9c network transaction id",
-              "value": "TX-ID",
+              "value": "DUPLICATED-TX-ID",
             },
           ],
         },
@@ -281,7 +281,7 @@ Array [
     Object {
       "amount": 90.23,
       "content": "NCG -> wNCG request success",
-      "ethereumTxId": "TRANSACTION-HASH",
+      "ethereumTxId": "MOCKED-TX-HASH",
       "fee": 10,
       "feeTransferTxId": "TX-ID",
       "libplanetTxId": "TX-ID",
@@ -308,7 +308,7 @@ Array [
             },
             Object {
               "title": "Ethereum network transaction",
-              "value": "https://ropsten.etherscan.io/tx/TRANSACTION-HASH",
+              "value": "https://sepolia.etherscan.io/tx/MOCKED-TX-HASH",
             },
             Object {
               "title": "sender (NineChronicles)",
