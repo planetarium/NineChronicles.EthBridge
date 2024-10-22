@@ -77,6 +77,14 @@ describe(NCGTransferredEventObserver.name, () => {
         to_opensearch: ReturnType<typeof jest.fn>;
     };
 
+    const mockOpenSearchMigrationClient = new OpenSearchClient(
+        "https://www.random-url.com",
+        "auth",
+        "9c-eth-bridge"
+    ) as OpenSearchClient & {
+        to_opensearch: ReturnType<typeof jest.fn>;
+    };
+
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
         load: jest.fn(),
         store: jest.fn(),
@@ -192,7 +200,8 @@ describe(NCGTransferredEventObserver.name, () => {
                 to: noLimitOnePercentFeeRecipient,
             },
         ],
-        feeCollectorAddress
+        feeCollectorAddress,
+        mockOpenSearchMigrationClient
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {

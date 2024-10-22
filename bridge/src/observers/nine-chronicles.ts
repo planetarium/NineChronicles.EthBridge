@@ -65,7 +65,7 @@ export class NCGTransferredEventObserver
     private readonly _integration: Integration;
     private readonly _whitelistAccounts: WhitelistAccount[];
     private readonly _feeCollectorAddress: string;
-
+    private readonly _opensearchClientMigration: OpenSearchClient;
     constructor(
         ncgTransfer: INCGTransfer,
         wrappedNcgTransfer: IWrappedNCGMinter,
@@ -84,7 +84,8 @@ export class NCGTransferredEventObserver
         integration: Integration,
         failureSubscribers: string,
         whitelistAccounts: WhitelistAccount[],
-        feeCollectorAddress: string
+        feeCollectorAddress: string,
+        opensearchClientMigration: OpenSearchClient
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -104,6 +105,7 @@ export class NCGTransferredEventObserver
         this._failureSubscribers = failureSubscribers;
         this._whitelistAccounts = whitelistAccounts;
         this._feeCollectorAddress = feeCollectorAddress;
+        this._opensearchClientMigration = opensearchClientMigration;
     }
 
     async notify(data: {
@@ -366,6 +368,15 @@ export class NCGTransferredEventObserver
             amount: amountString,
         });
 
+        this._opensearchClientMigration.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: errorMessage,
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amountString,
+        });
+
         this._integration.error("Unexpected error during wrapping NCG", {
             errorMessage,
             sender,
@@ -449,6 +460,17 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: exchangeAmount.toNumber(),
         });
+
+        this._opensearchClientMigration.to_opensearch("info", {
+            content: "NCG -> wNCG request success",
+            libplanetTxId: txId,
+            ethereumTxId: transactionHash,
+            fee: fee.toNumber(),
+            feeTransferTxId: feeTransferTxId,
+            sender: sender,
+            recipient: recipient,
+            amount: exchangeAmount.toNumber(),
+        });
     }
 
     private async _refundBelowMinimumAmount(
@@ -481,6 +503,15 @@ export class NCGTransferredEventObserver
             )
         );
         this._opensearchClient.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: `Overflowed Amount ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG.`,
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amount.toNumber(),
+        });
+
+        this._opensearchClientMigration.to_opensearch("error", {
             content: "NCG -> wNCG request failure",
             cause: `Overflowed Amount ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG.`,
             libplanetTxId: txId,
@@ -536,6 +567,16 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+        this._opensearchClientMigration.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
+            libplanetTxId: txId,
+            refundTxId: refundTxId,
+            refundAmount: refundAmount.toNumber(),
+            sender: sender,
+            recipient: recipient,
+            amount: amount.toNumber(),
+        });
         console.log(
             `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`,
             refundTxId
@@ -570,6 +611,14 @@ export class NCGTransferredEventObserver
             )
         );
         this._opensearchClient.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amount.toNumber(),
+        });
+        this._opensearchClientMigration.to_opensearch("error", {
             content: "NCG -> wNCG request failure",
             cause: `24 hr transfer maximum ${this._limitationPolicy.maximum} reached. User transferred ${transferredAmountInLast24Hours} NCGs in 24 hrs.`,
             libplanetTxId: txId,
@@ -636,6 +685,14 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+        this._opensearchClientMigration.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: `Less than minimum transferable amount (${this._limitationPolicy.minimum})`,
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amount.toNumber(),
+        });
         console.log(
             `The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`,
             nineChroniclesTxId
@@ -676,6 +733,14 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+        this._opensearchClientMigration.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: "Invalid recipient 9c address in memo",
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amount.toNumber(),
+        });
         console.log(
             "Valid memo doesn't exist so refund NCG. The transaction's id is",
             nineChroniclesTxId
@@ -704,6 +769,14 @@ export class NCGTransferredEventObserver
             new WrappingRetryIgnoreEvent(txId)
         );
         this._opensearchClient.to_opensearch("error", {
+            content: "NCG -> wNCG request failure",
+            cause: "Exchange history exist",
+            libplanetTxId: txId,
+            sender: sender,
+            recipient: recipient,
+            amount: amountString,
+        });
+        this._opensearchClientMigration.to_opensearch("error", {
             content: "NCG -> wNCG request failure",
             cause: "Exchange history exist",
             libplanetTxId: txId,

@@ -36,6 +36,7 @@ export class EthereumBurnEventObserver
     private readonly _integration: Integration;
     private readonly _multiPlanetary: MultiPlanetary;
     private readonly _failureSubscribers: string;
+    private readonly  _opensearchClientMigration: OpenSearchClient;
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -50,7 +51,8 @@ export class EthereumBurnEventObserver
         etherscanUrl: string,
         integration: Integration,
         multiPlanetary: MultiPlanetary,
-        failureSubscribers: string
+        failureSubscribers: string,
+        opensearchClientMigration: OpenSearchClient,
     ) {
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -65,6 +67,7 @@ export class EthereumBurnEventObserver
         this._integration = integration;
         this._multiPlanetary = multiPlanetary;
         this._failureSubscribers = failureSubscribers;
+        this._opensearchClientMigration = opensearchClientMigration;
     }
 
     async notify(data: {
@@ -109,6 +112,15 @@ export class EthereumBurnEventObserver
                     new UnwrappingRetryIgnoreEvent(transactionHash)
                 );
                 this._opensearchClient.to_opensearch("error", {
+                    content: "wNCG -> NCG request failure",
+                    cause: "Exchange history exist",
+                    ethereumTxId: transactionHash,
+                    sender: sender,
+                    recipient: user9cAddress,
+                    amount: amountString,
+                });
+
+                this._opensearchClientMigration.to_opensearch("error", {
                     content: "wNCG -> NCG request failure",
                     cause: "Exchange history exist",
                     ethereumTxId: transactionHash,
@@ -193,6 +205,16 @@ export class EthereumBurnEventObserver
                     planetName: requestPlanetName,
                     network: "ETH",
                 });
+                await this._opensearchClientMigration.to_opensearch("info", {
+                    content: "wNCG -> NCG request success",
+                    libplanetTxId: nineChroniclesTxId,
+                    ethereumTxId: transactionHash,
+                    sender: sender,
+                    recipient: user9cAddress,
+                    amount: amount.toNumber(),
+                    planetName: requestPlanetName,
+                    network: "ETH",
+                });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
                 const slackMsgRes = await this._slackMessageSender.sendMessage(
@@ -222,6 +244,16 @@ export class EthereumBurnEventObserver
                 });
 
                 await this._opensearchClient.to_opensearch("error", {
+                    content: "wNCG -> NCG request failure",
+                    cause: String(e),
+                    ethereumTxId: transactionHash,
+                    sender: sender,
+                    recipient: user9cAddress,
+                    amount: amount.toNumber(),
+                    planetName: requestPlanetName,
+                    network: "ETH",
+                });
+                await this._opensearchClientMigration.to_opensearch("error", {
                     content: "wNCG -> NCG request failure",
                     cause: String(e),
                     ethereumTxId: transactionHash,
