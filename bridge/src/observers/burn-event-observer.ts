@@ -36,7 +36,7 @@ export class EthereumBurnEventObserver
     private readonly _integration: Integration;
     private readonly _multiPlanetary: MultiPlanetary;
     private readonly _failureSubscribers: string;
-    private readonly  _opensearchClientMigration: OpenSearchClient;
+    private readonly _opensearchClientMigration: OpenSearchClient;
 
     constructor(
         ncgTransfer: INCGTransfer,
@@ -52,7 +52,7 @@ export class EthereumBurnEventObserver
         integration: Integration,
         multiPlanetary: MultiPlanetary,
         failureSubscribers: string,
-        opensearchClientMigration: OpenSearchClient,
+        opensearchClientMigration: OpenSearchClient
     ) {
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;

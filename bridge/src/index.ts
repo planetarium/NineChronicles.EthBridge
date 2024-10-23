@@ -516,7 +516,7 @@ process.on("uncaughtException", console.error);
         integration,
         multiPlanetary,
         FAILURE_SUBSCRIBERS,
-        opensearchClientMigration,
+        opensearchClientMigration
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
         provider,
@@ -549,7 +549,7 @@ process.on("uncaughtException", console.error);
         FAILURE_SUBSCRIBERS,
         whitelistAccounts,
         FEE_COLLECTOR_ADDRESS,
-        opensearchClientMigration,
+        opensearchClientMigration
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),
