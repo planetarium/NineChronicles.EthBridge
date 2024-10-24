@@ -73,14 +73,6 @@ describe(EthereumBurnEventObserver.name, () => {
         to_opensearch: ReturnType<typeof jest.fn>;
     };
 
-    const mockOpenSearchMigrationClient = new OpenSearchClient(
-        "https://www.random-url.com",
-        "auth",
-        "9c-eth-bridge"
-    ) as OpenSearchClient & {
-        to_opensearch: ReturnType<typeof jest.fn>;
-    };
-
     const mockMonitorStateStore: jest.Mocked<IMonitorStateStore> = {
         load: jest.fn(),
         store: jest.fn(),
@@ -156,8 +148,7 @@ describe(EthereumBurnEventObserver.name, () => {
         "https://sepolia.etherscan.io",
         mockIntegration,
         multiPlanetary,
-        failureSubscribers,
-        mockOpenSearchMigrationClient
+        failureSubscribers
     );
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
