@@ -65,7 +65,6 @@ export class NCGTransferredEventObserver
     private readonly _integration: Integration;
     private readonly _whitelistAccounts: WhitelistAccount[];
     private readonly _feeCollectorAddress: string;
-
     constructor(
         ncgTransfer: INCGTransfer,
         wrappedNcgTransfer: IWrappedNCGMinter,
@@ -488,6 +487,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+
         console.log(
             `Overflowed Amount after refund ${limitedAmount.toString()} is lower than minimum NCG. Refund NCG. The transaction's id is`,
             smallAmountRefundTxId
@@ -536,6 +536,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+
         console.log(
             `${sender} tried to exchange ${amountString} and already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${refundAmount}. The transaction's id is`,
             refundTxId
@@ -577,6 +578,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+
         console.log(
             `${sender} already exchanged ${transferredAmountInLast24Hours} and users can exchange until ${this._limitationPolicy.maximum} in 24 hours so refund NCG as ${amountString}. The transaction's id is`,
             nineChroniclesTxId
@@ -636,6 +638,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+
         console.log(
             `The amount(${amountString}) is less than ${this._limitationPolicy.minimum} so refund NCG. The transaction's id is`,
             nineChroniclesTxId
@@ -676,6 +679,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amount.toNumber(),
         });
+
         console.log(
             "Valid memo doesn't exist so refund NCG. The transaction's id is",
             nineChroniclesTxId
