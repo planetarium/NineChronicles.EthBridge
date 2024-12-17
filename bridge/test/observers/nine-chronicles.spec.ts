@@ -15,6 +15,8 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
+import { Transaction } from "@sentry/tracing";
+import { TransactionStatus } from "../../src/types/transaction-status";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -107,6 +109,8 @@ describe(NCGTransferredEventObserver.name, () => {
         put: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
         exist: jest.fn(),
+        updateStatus: jest.fn(),
+        getPendingTransactions: jest.fn(),
     };
 
     const limitationPolicy = {
@@ -390,6 +394,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
                 timestamp: expect.any(String),
                 tx_id: "TX-ID",
+                status: TransactionStatus.PENDING,
             });
 
             expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
@@ -487,6 +492,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     recipient: wrappedNcgRecipient,
                     timestamp: expect.any(String),
                     amount: 0,
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockWrappedNcgMinter.mint).not.toHaveBeenCalled();
@@ -525,6 +531,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     sender: sender,
                     timestamp: expect.any(String),
                     tx_id: "TX-E",
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
@@ -604,6 +611,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-FEE-BASE-RANGE",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -616,6 +624,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-FEE-MIXED-RANGE",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -628,6 +637,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-FEE-SURCHARE-RANGE",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -696,6 +706,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     sender: sender,
                     timestamp: expect.any(String),
                     tx_id: "TX-SHOULD-REFUND-PART",
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
@@ -762,6 +773,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-SHOULD-BE-TRANSFERRED",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -774,6 +786,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-SHOULD-BE-REJECTED",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -786,6 +799,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-SHOULD-BE-REFUNDED-A",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -798,6 +812,7 @@ describe(NCGTransferredEventObserver.name, () => {
                         sender: sender,
                         timestamp: expect.any(String),
                         tx_id: "TX-SHOULD-BE-REFUNDED-B",
+                        status: TransactionStatus.PENDING,
                     }
                 );
 
@@ -863,6 +878,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     sender: noLimitRegularFeeSender,
                     timestamp: expect.any(String),
                     tx_id: "TX-NO-LIMIT-REGULAR-FEE",
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockNcgTransfer.transfer.mock.calls).toEqual([
@@ -912,6 +928,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     sender: noLimitNoFeeSender,
                     timestamp: expect.any(String),
                     tx_id: "TX-NO-LIMIT-NO-FEE",
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockNcgTransfer.transfer).not.toHaveBeenCalled();
@@ -954,6 +971,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     sender: noLimitOnePercentFeeSender,
                     timestamp: expect.any(String),
                     tx_id: "TX-NO-LIMIT-ONE-PERCENT-FEE",
+                    status: TransactionStatus.PENDING,
                 });
 
                 expect(mockWrappedNcgMinter.mint.mock.calls).toEqual([
@@ -1014,6 +1032,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     txId: txId,
                     recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
                     sender: sender,
+                    status: TransactionStatus.PENDING,
                 };
             }
 
@@ -1052,6 +1071,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 sender: sender,
                 timestamp: expect.any(String),
                 tx_id: "TX-A",
+                status: TransactionStatus.PENDING,
             });
 
             expect(mockExchangeHistoryStore.put).toHaveBeenNthCalledWith(2, {
@@ -1061,6 +1081,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 sender: sender,
                 timestamp: expect.any(String),
                 tx_id: "TX-SHOULD-REFUND",
+                status: TransactionStatus.PENDING,
             });
 
             // applied fixed fee ( 10 NCG for transfer under 1000 NCG )
@@ -1132,6 +1153,7 @@ describe(NCGTransferredEventObserver.name, () => {
                     recipient: invalidMemo ?? "",
                     timestamp: expect.any(String),
                     amount: 0,
+                    status: TransactionStatus.PENDING,
                 });
             });
         }

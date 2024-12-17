@@ -21,6 +21,7 @@ import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 import { ACCOUNT_TYPE } from "../whitelist/account-type";
 import { WhitelistAccount } from "../types/whitelist-account";
 import { SpreadsheetClient } from "../spreadsheet-client";
+import { TransactionStatus } from "../types/transaction-status";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -197,6 +198,10 @@ export class NCGTransferredEventObserver
                         amount,
                         recipient
                     );
+                    this._exchangeHistoryStore.updateStatus(
+                        txId,
+                        TransactionStatus.FAILED
+                    );
                     continue;
                 }
 
@@ -204,6 +209,10 @@ export class NCGTransferredEventObserver
                     // ignore zero amount or invalid amount request
                     console.log(
                         "It doesn't need any operation because amount is 0 or invalid."
+                    );
+                    this._exchangeHistoryStore.updateStatus(
+                        txId,
+                        TransactionStatus.FAILED
                     );
                     continue;
                 }
@@ -217,6 +226,10 @@ export class NCGTransferredEventObserver
                         amount,
                         recipient
                     );
+                    this._exchangeHistoryStore.updateStatus(
+                        txId,
+                        TransactionStatus.FAILED
+                    );
                     continue;
                 }
 
@@ -229,6 +242,10 @@ export class NCGTransferredEventObserver
                         amount,
                         recipient,
                         transferredAmountInLast24Hours
+                    );
+                    this._exchangeHistoryStore.updateStatus(
+                        txId,
+                        TransactionStatus.FAILED
                     );
                     continue;
                 }
@@ -343,6 +360,8 @@ export class NCGTransferredEventObserver
             )
         );
 
+        this._exchangeHistoryStore.updateStatus(txId, TransactionStatus.FAILED);
+
         await this._spreadsheetClient.to_spreadsheet_mint({
             slackMessageId: `${
                 slackMsgRes?.channel
@@ -450,6 +469,12 @@ export class NCGTransferredEventObserver
                 feeTransferTxId
             )
         );
+
+        this._exchangeHistoryStore.updateStatus(
+            txId,
+            TransactionStatus.COMPLETED
+        );
+
         this._opensearchClient.to_opensearch("info", {
             content: "NCG -> wNCG request success",
             libplanetTxId: txId,
@@ -649,6 +674,7 @@ export class NCGTransferredEventObserver
             recipient: recipient ?? "",
             timestamp: new Date().toISOString(),
             amount: isExchangableTx ? limitedAmount.toNumber() : 0,
+            status: TransactionStatus.PENDING,
         });
         return true;
     }

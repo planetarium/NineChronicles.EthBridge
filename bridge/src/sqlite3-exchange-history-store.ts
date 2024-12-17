@@ -4,6 +4,7 @@ import {
 } from "./interfaces/exchange-history-store";
 import { Database } from "sqlite3";
 import { promisify } from "util";
+import { TransactionStatus } from "./types/transaction-status";
 
 export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     private readonly _database: Database;
@@ -66,6 +67,7 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     static async open(path: string): Promise<Sqlite3ExchangeHistoryStore> {
         const database = new Database(path);
         await this.initialize(database);
+        await this.ensureStatusColumn(database);
         return new Sqlite3ExchangeHistoryStore(database);
     }
 
@@ -77,6 +79,7 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
             recipient TEXT NOT NULL,
             amount TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
+            status TEXT NOT NULL DEFAULT '${TransactionStatus.PENDING}',
             PRIMARY KEY(network, tx_id)
         );
         CREATE INDEX IF NOT EXISTS exchange_history_idx ON exchange_histories(sender);`;
@@ -91,6 +94,30 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
         });
     }
 
+    /** 운영테이블에 status 컬럼 추가후 삭제될 코드 START */
+    private static async ensureStatusColumn(database: Database): Promise<void> {
+        interface ColumnInfo {
+            name: string;
+        }
+
+        const columns = (await promisify(database.all.bind(database))(
+            "PRAGMA table_info(exchange_histories)"
+        )) as ColumnInfo[];
+
+        const hasStatusColumn = columns.some((col) => col.name === "status");
+
+        if (!hasStatusColumn) {
+            await promisify(database.run.bind(database))(
+                `ALTER TABLE exchange_histories ADD COLUMN status TEXT DEFAULT '${TransactionStatus.PENDING}'`
+            );
+
+            await promisify(database.run.bind(database))(
+                `UPDATE exchange_histories SET status = '${TransactionStatus.COMPLETED}' WHERE status IS NULL`
+            );
+        }
+    }
+    /** 운영테이블에 status 컬럼 추가후 삭제될 코드 END */
+
     close(): void {
         this.checkClosed();
 
@@ -104,5 +131,32 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
                 "This internal SQLite3 database is already closed."
             );
         }
+    }
+
+    async updateStatus(
+        tx_id: string,
+        status: TransactionStatus.COMPLETED | TransactionStatus.FAILED
+    ): Promise<void> {
+        this.checkClosed();
+
+        const run: (sql: string, params: any[]) => Promise<void> = promisify(
+            this._database.run.bind(this._database)
+        );
+        return run("UPDATE exchange_histories SET status = ? WHERE tx_id = ?", [
+            status,
+            tx_id,
+        ]);
+    }
+
+    async getPendingTransactions(): Promise<ExchangeHistory[]> {
+        this.checkClosed();
+
+        const all: (sql: string, params: any[]) => Promise<ExchangeHistory[]> =
+            promisify(this._database.all.bind(this._database));
+
+        return await all(
+            `SELECT * FROM exchange_histories WHERE status = '${TransactionStatus.PENDING}'`,
+            []
+        );
     }
 }

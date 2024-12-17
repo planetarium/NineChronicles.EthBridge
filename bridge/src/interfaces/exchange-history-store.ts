@@ -1,3 +1,5 @@
+import { TransactionStatus } from "../types/transaction-status";
+
 export interface ExchangeHistory {
     network: string;
     tx_id: string;
@@ -5,6 +7,7 @@ export interface ExchangeHistory {
     recipient: string;
     timestamp: string;
     amount: number;
+    status: TransactionStatus;
 }
 
 export interface IExchangeHistoryStore {
@@ -15,4 +18,11 @@ export interface IExchangeHistoryStore {
         network: string,
         sender: string
     ): Promise<number>;
+
+    updateStatus(
+        tx_id: string,
+        status: TransactionStatus.COMPLETED | TransactionStatus.FAILED
+    ): Promise<void>;
+
+    getPendingTransactions(): Promise<ExchangeHistory[]>;
 }

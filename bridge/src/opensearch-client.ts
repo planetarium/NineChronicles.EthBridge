@@ -16,7 +16,7 @@ export class OpenSearchClient {
         this._opensearchIndex = opensearchIndex;
     }
 
-    async to_opensearch(level = "info", msg = {}, timeout = 3000) {
+    async to_opensearch(level = "info", msg = {}, timeout = 5000) {
         const currentTimestamp = Date.now();
         try {
             let { data } = await axios.create({ timeout })({
