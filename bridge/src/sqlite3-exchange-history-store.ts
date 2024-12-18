@@ -67,7 +67,6 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     static async open(path: string): Promise<Sqlite3ExchangeHistoryStore> {
         const database = new Database(path);
         await this.initialize(database);
-        await this.ensureStatusColumn(database);
         return new Sqlite3ExchangeHistoryStore(database);
     }
 
@@ -93,30 +92,6 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
             });
         });
     }
-
-    /** 운영테이블에 status 컬럼 추가후 삭제될 코드 START */
-    private static async ensureStatusColumn(database: Database): Promise<void> {
-        interface ColumnInfo {
-            name: string;
-        }
-
-        const columns = (await promisify(database.all.bind(database))(
-            "PRAGMA table_info(exchange_histories)"
-        )) as ColumnInfo[];
-
-        const hasStatusColumn = columns.some((col) => col.name === "status");
-
-        if (!hasStatusColumn) {
-            await promisify(database.run.bind(database))(
-                `ALTER TABLE exchange_histories ADD COLUMN status TEXT DEFAULT '${TransactionStatus.PENDING}'`
-            );
-
-            await promisify(database.run.bind(database))(
-                `UPDATE exchange_histories SET status = '${TransactionStatus.COMPLETED}' WHERE status IS NULL`
-            );
-        }
-    }
-    /** 운영테이블에 status 컬럼 추가후 삭제될 코드 END */
 
     close(): void {
         this.checkClosed();
