@@ -23,7 +23,8 @@ export class PendingTransactionMessage implements Message {
     }
 
     render(): ForceOmit<Partial<ChatPostMessageArguments>, "channel"> {
-        if (this.transactions) {
+        console.log(this.transactions);
+        if (this.transactions.length !== 0) {
             console.log("Pending Transactions : ", this.transactions);
             return {
                 text: `${this.transactions.length} Pending Transactions Found`,
