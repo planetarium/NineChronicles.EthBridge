@@ -24,10 +24,10 @@ export class Sqlite3MonitorStateStore implements IMonitorStateStore {
             block_hash TEXT NOT NULL,
             tx_id TEXT
         )`;
-        return new Promise((resolve, error) => {
+        return new Promise((resolve, reject) => {
             database.run(CREATE_TABLE_QUERY, (e) => {
                 if (e) {
-                    error();
+                    reject(e);
                 } else {
                     resolve();
                 }

@@ -4,6 +4,7 @@ import {
 } from "./interfaces/exchange-history-store";
 import { Database } from "sqlite3";
 import { promisify } from "util";
+import { TransactionStatus } from "./types/transaction-status";
 
 export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     private readonly _database: Database;
@@ -77,13 +78,14 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
             recipient TEXT NOT NULL,
             amount TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
+            status TEXT NOT NULL DEFAULT '${TransactionStatus.PENDING}',
             PRIMARY KEY(network, tx_id)
         );
         CREATE INDEX IF NOT EXISTS exchange_history_idx ON exchange_histories(sender);`;
-        return new Promise((resolve, error) => {
+        return new Promise((resolve, reject) => {
             database.run(CREATE_TABLE_QUERY, (e) => {
                 if (e) {
-                    error();
+                    reject(e);
                 } else {
                     resolve();
                 }
@@ -104,5 +106,32 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
                 "This internal SQLite3 database is already closed."
             );
         }
+    }
+
+    async updateStatus(
+        tx_id: string,
+        status: TransactionStatus.COMPLETED | TransactionStatus.FAILED
+    ): Promise<void> {
+        this.checkClosed();
+
+        const run: (sql: string, params: any[]) => Promise<void> = promisify(
+            this._database.run.bind(this._database)
+        );
+        return run("UPDATE exchange_histories SET status = ? WHERE tx_id = ?", [
+            status,
+            tx_id,
+        ]);
+    }
+
+    async getPendingTransactions(): Promise<ExchangeHistory[]> {
+        this.checkClosed();
+
+        const all: (sql: string, params: any[]) => Promise<ExchangeHistory[]> =
+            promisify(this._database.all.bind(this._database));
+
+        return await all(
+            `SELECT * FROM exchange_histories WHERE status = '${TransactionStatus.PENDING}'`,
+            []
+        );
     }
 }

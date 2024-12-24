@@ -15,6 +15,7 @@ import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { FixedExchangeFeeRatioPolicy } from "../../src/policies/exchange-fee-ratio";
 import { Decimal } from "decimal.js";
 import { MultiPlanetary } from "../../src/multi-planetary";
+import { TransactionStatus } from "../../src/types/transaction-status";
 
 jest.mock("@slack/web-api", () => {
     return {
@@ -88,8 +89,10 @@ describe(EthereumBurnEventObserver.name, () => {
 
     const mockExchangeHistoryStore: jest.Mocked<IExchangeHistoryStore> = {
         put: jest.fn(),
-        exist: jest.fn(),
         transferredAmountInLast24Hours: jest.fn(),
+        exist: jest.fn(),
+        updateStatus: jest.fn().mockResolvedValue(undefined),
+        getPendingTransactions: jest.fn(),
     };
 
     const mockIntegration: jest.Mocked<Integration> = {
@@ -234,6 +237,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -244,6 +248,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1.2,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -254,6 +259,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 0.01,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -264,6 +270,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 3.22,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
             ]);
@@ -325,6 +332,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -335,6 +343,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1.2,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -345,6 +354,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 0.01,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -355,6 +365,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 3.22,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
             ]);
@@ -422,6 +433,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -432,6 +444,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 1.2,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -442,6 +455,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 0.01,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
                 [
@@ -452,6 +466,7 @@ describe(EthereumBurnEventObserver.name, () => {
                         recipient: ncgRecipient,
                         timestamp: expect.any(String),
                         amount: 3.22,
+                        status: TransactionStatus.PENDING,
                     },
                 ],
             ]);
@@ -578,6 +593,49 @@ describe(EthereumBurnEventObserver.name, () => {
             });
 
             expect(mockIntegration.error.mock.calls).toMatchSnapshot();
+        });
+
+        it("should handle existing exchange history and send error message", async () => {
+            // 기존 트랜잭션 해시를 설정
+            const existingTxId = "EXISTING-TX-ID";
+            mockExchangeHistoryStore.exist.mockResolvedValue(true); // exist 메서드가 true를 반환하도록 설정
+
+            const events = [
+                {
+                    blockHash: "BLOCK-HASH",
+                    address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                    logIndex: 0,
+                    blockNumber: 0,
+                    event: "Burn",
+                    raw: {
+                        data: "",
+                        topics: [],
+                    },
+                    signature: "",
+                    transactionIndex: 0,
+                    transactionHash: existingTxId,
+                    txId: existingTxId,
+                    returnValues: {
+                        _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        amount: 1000000000000000000,
+                    },
+                },
+            ];
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events,
+            });
+
+            // 슬랙 메시지가 전송되었는지 확인
+            expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
+            expect(
+                mockOpenSearchClient.to_opensearch.mock.calls
+            ).toMatchSnapshot();
+
+            // put 메서드는 호출되지 않아야 함
+            expect(mockExchangeHistoryStore.put).not.toHaveBeenCalled();
         });
     });
 });

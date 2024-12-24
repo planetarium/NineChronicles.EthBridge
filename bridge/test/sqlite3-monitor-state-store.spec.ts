@@ -2,6 +2,7 @@ import { Sqlite3MonitorStateStore } from "../src/sqlite3-monitor-state-store";
 import { tmpdir } from "os";
 import { join } from "path";
 import { promises } from "fs";
+import { Database } from "sqlite3";
 
 describe("Sqlite3MonitorStateStore", () => {
     let stateStore: Sqlite3MonitorStateStore;
@@ -62,5 +63,21 @@ describe("Sqlite3MonitorStateStore", () => {
     it("should throw error.", () => {
         expect(() => stateStore.close()).not.toThrowError();
         expect(() => stateStore.close()).toThrowError();
+    });
+
+    it("should reject when database.run fails", async () => {
+        // Mock Database class
+        const mockDatabase = {
+            run: jest.fn().mockImplementation((query, callback) => {
+                const error = new Error("SQLITE_ERROR: syntax error");
+                callback(error);
+            }),
+        } as unknown as Database;
+
+        await expect(
+            Sqlite3MonitorStateStore["initialize"](mockDatabase)
+        ).rejects.toThrow("SQLITE_ERROR: syntax error");
+
+        expect(mockDatabase.run).toHaveBeenCalled();
     });
 });

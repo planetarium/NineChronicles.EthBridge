@@ -44,6 +44,7 @@ import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
 import { MultiPlanetary } from "./multi-planetary";
+import { PendingTransactionHandler } from "./pending-transactions";
 
 consoleStamp(console);
 
@@ -500,6 +501,16 @@ process.on("uncaughtException", console.error);
         heimdall: ODIN_TO_HEIMDALL_VALUT_ADDRESS,
     };
     const multiPlanetary = new MultiPlanetary(planetIds, planetVaultAddress);
+
+    const pendingTransactionRetryHandler = new PendingTransactionHandler(
+        exchangeHistoryStore,
+        ncgKmsTransfer,
+        multiPlanetary,
+        slackMessageSender
+    );
+
+    // 서버 시작 시 pending 트랜잭션 slack 메시지 전송
+    await pendingTransactionRetryHandler.messagePendingTransactions();
 
     const ethereumBurnEventObserver = new EthereumBurnEventObserver(
         ncgKmsTransfer,
