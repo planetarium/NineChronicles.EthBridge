@@ -1,5 +1,4 @@
 import { Monitor } from ".";
-import { captureException } from "@sentry/node";
 import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
 
@@ -98,7 +97,6 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                     "Ignore and continue loop without breaking though unexpected error occurred:",
                     error
                 );
-                captureException(error);
             }
         }
     }
