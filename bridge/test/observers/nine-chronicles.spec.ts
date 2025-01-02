@@ -15,7 +15,6 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
-import { Transaction } from "@sentry/tracing";
 import { TransactionStatus } from "../../src/types/transaction-status";
 
 jest.mock("@slack/web-api", () => {

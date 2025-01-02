@@ -73,6 +73,16 @@ describe("Configuration", () => {
                     Configuration.get("UNDEFINED", true, "string");
                 }).toThrowError("Please set 'UNDEFINED' at .env");
             });
+
+            it("should throw an error for unsupported type", () => {
+                expect(() => {
+                    Configuration.get(
+                        "NON_EXISTENT_VARIABLE",
+                        false,
+                        "unsupportedType" as any
+                    );
+                }).toThrowError("Unsupported type: unsupportedType");
+            });
         });
 
         for (const testcase of [".1", "FALSE", "", "*"]) {

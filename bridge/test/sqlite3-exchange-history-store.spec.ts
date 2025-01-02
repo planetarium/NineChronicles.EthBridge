@@ -129,7 +129,6 @@ describe("Sqlite3ExchangeHistoryStore", () => {
 
     describe("transaction status management", () => {
         it("should manage transaction status correctly", async () => {
-            // 1. 초기 상태 저장
             const tx: ExchangeHistory = {
                 network: "ethereum",
                 tx_id: "TX-STATUS-TEST",
@@ -141,14 +140,12 @@ describe("Sqlite3ExchangeHistoryStore", () => {
             };
             await store.put(tx);
 
-            // 저장 직후 데이터 확인
             let checkAfterPut = await (store as any)._database.all(
                 "SELECT * FROM exchange_histories WHERE tx_id = ?",
                 ["TX-STATUS-TEST"]
             );
             console.log("After PUT:", checkAfterPut);
 
-            // status 업데이트 후 데이터 확인
             await store.updateStatus(
                 "TX-STATUS-TEST",
                 TransactionStatus.FAILED
@@ -161,7 +158,6 @@ describe("Sqlite3ExchangeHistoryStore", () => {
         });
 
         it("should handle non-existent transaction", async () => {
-            // 존재하지 않는 트랜잭션의 상태 업데이트
             await store.updateStatus(
                 "NON-EXISTENT-TX",
                 TransactionStatus.COMPLETED

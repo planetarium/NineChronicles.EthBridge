@@ -596,9 +596,8 @@ describe(EthereumBurnEventObserver.name, () => {
         });
 
         it("should handle existing exchange history and send error message", async () => {
-            // 기존 트랜잭션 해시를 설정
             const existingTxId = "EXISTING-TX-ID";
-            mockExchangeHistoryStore.exist.mockResolvedValue(true); // exist 메서드가 true를 반환하도록 설정
+            mockExchangeHistoryStore.exist.mockResolvedValue(true);
 
             const events = [
                 {
@@ -628,13 +627,11 @@ describe(EthereumBurnEventObserver.name, () => {
                 events,
             });
 
-            // 슬랙 메시지가 전송되었는지 확인
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
             expect(
                 mockOpenSearchClient.to_opensearch.mock.calls
             ).toMatchSnapshot();
 
-            // put 메서드는 호출되지 않아야 함
             expect(mockExchangeHistoryStore.put).not.toHaveBeenCalled();
         });
     });

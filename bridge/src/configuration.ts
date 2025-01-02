@@ -38,55 +38,78 @@ export class Configuration {
             throw new Error(`Please set '${name}' at .env`);
         }
 
-        if (type === "string") {
-            return environmentVariable;
+        return this.handleType(environmentVariable, name, type);
+    }
+
+    private static handleType(
+        variable: string | undefined,
+        name: string,
+        type: ConversionType
+    ): string | number | boolean | undefined {
+        switch (type) {
+            case "string":
+                return variable;
+
+            case "integer":
+                return this.parseInteger(variable, name);
+
+            case "float":
+                return this.parseFloat(variable, name);
+
+            case "boolean":
+                return this.parseBoolean(variable, name);
+
+            default:
+                throw new Error(`Unsupported type: ${type}`);
         }
+    }
 
-        if (type === "integer") {
-            if (environmentVariable === undefined) {
-                return environmentVariable;
-            }
+    private static parseInteger(
+        variable: string | undefined,
+        name: string
+    ): number | undefined {
+        if (variable === undefined) return undefined;
 
-            const asInt = parseInt(environmentVariable);
-            if (isNaN(asInt)) {
-                throw new Error(
-                    `Please set '${name}' with valid integer format at .env`
-                );
-            }
-
-            return asInt;
-        }
-
-        if (type === "float") {
-            if (environmentVariable === undefined) {
-                return environmentVariable;
-            }
-
-            const asFloat = parseFloat(environmentVariable);
-            if (isNaN(asFloat) || asFloat.toString() !== environmentVariable) {
-                throw new Error(
-                    `Please set '${name}' with valid float format at .env`
-                );
-            }
-
-            return asFloat;
-        }
-
-        if (type === "boolean") {
-            if (
-                environmentVariable === undefined ||
-                environmentVariable === "FALSE"
-            ) {
-                return false;
-            }
-
-            if (environmentVariable === "TRUE") {
-                return true;
-            }
-
+        const asInt = parseInt(variable);
+        if (isNaN(asInt)) {
             throw new Error(
-                `Please set '${name}' as 'TRUE' or 'FALSE', or remove '${name}' at .env.`
+                `Please set '${name}' with valid integer format at .env`
             );
         }
+
+        return asInt;
+    }
+
+    private static parseFloat(
+        variable: string | undefined,
+        name: string
+    ): number | undefined {
+        if (variable === undefined) return undefined;
+
+        const asFloat = parseFloat(variable);
+        if (isNaN(asFloat) || asFloat.toString() !== variable) {
+            throw new Error(
+                `Please set '${name}' with valid float format at .env`
+            );
+        }
+
+        return asFloat;
+    }
+
+    private static parseBoolean(
+        variable: string | undefined,
+        name: string
+    ): boolean {
+        if (variable === undefined || variable === "FALSE") {
+            return false;
+        }
+
+        if (variable === "TRUE") {
+            return true;
+        }
+
+        throw new Error(
+            `Please set '${name}' as 'TRUE' or 'FALSE', or remove '${name}' at .env.`
+        );
     }
 }
