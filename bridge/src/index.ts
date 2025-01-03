@@ -123,9 +123,6 @@ process.on("uncaughtException", console.error);
     const OPENSEARCH_ENDPOINT: string = Configuration.get(
         "OPENSEARCH_ENDPOINT"
     );
-    const OPENSEARCH_ENDPOINT_MIGRATION: string = Configuration.get(
-        "OPENSEARCH_ENDPOINT_MIGRATION"
-    );
     const OPENSEARCH_AUTH: string = Configuration.get("OPENSEARCH_AUTH");
     const OPENSEARCH_INDEX: string =
         Configuration.get("OPENSEARCH_INDEX", false) || "9c-eth-bridge";
@@ -319,11 +316,6 @@ process.on("uncaughtException", console.error);
         OPENSEARCH_AUTH,
         OPENSEARCH_INDEX
     );
-    const opensearchClientMigration = new OpenSearchClient(
-        OPENSEARCH_ENDPOINT_MIGRATION,
-        OPENSEARCH_AUTH,
-        OPENSEARCH_INDEX
-    );
     const GRAPHQL_REQUEST_RETRY = 5;
     const JWT_SECRET_KEY = Configuration.get("JWT_SECRET_KEY");
     const headlessGraphQLCLient = new HeadlessGraphQLClient(
@@ -514,8 +506,7 @@ process.on("uncaughtException", console.error);
         ETHERSCAN_ROOT_URL,
         integration,
         multiPlanetary,
-        FAILURE_SUBSCRIBERS,
-        opensearchClientMigration
+        FAILURE_SUBSCRIBERS
     );
     const ethereumBurnEventMonitor = new EthereumBurnEventMonitor(
         provider,
@@ -547,8 +538,7 @@ process.on("uncaughtException", console.error);
         integration,
         FAILURE_SUBSCRIBERS,
         whitelistAccounts,
-        FEE_COLLECTOR_ADDRESS,
-        opensearchClientMigration
+        FEE_COLLECTOR_ADDRESS
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),
