@@ -35,7 +35,7 @@ export async function sign(
     const kms = new KMSClient({ region: kmsCredentials.region });
     const params = {
         KeyId: kmsCredentials.keyId,
-        Message: digest,
+        Message: new Uint8Array(digest),
         SigningAlgorithm: "ECDSA_SHA_256" as const,
         MessageType: "DIGEST" as const,
     };
@@ -93,7 +93,7 @@ export async function requestKmsSignature(
     if (!signature.Signature) {
         throw new Error(`AWS KMS call failed: Signature is undefined`);
     }
-    return findEthereumSig(signature.Signature as Buffer);
+    return findEthereumSig(Buffer.from(signature.Signature));
 }
 
 function recoverPubKeyFromSig(msg: Buffer, r: BN, s: BN, v: number) {
@@ -132,6 +132,7 @@ export interface AwsKmsSignerCredentials {
     region: string;
     keyId: string;
 }
+
 export class AwsKmsSigner extends ethers.Signer {
     // @ts-ignore
     kmsCredentials: AwsKmsSignerCredentials;
@@ -152,9 +153,11 @@ export class AwsKmsSigner extends ethers.Signer {
     async getAddress(): Promise<string> {
         if (this.ethereumAddress === undefined) {
             const key = await getPublicKey(this.kmsCredentials);
+            if (!key.PublicKey) {
+                throw new Error("Failed to get public key from AWS KMS");
+            }
 
-            const publicKeyBuffer = Buffer.from(key.PublicKey as Uint8Array);
-
+            const publicKeyBuffer = Buffer.from(key.PublicKey);
             this.ethereumAddress = ethers.utils.getAddress(
                 getEthereumAddress(publicKeyBuffer)
             );
