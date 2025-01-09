@@ -1,5 +1,9 @@
 import { ethers, UnsignedTransaction } from "ethers";
-import { KMS } from "aws-sdk";
+import {
+    KMSClient,
+    SignCommand,
+    GetPublicKeyCommand,
+} from "@aws-sdk/client-kms";
 // @ts-ignore
 import * as asn1 from "asn1.js";
 import BN from "bn.js";
@@ -28,26 +32,24 @@ export async function sign(
     digest: Buffer,
     kmsCredentials: AwsKmsSignerCredentials
 ) {
-    const kms = new KMS(kmsCredentials);
-    const params: KMS.SignRequest = {
-        // key id or 'Alias/<alias>'
+    const kms = new KMSClient({ region: kmsCredentials.region });
+    const params = {
         KeyId: kmsCredentials.keyId,
-        Message: digest,
-        // 'ECDSA_SHA_256' is the one compatible with ECC_SECG_P256K1.
-        SigningAlgorithm: "ECDSA_SHA_256",
-        MessageType: "DIGEST",
+        Message: new Uint8Array(digest),
+        SigningAlgorithm: "ECDSA_SHA_256" as const,
+        MessageType: "DIGEST" as const,
     };
-    const res = await kms.sign(params).promise();
+    const command = new SignCommand(params);
+    const res = await kms.send(command);
     return res;
 }
 
 export async function getPublicKey(kmsCredentials: AwsKmsSignerCredentials) {
-    const kms = new KMS(kmsCredentials);
-    return kms
-        .getPublicKey({
-            KeyId: kmsCredentials.keyId,
-        })
-        .promise();
+    const kms = new KMSClient({ region: kmsCredentials.region });
+    const command = new GetPublicKeyCommand({
+        KeyId: kmsCredentials.keyId,
+    });
+    return kms.send(command);
 }
 
 export function getEthereumAddress(publicKey: Buffer): string {
@@ -88,12 +90,10 @@ export async function requestKmsSignature(
     kmsCredentials: AwsKmsSignerCredentials
 ) {
     const signature = await sign(plaintext, kmsCredentials);
-    if (signature.$response.error || signature.Signature === undefined) {
-        throw new Error(
-            `AWS KMS call failed with: ${signature.$response.error}`
-        );
+    if (!signature.Signature) {
+        throw new Error(`AWS KMS call failed: Signature is undefined`);
     }
-    return findEthereumSig(signature.Signature as Buffer);
+    return findEthereumSig(Buffer.from(signature.Signature));
 }
 
 function recoverPubKeyFromSig(msg: Buffer, r: BN, s: BN, v: number) {
@@ -132,6 +132,7 @@ export interface AwsKmsSignerCredentials {
     region: string;
     keyId: string;
 }
+
 export class AwsKmsSigner extends ethers.Signer {
     // @ts-ignore
     kmsCredentials: AwsKmsSignerCredentials;
@@ -152,8 +153,13 @@ export class AwsKmsSigner extends ethers.Signer {
     async getAddress(): Promise<string> {
         if (this.ethereumAddress === undefined) {
             const key = await getPublicKey(this.kmsCredentials);
+            if (!key.PublicKey) {
+                throw new Error("Failed to get public key from AWS KMS");
+            }
+
+            const publicKeyBuffer = Buffer.from(key.PublicKey);
             this.ethereumAddress = ethers.utils.getAddress(
-                getEthereumAddress(key.PublicKey as Buffer)
+                getEthereumAddress(publicKeyBuffer)
             );
         }
         return Promise.resolve(this.ethereumAddress);
