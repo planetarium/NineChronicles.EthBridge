@@ -32,7 +32,13 @@ export async function sign(
     digest: Buffer,
     kmsCredentials: AwsKmsSignerCredentials
 ) {
-    const kms = new KMSClient({ region: kmsCredentials.region });
+    const kms = new KMSClient({
+        region: kmsCredentials.region,
+        credentials: {
+            accessKeyId: kmsCredentials.accessKeyId ?? "",
+            secretAccessKey: kmsCredentials.secretAccessKey ?? "",
+        },
+    });
     const params = {
         KeyId: kmsCredentials.keyId,
         Message: new Uint8Array(digest),
@@ -45,7 +51,13 @@ export async function sign(
 }
 
 export async function getPublicKey(kmsCredentials: AwsKmsSignerCredentials) {
-    const kms = new KMSClient({ region: kmsCredentials.region });
+    const kms = new KMSClient({
+        region: kmsCredentials.region,
+        credentials: {
+            accessKeyId: kmsCredentials.accessKeyId ?? "",
+            secretAccessKey: kmsCredentials.secretAccessKey ?? "",
+        },
+    });
     const command = new GetPublicKeyCommand({
         KeyId: kmsCredentials.keyId,
     });
