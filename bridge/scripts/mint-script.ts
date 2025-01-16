@@ -9,6 +9,7 @@ import {
 import { AwsKmsSigner } from "ethers-aws-kms-signer";
 import { Command } from "commander";
 import readline from "readline";
+import { WebClient } from "@slack/web-api";
 
 const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
 
@@ -85,6 +86,16 @@ async function mint() {
 }
 
 mint();
+
+async function sendSlackMessage(text: string): Promise<void> {
+    const slackWebClient = new WebClient(process.env.SLACK_WEB_TOKEN);
+    const slackChannel = process.env.SLACK_CHANNEL_NAME!;
+
+    await slackWebClient.chat.postMessage({
+        channel: slackChannel,
+        text,
+    });
+}
 
 async function initalizeSafe(existingAddress = EXISTING_SAFE_ADDRESS) {
     console.log("initializeSafe safe address", EXISTING_SAFE_ADDRESS);
@@ -203,6 +214,10 @@ async function executeTransaction(
     const executeTxResponse = await safeSdk.executeTransaction(safeTransaction);
     const receipt = await executeTxResponse.transactionResponse?.wait();
 
+    if (receipt === undefined) {
+        throw new Error("Transaction receipt is undefined");
+    }
+
     console.log("Transaction executed:");
     console.log(
         `${process.env.ETHERSCAN_ROOT_URL}/tx/${receipt?.transactionHash}`
@@ -216,6 +231,8 @@ async function executeTransaction(
             "ether"
         )} ETH`
     );
+
+    return receipt?.transactionHash;
 }
 
 function sleep(sec: number) {
@@ -295,6 +312,13 @@ async function main(destination: string, amount: string, gasPrice: string) {
         const { safeTxHash: confirmedSafeTxHash } = await confirmTransaction(
             safeTxHash
         );
-        await executeTransaction(confirmedSafeTxHash);
+
+        const transactionHash = await executeTransaction(confirmedSafeTxHash);
+
+        const slackMessageText = `:ncg: WNCG minted from 9c-ETH bridge account. ${process.env.FAILURE_SUBSCRIBERS}\n
+        userETHAddress: ${destination}\n
+        amount: ${amount.toString()}\n
+        txId: ${transactionHash}`;
+        await sendSlackMessage(slackMessageText);
     });
 }

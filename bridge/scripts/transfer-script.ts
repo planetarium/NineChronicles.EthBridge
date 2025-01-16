@@ -191,7 +191,7 @@ async function transferNcg(
 
         console.log("txId", txId);
 
-        const slackMessageText = `:ncg: NCG transferred from 9c-ETH bridge account sent. Operator: ${operator}\n
+        const slackMessageText = `:ncg: NCG transferred from 9c-ETH bridge account sent.${process.env.FAILURE_SUBSCRIBERS} Operator: ${operator}\n
         user9cAddress: ${user9cAddress}\n
         amount: ${amount.toString()}\n
         planet: ${planetName}\n

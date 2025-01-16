@@ -7,6 +7,7 @@ import { KMSNCGSigner } from "../src/kms-ncg-signer";
 import { isAddress } from "web3-utils";
 import { Command } from "commander";
 import readline from "readline";
+import { WebClient } from "@slack/web-api";
 
 async function feeTransfer() {
     const program = new Command();
@@ -31,6 +32,16 @@ async function feeTransfer() {
 }
 
 feeTransfer();
+
+async function sendSlackMessage(text: string): Promise<void> {
+    const slackWebClient = new WebClient(process.env.SLACK_WEB_TOKEN);
+    const slackChannel = process.env.SLACK_CHANNEL_NAME!;
+
+    await slackWebClient.chat.postMessage({
+        channel: slackChannel,
+        text,
+    });
+}
 
 async function transferNcg(address: string, amount: string) {
     if (Number(amount) > 1000000) {
@@ -179,6 +190,12 @@ async function transferNcg(address: string, amount: string) {
 
                     console.log("txId", txId);
                     reader.close();
+
+                    const slackMessageText = `:ncg: NCG transferred ( ${transferCase} ) from 9c-ETH bridge fee account sent.${process.env.FAILURE_SUBSCRIBERS} \n
+                    destinationAddress: ${address}\n
+                    amount: ${amount.toString()}\n
+                    txId: ${txId}`;
+                    await sendSlackMessage(slackMessageText);
                 }
             );
         }
