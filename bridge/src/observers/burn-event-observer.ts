@@ -236,17 +236,27 @@ export class EthereumBurnEventObserver
                     planetName: requestPlanetName,
                     network: "ETH",
                 });
-
-                await this._integration.error(
-                    "Unexpected error during unwrapping NCG",
-                    {
+                if (String(e) === "Error: Not Found") {
+                    const errorMessage = {
                         errorMessage: String(e),
                         sender,
                         user9cAddress,
                         transactionHash,
                         amountString,
-                    }
-                );
+                    };
+                    console.log(errorMessage);
+                } else {
+                    await this._integration.error(
+                        "Unexpected error during unwrapping NCG",
+                        {
+                            errorMessage: String(e),
+                            sender,
+                            user9cAddress,
+                            transactionHash,
+                            amountString,
+                        }
+                    );
+                }
             }
         }
     }
