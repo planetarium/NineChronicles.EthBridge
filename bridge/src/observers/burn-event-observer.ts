@@ -236,7 +236,7 @@ export class EthereumBurnEventObserver
                     planetName: requestPlanetName,
                     network: "ETH",
                 });
-                if (String(e) === "Error: Not Found") {
+                if (e instanceof Error && e.message.includes("Not Found")) {
                     const errorMessage = {
                         errorMessage: String(e),
                         sender,
@@ -244,7 +244,7 @@ export class EthereumBurnEventObserver
                         transactionHash,
                         amountString,
                     };
-                    console.log(errorMessage);
+                    console.log("ErrorMessage(pagerduty): ", errorMessage);
                 } else {
                     await this._integration.error(
                         "Unexpected error during unwrapping NCG",
