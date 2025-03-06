@@ -236,6 +236,7 @@ export class EthereumBurnEventObserver
                     planetName: requestPlanetName,
                     network: "ETH",
                 });
+
                 await this._integration.error(
                     "Unexpected error during unwrapping NCG",
                     {
