@@ -200,6 +200,11 @@ export class EthereumBurnEventObserver
                 });
                 console.log("Transferred", nineChroniclesTxId);
             } catch (e) {
+                console.log("Error type:", typeof e);
+                console.log("Error toString:", String(e));
+                console.log("Error instanceof Error:", e instanceof Error);
+                console.log("Error equal:", String(e) === "Error: Not Found");
+                console.log("Error includes:", String(e).includes("Not Found"));
                 const slackMsgRes = await this._slackMessageSender.sendMessage(
                     new UnwrappingFailureEvent(
                         this._etherscanUrl,
@@ -236,7 +241,10 @@ export class EthereumBurnEventObserver
                     planetName: requestPlanetName,
                     network: "ETH",
                 });
-                if (e instanceof Error && e.message.includes("Not Found")) {
+                if (
+                    String(e) === "Error: Not Found" ||
+                    String(e).includes("Not Found")
+                ) {
                     const errorMessage = {
                         errorMessage: String(e),
                         sender,
