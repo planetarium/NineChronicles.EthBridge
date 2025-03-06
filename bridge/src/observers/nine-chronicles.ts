@@ -342,10 +342,6 @@ export class NCGTransferredEventObserver
         } else {
             errorMessage = JSON.stringify(e);
         }
-        console.log("Error toString:", errorMessage);
-        console.log("Error instanceof Error:", e instanceof Error);
-        console.log("Error equal:", errorMessage === "Error: Not Found");
-        console.log("Error includes:", errorMessage.includes("Not Found"));
 
         const slackMsgRes = await this._slackMessageSender.sendMessage(
             new WrappingFailureEvent(
@@ -387,10 +383,7 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amountString,
         });
-        if (
-            errorMessage === "Error: Not Found" ||
-            errorMessage.includes("Not Found")
-        ) {
+        if (errorMessage === "Error: Not Found") {
             const message = {
                 cause: errorMessage,
                 libplanetTxId: txId,
