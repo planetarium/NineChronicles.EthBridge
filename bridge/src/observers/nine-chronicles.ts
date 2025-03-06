@@ -342,6 +342,10 @@ export class NCGTransferredEventObserver
         } else {
             errorMessage = JSON.stringify(e);
         }
+        console.log("Error toString:", errorMessage);
+        console.log("Error instanceof Error:", e instanceof Error);
+        console.log("Error equal:", errorMessage === "Error: Not Found");
+        console.log("Error includes:", errorMessage.includes("Not Found"));
 
         const slackMsgRes = await this._slackMessageSender.sendMessage(
             new WrappingFailureEvent(
@@ -383,14 +387,27 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amountString,
         });
-
-        this._integration.error("Unexpected error during wrapping NCG", {
-            errorMessage,
-            sender,
-            recipient,
-            txId,
-            amountString,
-        });
+        if (
+            errorMessage === "Error: Not Found" ||
+            errorMessage.includes("Not Found")
+        ) {
+            const message = {
+                cause: errorMessage,
+                libplanetTxId: txId,
+                sender: sender,
+                recipient: recipient,
+                amount: amountString,
+            };
+            console.log("ErrorMessage(pagerduty): ", message);
+        } else {
+            this._integration.error("Unexpected error during wrapping NCG", {
+                errorMessage,
+                sender,
+                recipient,
+                txId,
+                amountString,
+            });
+        }
     }
 
     private async _mintRequest(
