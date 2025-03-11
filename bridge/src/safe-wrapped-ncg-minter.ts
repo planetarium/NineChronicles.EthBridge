@@ -6,6 +6,8 @@ import {
     SafeTransaction,
     SafeTransactionDataPartial,
     SafeMultisigTransactionResponse,
+    SafeTransactionData,
+    SafeSignature,
 } from "@safe-global/safe-core-sdk-types";
 import Safe from "@safe-global/safe-core-sdk";
 import SafeServiceClient from "@safe-global/safe-service-client";
@@ -41,6 +43,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         value: string;
         data: string;
         nonce: number;
+        safeTxHash: string;
         signatures: Map<string, string>;
     } | null = null;
 
@@ -192,8 +195,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         const gasToken = ethers.constants.AddressZero;
         const refundReceiver = ethers.constants.AddressZero;
 
-        // EIP-712 해시 계산
-        const txHash = await this._safeSdkOwner1.getTransactionHash({
+        // SafeTransaction 객체 생성
+        const safeTransactionData: SafeTransactionDataPartial = {
             to: this._wncgContractAddress,
             value: "0",
             data,
@@ -204,11 +207,21 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             gasToken,
             refundReceiver,
             nonce: nonce.toNumber(),
+        };
+
+        // SafeTransactionData를 SafeTransaction으로 변환
+        const safeTransaction = await this._safeSdkOwner1.createTransaction({
+            safeTransactionData,
         });
 
+        // 트랜잭션 해시 계산
+        const txHash = await this._safeSdkOwner1.getTransactionHash(
+            safeTransaction
+        );
+
         // 첫 번째 소유자 서명
-        const signature1 = await this._owner1Signer.signMessage(
-            ethers.utils.arrayify(txHash)
+        const signature1 = await this._safeSdkOwner1.signTransactionHash(
+            txHash
         );
 
         // 보류 중인 트랜잭션 저장
@@ -217,8 +230,9 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             value: "0",
             data,
             nonce: nonce.toNumber(),
+            safeTxHash: txHash,
             signatures: new Map([
-                [await this._owner1Signer.getAddress(), signature1],
+                [await this._owner1Signer.getAddress(), signature1.data],
             ]),
         };
 
@@ -235,39 +249,15 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             throw new Error("No pending transaction to confirm");
         }
 
-        // Safe 트랜잭션 해시 계산을 위한 파라미터
-        const operation = 0; // Call
-        const safeTxGas = 0;
-        const baseGas = 0;
-        const gasPrice = await this._gasPricePolicy.calculateGasPrice(
-            new Decimal((await this._provider.getGasPrice()).toString())
-        );
-        const gasToken = ethers.constants.AddressZero;
-        const refundReceiver = ethers.constants.AddressZero;
-
-        // EIP-712 해시 계산
-        const txHash = await this._safeSdkOwner1.getTransactionHash({
-            to: this._pendingTx.to,
-            value: this._pendingTx.value,
-            data: this._pendingTx.data,
-            operation,
-            safeTxGas,
-            baseGas,
-            gasPrice: gasPrice.toNumber(),
-            gasToken,
-            refundReceiver,
-            nonce: this._pendingTx.nonce,
-        });
-
         // 두 번째 소유자 서명
-        const signature2 = await this._owner2Signer.signMessage(
-            ethers.utils.arrayify(txHash)
+        const signature2 = await this._safeSdkOwner2.signTransactionHash(
+            this._pendingTx.safeTxHash
         );
 
         // 서명 추가
         this._pendingTx.signatures.set(
             await this._owner2Signer.getAddress(),
-            signature2
+            signature2.data
         );
 
         console.log("Transaction confirmed directly");
@@ -292,21 +282,41 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
 
         // 소유자 주소 가져오기
         const owners = await this._safeContract.getOwners();
+        const threshold = await this._safeContract.getThreshold();
+
+        console.log(
+            `Safe threshold: ${threshold}, owners count: ${owners.length}`
+        );
 
         // 서명 정렬 및 결합
+        let signatures = "0x";
+
+        // 서명한 소유자 수 확인
+        const signedOwners = [...this._pendingTx.signatures.keys()];
+
+        console.log(
+            `Collected ${signedOwners.length}/${threshold} required signatures`
+        );
+
+        if (signedOwners.length < threshold.toNumber()) {
+            throw new Error(
+                `Not enough signatures: ${signedOwners.length}/${threshold} (required)`
+            );
+        }
+
+        // 소유자 주소를 오름차순으로 정렬
         const sortedOwners = [...owners].sort((a, b) =>
             a.toLowerCase().localeCompare(b.toLowerCase())
         );
 
-        let signatures = "0x";
         for (const owner of sortedOwners) {
             if (this._pendingTx.signatures.has(owner)) {
-                const sig = this._pendingTx.signatures.get(owner)!;
-                const { r, s, v } = ethers.utils.splitSignature(sig);
-                signatures +=
-                    r.slice(2) + s.slice(2) + v.toString(16).padStart(2, "0");
+                const sigData = this._pendingTx.signatures.get(owner)!;
+                signatures += sigData.slice(2);
             }
         }
+
+        console.log(`Executing transaction with signatures: ${signatures}`);
 
         // 트랜잭션 실행
         const tx = await this._safeContract.execTransaction(
