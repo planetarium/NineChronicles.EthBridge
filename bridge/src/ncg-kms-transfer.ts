@@ -109,7 +109,7 @@ export class NCGKMSTransfer implements INCGTransfer {
             const additionalGasTxProperties = {
                 maxGasPrice: {
                     currency: MEAD_CURRENCY,
-                    rawValue: 10n ** 18n,
+                    rawValue: 10n ** 13n,
                 },
                 gasLimit: 4n,
             };
