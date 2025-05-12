@@ -383,24 +383,14 @@ export class NCGTransferredEventObserver
             recipient: recipient,
             amount: amountString,
         });
-        if (errorMessage === "Error: Not Found") {
-            const message = {
-                cause: errorMessage,
-                libplanetTxId: txId,
-                sender: sender,
-                recipient: recipient,
-                amount: amountString,
-            };
-            console.log("ErrorMessage(pagerduty): ", message);
-        } else {
-            this._integration.error("Unexpected error during wrapping NCG", {
-                errorMessage,
-                sender,
-                recipient,
-                txId,
-                amountString,
-            });
-        }
+
+        this._integration.error("Unexpected error during wrapping NCG", {
+            errorMessage,
+            sender,
+            recipient,
+            txId,
+            amountString,
+        });
     }
 
     private async _mintRequest(
