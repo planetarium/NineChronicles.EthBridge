@@ -15,7 +15,7 @@ import EthersAdapter from "@safe-global/safe-ethers-lib";
 import { Provider } from "@ethersproject/abstract-provider";
 import { IGasPricePolicy } from "./policies/gas-price";
 
-// Safe 컨트랙트 ABI (필요한 함수만 포함)
+// Safe Contract ABI
 const SAFE_ABI = [
     "function getThreshold() view returns (uint256)",
     "function getOwners() view returns (address[])",
@@ -23,8 +23,7 @@ const SAFE_ABI = [
     "function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)",
 ];
 
-// 환경 변수로 API 사용 여부 설정
-const USE_SAFE_API = process.env.USE_SAFE_API !== "false";
+const USE_SAFE_API = process.env.USE_SAFE_API?.toLowerCase() !== "false";
 
 export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _safeService: SafeServiceClient | null;
