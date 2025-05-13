@@ -2,19 +2,19 @@ name: build scripts
 on:
   push:
     paths:
-    - scripts/**/*
+      - scripts/**/*
 
   pull_request:
     paths:
-    - scripts/**/*
+      - scripts/**/*
 
 jobs:
   build-scripts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.13"
       - run: python -m pip install -r scripts/observer/requirements.txt -r scripts/observer/requirements-dev.txt
       - run: python -m mypy scripts/observer

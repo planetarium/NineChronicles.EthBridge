@@ -2,23 +2,23 @@ name: build bridge
 on:
   push:
     paths:
-    - bridge/**/*
+      - bridge/**/*
 
   pull_request:
     paths:
-    - bridge/**/*
+      - bridge/**/*
 
 jobs:
   build-bridge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -33,6 +33,6 @@ jobs:
       - run: npm run coverage
         working-directory: ./bridge
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN}}
