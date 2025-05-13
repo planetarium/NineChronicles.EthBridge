@@ -2,17 +2,17 @@ name: build solidity
 on:
   push:
     paths:
-    - contracts/**/*
+      - contracts/**/*
 
   pull_request:
     paths:
-    - contracts/**/*
+      - contracts/**/*
 
 jobs:
   build-solidity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: yarn install
         working-directory: contracts
       - run: yarn run build
