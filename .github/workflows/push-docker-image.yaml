@@ -3,7 +3,7 @@ on: push
 name: push docker image
 jobs:
   build_and_push:
-    uses: planetarium/.github/.github/workflows/push_docker_image.yaml@5ae2947dad6f0082f0a5dddba61ff54e16b3dee6
+    uses: planetarium/.github/.github/workflows/push_docker_image.yaml@47d9a17c7c0bacae638b30c203ef7bf1570821cf
     with:
       repository: 9c-ethereum-bridge
       working_directory: bridge
