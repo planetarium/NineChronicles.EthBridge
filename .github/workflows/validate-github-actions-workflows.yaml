@@ -2,17 +2,17 @@ name: validate GitHub Actions workflows
 on:
   push:
     paths:
-    - .github/workflows/*
+      - .github/workflows/*
 
   pull_request:
     paths:
-    - .github/workflows/*
+      - .github/workflows/*
 
 jobs:
   validate-github-actions-workflows:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           ./actionlint
