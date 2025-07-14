@@ -189,7 +189,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         // Safe 트랜잭션 해시 계산을 위한 파라미터
         const nonce = await this._safeContract.nonce();
         const operation = 0; // Call
-        const safeTxGas = 0;
+        const safeTxGas = 50000;
         const baseGas = 0;
         const gasToken = ethers.constants.AddressZero;
         const refundReceiver = ethers.constants.AddressZero;
