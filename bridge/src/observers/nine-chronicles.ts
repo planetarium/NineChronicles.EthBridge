@@ -384,13 +384,13 @@ export class NCGTransferredEventObserver
             amount: amountString,
         });
 
-        this._integration.error("Unexpected error during wrapping NCG", {
-            errorMessage,
-            sender,
-            recipient,
-            txId,
-            amountString,
-        });
+        // this._integration.error("Unexpected error during wrapping NCG", {
+        //     errorMessage,
+        //     sender,
+        //     recipient,
+        //     txId,
+        //     amountString,
+        // });
     }
 
     private async _mintRequest(
