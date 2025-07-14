@@ -271,7 +271,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
 
         // Safe 트랜잭션 실행을 위한 파라미터
         const operation = 0; // Call
-        const safeTxGas = 0;
+        const safeTxGas = 50000;
         const baseGas = 0;
         const gasPrice = await this._gasPricePolicy.calculateGasPrice(
             new Decimal((await this._provider.getGasPrice()).toString())
