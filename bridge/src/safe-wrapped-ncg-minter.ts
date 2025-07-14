@@ -5,6 +5,9 @@ import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import {
     SafeTransaction,
     SafeTransactionDataPartial,
+    SafeMultisigTransactionResponse,
+    SafeTransactionData,
+    SafeSignature,
 } from "@safe-global/safe-core-sdk-types";
 import Safe from "@safe-global/safe-core-sdk";
 import SafeServiceClient from "@safe-global/safe-service-client";
@@ -12,8 +15,18 @@ import EthersAdapter from "@safe-global/safe-ethers-lib";
 import { Provider } from "@ethersproject/abstract-provider";
 import { IGasPricePolicy } from "./policies/gas-price";
 
+// Safe Contract ABI
+const SAFE_ABI = [
+    "function getThreshold() view returns (uint256)",
+    "function getOwners() view returns (address[])",
+    "function nonce() view returns (uint256)",
+    "function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)",
+];
+
+const USE_SAFE_API = process.env.USE_SAFE_API?.toLowerCase() !== "false";
+
 export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
-    private readonly _safeService: SafeServiceClient;
+    private readonly _safeService: SafeServiceClient | null;
     private readonly _safeAddress: string;
     private readonly _owner1Signer: Signer;
     private readonly _owner2Signer: Signer;
@@ -23,9 +36,18 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _safeSdkOwner2: Safe;
     private readonly _provider: Provider;
     private readonly _gasPricePolicy: IGasPricePolicy;
+    private readonly _safeContract: ethers.Contract | null = null;
+    private _pendingTx: {
+        to: string;
+        value: string;
+        data: string;
+        nonce: number;
+        safeTxHash: string;
+        signatures: Map<string, string>;
+    } | null = null;
 
     private constructor(
-        safeService: SafeServiceClient,
+        safeService: SafeServiceClient | null,
         safeAddress: string,
         wncgContractAddress: string,
         owner1Signer: Signer,
@@ -46,6 +68,15 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         this._safeSdkOwner2 = safeSdkOwner2;
         this._provider = provider;
         this._gasPricePolicy = gasPricePolicy;
+
+        // Safe API를 사용하지 않는 경우 Safe 컨트랙트 인스턴스 생성
+        if (!USE_SAFE_API) {
+            this._safeContract = new ethers.Contract(
+                safeAddress,
+                SAFE_ABI,
+                owner1Signer
+            );
+        }
     }
 
     async mint(address: string, amount: Decimal): Promise<string> {
@@ -58,10 +89,22 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         );
 
         const adjustedAmount = amount.div(new Decimal(10).pow(18)).toString();
-        await this.proposeMintTransaction(adjustedAmount, address);
-        const { safeTxHash } = await this.confirmTransaction();
-        const { transactionHash } = await this.executeTransaction(safeTxHash);
-        return transactionHash;
+
+        if (USE_SAFE_API) {
+            // Safe API 사용 방식
+            await this.proposeMintTransaction(adjustedAmount, address);
+            const { safeTxHash } = await this.confirmTransaction();
+            const { transactionHash } = await this.executeTransaction(
+                safeTxHash
+            );
+            return transactionHash;
+        } else {
+            // 직접 컨트랙트 호출 방식
+            await this.proposeMintTransactionDirect(adjustedAmount, address);
+            await this.confirmTransactionDirect();
+            const txHash = await this.executeTransactionDirect();
+            return txHash;
+        }
     }
 
     static async create(
@@ -78,10 +121,15 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             ethers,
             signerOrProvider: owner1Signer,
         });
-        const safeService = new SafeServiceClient({
-            txServiceUrl,
-            ethAdapter: ethAdapterOwner1,
-        });
+
+        let safeService = null;
+        if (USE_SAFE_API) {
+            safeService = new SafeServiceClient({
+                txServiceUrl,
+                ethAdapter: ethAdapterOwner1,
+            });
+        }
+
         const safeSdkOwner1 = await Safe.create({
             ethAdapter: ethAdapterOwner1,
             safeAddress: ethers.utils.getAddress(safeAddress),
@@ -110,7 +158,193 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         );
     }
 
+    // 직접 컨트랙트 호출 방식의 메서드들
+    private async proposeMintTransactionDirect(amount: string, to: string) {
+        if (!this._safeContract) {
+            throw new Error("Safe contract is not initialized");
+        }
+
+        Decimal.set({ toExpPos: 900000000000000 });
+        const gasPrice = new Decimal(
+            (await this._provider.getGasPrice()).toString()
+        );
+        console.log("Original gas price:", gasPrice);
+        const calculatedGasPrice =
+            this._gasPricePolicy.calculateGasPrice(gasPrice);
+        console.log("Calculated gas price:", calculatedGasPrice);
+
+        // Create a transaction object
+        const mintAmount = ethers.utils.parseUnits(amount, 18);
+        const wncgContract = new ethers.Contract(
+            this._wncgContractAddress,
+            ["function mint(address account, uint256 amount) public"],
+            this._owner1Signer
+        );
+
+        const data = wncgContract.interface.encodeFunctionData("mint", [
+            to,
+            mintAmount,
+        ]);
+
+        // Safe 트랜잭션 해시 계산을 위한 파라미터
+        const nonce = await this._safeContract.nonce();
+        const operation = 0; // Call
+        const safeTxGas = 0;
+        const baseGas = 0;
+        const gasToken = ethers.constants.AddressZero;
+        const refundReceiver = ethers.constants.AddressZero;
+
+        // SafeTransaction 객체 생성
+        const safeTransactionData: SafeTransactionDataPartial = {
+            to: this._wncgContractAddress,
+            value: "0",
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice: calculatedGasPrice.toNumber(),
+            gasToken,
+            refundReceiver,
+            nonce: nonce.toNumber(),
+        };
+
+        // SafeTransactionData를 SafeTransaction으로 변환
+        const safeTransaction = await this._safeSdkOwner1.createTransaction({
+            safeTransactionData,
+        });
+
+        // 트랜잭션 해시 계산
+        const txHash = await this._safeSdkOwner1.getTransactionHash(
+            safeTransaction
+        );
+
+        // 첫 번째 소유자 서명
+        const signature1 = await this._safeSdkOwner1.signTransactionHash(
+            txHash
+        );
+
+        // 보류 중인 트랜잭션 저장
+        this._pendingTx = {
+            to: this._wncgContractAddress,
+            value: "0",
+            data,
+            nonce: nonce.toNumber(),
+            safeTxHash: txHash,
+            signatures: new Map([
+                [await this._owner1Signer.getAddress(), signature1.data],
+            ]),
+        };
+
+        console.log("Transaction proposed directly:", {
+            to: this._wncgContractAddress,
+            data,
+            nonce: nonce.toNumber(),
+            txHash,
+        });
+    }
+
+    private async confirmTransactionDirect() {
+        if (!this._pendingTx) {
+            throw new Error("No pending transaction to confirm");
+        }
+
+        // 두 번째 소유자 서명
+        const signature2 = await this._safeSdkOwner2.signTransactionHash(
+            this._pendingTx.safeTxHash
+        );
+
+        // 서명 추가
+        this._pendingTx.signatures.set(
+            await this._owner2Signer.getAddress(),
+            signature2.data
+        );
+
+        console.log("Transaction confirmed directly");
+    }
+
+    private async executeTransactionDirect(): Promise<string> {
+        if (!this._pendingTx || !this._safeContract) {
+            throw new Error(
+                "No pending transaction to execute or Safe contract not initialized"
+            );
+        }
+
+        // Safe 트랜잭션 실행을 위한 파라미터
+        const operation = 0; // Call
+        const safeTxGas = 0;
+        const baseGas = 0;
+        const gasPrice = await this._gasPricePolicy.calculateGasPrice(
+            new Decimal((await this._provider.getGasPrice()).toString())
+        );
+        const gasToken = ethers.constants.AddressZero;
+        const refundReceiver = ethers.constants.AddressZero;
+
+        // 소유자 주소 가져오기
+        const owners = await this._safeContract.getOwners();
+        const threshold = await this._safeContract.getThreshold();
+
+        console.log(
+            `Safe threshold: ${threshold}, owners count: ${owners.length}`
+        );
+
+        // 서명 정렬 및 결합
+        let signatures = "0x";
+
+        // 서명한 소유자 수 확인
+        const signedOwners = [...this._pendingTx.signatures.keys()];
+
+        console.log(
+            `Collected ${signedOwners.length}/${threshold} required signatures`
+        );
+
+        if (signedOwners.length < threshold.toNumber()) {
+            throw new Error(
+                `Not enough signatures: ${signedOwners.length}/${threshold} (required)`
+            );
+        }
+
+        // 소유자 주소를 오름차순으로 정렬
+        const sortedOwners = [...owners].sort((a, b) =>
+            a.toLowerCase().localeCompare(b.toLowerCase())
+        );
+
+        for (const owner of sortedOwners) {
+            if (this._pendingTx.signatures.has(owner)) {
+                const sigData = this._pendingTx.signatures.get(owner)!;
+                signatures += sigData.slice(2);
+            }
+        }
+
+        console.log(`Executing transaction with signatures: ${signatures}`);
+
+        // 트랜잭션 실행
+        const tx = await this._safeContract.execTransaction(
+            this._pendingTx.to,
+            this._pendingTx.value,
+            this._pendingTx.data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice.toNumber(),
+            gasToken,
+            refundReceiver,
+            signatures
+        );
+
+        const receipt = await tx.wait();
+        console.log("Transaction executed directly:", receipt.transactionHash);
+
+        // 보류 중인 트랜잭션 초기화
+        this._pendingTx = null;
+
+        return receipt.transactionHash;
+    }
+
     private async proposeMintTransaction(amount: string, to: string) {
+        if (!this._safeService) {
+            throw new Error("Safe service is not initialized");
+        }
+
         Decimal.set({ toExpPos: 900000000000000 });
         const gasPrice = new Decimal(
             (await this._provider.getGasPrice()).toString()
@@ -174,6 +408,10 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     }
 
     private async confirmTransaction() {
+        if (!this._safeService) {
+            throw new Error("Safe service is not initialized");
+        }
+
         const pendingTransactions = (
             await this._safeService.getPendingTransactions(this._safeAddress)
         ).results;
@@ -197,6 +435,10 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private async executeTransaction(
         safeTxHash: string
     ): Promise<ethers.ContractReceipt> {
+        if (!this._safeService) {
+            throw new Error("Safe service is not initialized");
+        }
+
         let safeBalance = await this._safeSdkOwner1.getBalance();
 
         console.log(
