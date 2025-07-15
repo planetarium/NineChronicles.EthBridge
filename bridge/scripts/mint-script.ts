@@ -289,6 +289,7 @@ async function confirmTransactionDirect(pendingTx: any) {
     });
 
     const owner2Address = await owner2Signer.getAddress();
+    console.log("Owner 2 Address:", owner2Address);
 
     const signature2 = await safeSdkOwner2.signTransactionHash(pendingTx.safeTxHash);
     pendingTx.signatures.set(owner2Address, signature2.data);
