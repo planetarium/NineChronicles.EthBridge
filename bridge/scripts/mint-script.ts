@@ -90,8 +90,6 @@ const gasPricePolicy: IGasPricePolicy = new GasPricePolicies([
     new GasPriceLimitPolicy(maxGasPrice),
 ]);
 
-let pendingTx: any
-
 async function mint() {
     const program = new Command();
     program
@@ -216,7 +214,7 @@ async function proposeMintTransaction(
     return safeTxHash;
 }
 
-async function proposeMintTransactionDirect(amount: string, to: string): Promise<string> {
+async function proposeMintTransactionDirect(amount: string, to: string): Promise<any> {
     Decimal.set({ toExpPos: 900000000000000 });
 
     const rawGasPrice = new Decimal((await provider.getGasPrice()).toString());
@@ -257,8 +255,9 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
     const safeTransaction = await safeSdkOwner1.createTransaction({ safeTransactionData });
     const txHash = await safeSdkOwner1.getTransactionHash(safeTransaction);
     const signature1 = await safeSdkOwner1.signTransactionHash(txHash);
+    console.log('signature1', signature1)
 
-    pendingTx = {
+    const pendingTx = {
         to: WNCG_CONTRACT_ADDRESS,
         value: "0",
         data,
@@ -274,22 +273,24 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
         txHash,
     });
 
-    return txHash;
+    return pendingTx;
 }
 
-async function confirmTransactionDirect(safeTxHash: string) {
+async function confirmTransactionDirect(pendingTx: any) {
+    console.log("confirmTransactionDirect", pendingTx);
+
     if (!pendingTx) {
         throw new Error("No pending transaction to confirm");
     }
 
-    const signature2 = await safeSdkOwner2.signTransactionHash(safeTxHash);
+    const signature2 = await safeSdkOwner2.signTransactionHash(pendingTx.safeTxHash);
     pendingTx.signatures.set(await owner2Signer.getAddress(), signature2.data);
 
     console.log("Transaction confirmed directly");
-    return { safeTxHash, confirmationResponse: "ok" };
+    return pendingTx
 }
 
-async function executeTransactionDirect(): Promise<string> {
+async function executeTransactionDirect(pendingTx: any): Promise<string> {
     if (!pendingTx || !SAFE_CONTRACT) throw new Error("Missing pendingTx or contract");
 
     const operation = 0;
@@ -327,6 +328,8 @@ async function executeTransactionDirect(): Promise<string> {
     const sortedOwners = [...owners].sort((a, b) =>
         a.toLowerCase().localeCompare(b.toLowerCase())
     );
+
+    console.log(`Sorted owners: ${sortedOwners}`);
 
     let signatures = "0x";
     for (const owner of sortedOwners) {
@@ -523,12 +526,12 @@ async function main(destination: string, amount: string, gasPrice: string) {
         txId: ${transactionHash}`;
             await sendSlackMessage(slackMessageText);
         } else {
-            safeTxHash = await proposeMintTransactionDirect(
+            const txObj = await proposeMintTransactionDirect(
                 amount,
                 ethers.utils.getAddress(destination),
             );
-            await confirmTransactionDirect(safeTxHash);
-            const transactionHash = await executeTransactionDirect();
+            const txOjb2 = await confirmTransactionDirect(txObj);
+            const transactionHash = await executeTransactionDirect(txOjb2);
             const slackMessageText = `:ncg: WNCG minted from 9c-ETH bridge account. ${process.env.FAILURE_SUBSCRIBERS}\n
         userETHAddress: ${destination}\n
         amount: ${amount.toString()}\n
