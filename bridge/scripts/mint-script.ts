@@ -132,7 +132,7 @@ async function initalizeSafe(existingAddress = EXISTING_SAFE_ADDRESS) {
 
     safeSdkOwner1 = await Safe.create({
         ethAdapter: ethAdapterOwner1,
-        safeAddress,
+        safeAddress: ethers.utils.getAddress(safeAddress),
     });
 
     // const ethAdapterOwner2 = new EthersAdapter({
@@ -285,7 +285,7 @@ async function confirmTransactionDirect(pendingTx: any) {
 
     const safeSdkOwner2 = await Safe.create({
         ethAdapter: ethAdapterOwner2,
-        safeAddress,
+        safeAddress: ethers.utils.getAddress(safeAddress),
     });
 
     const owner2Address = await owner2Signer.getAddress();
@@ -342,11 +342,13 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
         a.toLowerCase().localeCompare(b.toLowerCase())
     );
 
-    console.log(`Sorted owners: ${sortedOwners}`);
+    const sortedCheckSummedAddresses = sortedOwners.map((owner) => ethers.utils.getAddress(owner));
+
+    console.log(`Sorted owners: ${sortedCheckSummedAddresses}`);
     console.log('Pending Transaction Signatures:', pendingTx.signatures);
 
     let signatures = "0x";
-    for (const owner of sortedOwners) {
+    for (const owner of sortedCheckSummedAddresses) {
         if (pendingTx.signatures.has(owner)) {
             console.log(`Adding signature for owner: ${owner}`);
             const sigData = pendingTx.signatures.get(owner)!;
