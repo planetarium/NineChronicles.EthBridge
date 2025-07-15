@@ -252,13 +252,16 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
     const signature1 = await safeSdkOwner1.signTransactionHash(txHash);
     console.log('signature1', signature1)
 
+    const owner1SignerAddress = await owner1Signer.getAddress()
+    const owner1SignerCheckSummedAddress = ethers.utils.getAddress(owner1SignerAddress)
+
     const pendingTx = {
         to: WNCG_CONTRACT_ADDRESS,
         value: "0",
         data,
         nonce: nonce.toNumber(),
         safeTxHash: txHash,
-        signatures: new Map([[await owner1Signer.getAddress(), signature1.data]]),
+        signatures: new Map([[owner1SignerCheckSummedAddress, signature1.data]]),
     };
 
     console.log("Transaction proposed directly:", {
@@ -289,12 +292,14 @@ async function confirmTransactionDirect(pendingTx: any) {
     });
 
     const owner2Address = await owner2Signer.getAddress();
+    const owner2CheckSummedAddress = ethers.utils.getAddress(owner2Address)
+
     console.log("Owner 2 Address:", owner2Address);
     console.log("Pending Transaction at the start of confirmTransactionDirect:", pendingTx.safeTxHash);
 
     const signature2 = await safeSdkOwner2.signTransactionHash(pendingTx.safeTxHash);
     console.log("Signature 2:", signature2);
-    pendingTx.signatures.set(owner2Address, signature2.data);
+    pendingTx.signatures.set(owner2CheckSummedAddress, signature2.data);
 
     console.log('Pending Transaction at the end of confirmTransactionDirect:', pendingTx);
     console.log("Transaction confirmed directly");
@@ -327,6 +332,7 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
     );
 
     const signedOwners = [...pendingTx.signatures.keys()]
+    console.log('signedOwners', signedOwners)
 
     console.log(
         `Collected ${signedOwners.length}/${threshold} required signatures`
