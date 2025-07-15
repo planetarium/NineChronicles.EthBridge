@@ -54,11 +54,6 @@ const ethAdapterOwner1 = new EthersAdapter({
     signerOrProvider: owner1Signer,
 });
 
-const ethAdapterOwner2 = new EthersAdapter({
-    ethers,
-    signerOrProvider: owner2Signer,
-});
-
 const txServiceUrl = process.env.SAFE_TX_SERVICE_URL!;
 const safeService = new SafeServiceClient({
     txServiceUrl,
@@ -283,8 +278,20 @@ async function confirmTransactionDirect(pendingTx: any) {
         throw new Error("No pending transaction to confirm");
     }
 
+    const ethAdapterOwner2 = new EthersAdapter({
+        ethers,
+        signerOrProvider: owner2Signer,
+    });
+
+    const safeSdkOwner2 = await Safe.create({
+        ethAdapter: ethAdapterOwner2,
+        safeAddress,
+    });
+
+    const owner2Address = await owner2Signer.getAddress();
+
     const signature2 = await safeSdkOwner2.signTransactionHash(pendingTx.safeTxHash);
-    pendingTx.signatures.set(await owner2Signer.getAddress(), signature2.data);
+    pendingTx.signatures.set(owner2Address, signature2.data);
 
     console.log("Transaction confirmed directly");
     return pendingTx
@@ -339,6 +346,7 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
         }
     }
 
+    console.log(signatures)
     console.log(`Executing transaction with signatures: ${signatures}`);
 
     const tx = await SAFE_CONTRACT.execTransaction(
