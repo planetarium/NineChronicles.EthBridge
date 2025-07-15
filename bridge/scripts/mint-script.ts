@@ -130,20 +130,20 @@ async function initalizeSafe(existingAddress = EXISTING_SAFE_ADDRESS) {
         signerOrProvider: owner1Signer,
     });
 
-    const ethAdapterOwner2 = new EthersAdapter({
-        ethers,
-        signerOrProvider: owner2Signer,
-    });
-
     safeSdkOwner1 = await Safe.create({
         ethAdapter: ethAdapterOwner1,
         safeAddress,
     });
 
-    safeSdkOwner2 = await Safe.create({
-        ethAdapter: ethAdapterOwner2,
-        safeAddress,
-    });
+    // const ethAdapterOwner2 = new EthersAdapter({
+    //     ethers,
+    //     signerOrProvider: owner2Signer,
+    // });
+    //
+    // safeSdkOwner2 = await Safe.create({
+    //     ethAdapter: ethAdapterOwner2,
+    //     safeAddress,
+    // });
 }
 
 async function proposeMintTransaction(
@@ -290,16 +290,21 @@ async function confirmTransactionDirect(pendingTx: any) {
 
     const owner2Address = await owner2Signer.getAddress();
     console.log("Owner 2 Address:", owner2Address);
+    console.log("Pending Transaction at the start of confirmTransactionDirect:", pendingTx.safeTxHash);
 
     const signature2 = await safeSdkOwner2.signTransactionHash(pendingTx.safeTxHash);
+    console.log("Signature 2:", signature2);
     pendingTx.signatures.set(owner2Address, signature2.data);
 
+    console.log('Pending Transaction at the end of confirmTransactionDirect:', pendingTx);
     console.log("Transaction confirmed directly");
     return pendingTx
 }
 
 async function executeTransactionDirect(pendingTx: any): Promise<string> {
     if (!pendingTx || !SAFE_CONTRACT) throw new Error("Missing pendingTx or contract");
+
+    console.log("executeTransactionDirect", pendingTx);
 
     const operation = 0;
     const safeTxGas = 50000;
@@ -338,10 +343,12 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
     );
 
     console.log(`Sorted owners: ${sortedOwners}`);
+    console.log('Pending Transaction Signatures:', pendingTx.signatures);
 
     let signatures = "0x";
     for (const owner of sortedOwners) {
         if (pendingTx.signatures.has(owner)) {
+            console.log(`Adding signature for owner: ${owner}`);
             const sigData = pendingTx.signatures.get(owner)!;
             signatures += sigData.slice(2);
         }
