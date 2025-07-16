@@ -42,6 +42,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         value: string;
         data: string;
         nonce: number;
+        gasPrice: number;
         safeTxHash: string;
         signatures: Map<string, string>;
     } | null = null;
@@ -170,7 +171,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         );
         console.log("Original gas price:", gasPrice);
         const calculatedGasPrice =
-            this._gasPricePolicy.calculateGasPrice(gasPrice);
+            this._gasPricePolicy.calculateGasPrice(gasPrice).toNumber();
         console.log("Calculated gas price:", calculatedGasPrice);
 
         // Create a transaction object
@@ -202,7 +203,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             operation,
             safeTxGas,
             baseGas,
-            gasPrice: calculatedGasPrice.toNumber(),
+            gasPrice: calculatedGasPrice,
             gasToken,
             refundReceiver,
             nonce: nonce.toNumber(),
@@ -229,6 +230,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             value: "0",
             data,
             nonce: nonce.toNumber(),
+            gasPrice: calculatedGasPrice,
             safeTxHash: txHash,
             signatures: new Map([
                 [await this._owner1Signer.getAddress(), signature1.data],
@@ -273,9 +275,6 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         const operation = 0; // Call
         const safeTxGas = 50000;
         const baseGas = 0;
-        const gasPrice = await this._gasPricePolicy.calculateGasPrice(
-            new Decimal((await this._provider.getGasPrice()).toString())
-        );
         const gasToken = ethers.constants.AddressZero;
         const refundReceiver = ethers.constants.AddressZero;
 
@@ -325,7 +324,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             operation,
             safeTxGas,
             baseGas,
-            gasPrice.toNumber(),
+            this._pendingTx.gasPrice,
             gasToken,
             refundReceiver,
             signatures

@@ -213,7 +213,7 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
     Decimal.set({ toExpPos: 900000000000000 });
 
     const rawGasPrice = new Decimal((await provider.getGasPrice()).toString());
-    const calculatedGasPrice = gasPricePolicy.calculateGasPrice(rawGasPrice);
+    const calculatedGasPrice = gasPricePolicy.calculateGasPrice(rawGasPrice).toNumber();
     console.log("Original gasPrice:", rawGasPrice.toFixed());
     console.log("Calculated gasPrice:", calculatedGasPrice);
 
@@ -241,7 +241,7 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
         operation: 0,
         safeTxGas,
         baseGas,
-        gasPrice: calculatedGasPrice.toNumber(),
+        gasPrice: calculatedGasPrice,
         gasToken,
         refundReceiver,
         nonce: nonce.toNumber(),
@@ -260,6 +260,7 @@ async function proposeMintTransactionDirect(amount: string, to: string): Promise
         value: "0",
         data,
         nonce: nonce.toNumber(),
+        gasPrice: calculatedGasPrice,
         safeTxHash: txHash,
         signatures: new Map([[owner1SignerCheckSummedAddress, signature1.data]]),
     };
@@ -314,13 +315,6 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
     const operation = 0;
     const safeTxGas = 50000;
     const baseGas = 0;
-
-    const rawGasPrice = new Decimal((await provider.getGasPrice()).toString());
-    const calculatedGasPrice = gasPricePolicy.calculateGasPrice(rawGasPrice);
-    const gasPrice = calculatedGasPrice.toNumber();
-    console.log("Original gasPrice:", rawGasPrice.toFixed());
-    console.log("Calculated gasPrice:", calculatedGasPrice);
-
     const gasToken = ethers.constants.AddressZero;
     const refundReceiver = ethers.constants.AddressZero;
 
@@ -372,7 +366,7 @@ async function executeTransactionDirect(pendingTx: any): Promise<string> {
         operation,
         safeTxGas,
         baseGas,
-        gasPrice,
+        pendingTx.gasPrice,
         gasToken,
         refundReceiver,
         signatures
