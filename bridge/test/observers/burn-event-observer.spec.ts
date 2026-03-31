@@ -153,6 +153,22 @@ describe(EthereumBurnEventObserver.name, () => {
         multiPlanetary,
         failureSubscribers
     );
+    const bscObserver = new EthereumBurnEventObserver(
+        mockNcgTransfer,
+        mockSlackMessageSender,
+        mockOpenSearchClient,
+        mockSpreadSheetClient,
+        mockMonitorStateStore,
+        mockExchangeHistoryStore,
+        "https://explorer.libplanet.io/9c-internal",
+        "https://internal.9cscan.com",
+        false,
+        "https://sepolia.etherscan.io",
+        mockIntegration,
+        multiPlanetary,
+        failureSubscribers,
+        "bsc"
+    );
 
     describe(EthereumBurnEventObserver.prototype.notify.name, () => {
         it("should record the block hash even if there is no events", () => {
@@ -167,6 +183,45 @@ describe(EthereumBurnEventObserver.name, () => {
                     blockHash: "BLOCK-HASH",
                     txId: null,
                 }
+            );
+        });
+
+        it("should store monitor and history under bsc network key", async () => {
+            const event = {
+                blockHash: "BLOCK-HASH",
+                address: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                logIndex: 0,
+                blockNumber: 0,
+                event: "Burn",
+                raw: {
+                    data: "",
+                    topics: [],
+                },
+                signature: "",
+                transactionIndex: 0,
+                transactionHash: "TX-BSC",
+                txId: "TX-BSC",
+                returnValues: {
+                    _sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    _to: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                    amount: 1000000000000000000,
+                },
+            } as EventData & TransactionLocation;
+
+            await bscObserver.notify({
+                blockHash: "BLOCK-HASH",
+                events: [event],
+            });
+
+            expect(mockMonitorStateStore.store).toHaveBeenCalledWith("bsc", {
+                blockHash: "BLOCK-HASH",
+                txId: "TX-BSC",
+            });
+            expect(mockExchangeHistoryStore.put).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    network: "bsc",
+                    tx_id: "TX-BSC",
+                })
             );
         });
 
