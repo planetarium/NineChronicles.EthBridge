@@ -1,0 +1,46 @@
+name: Live Bridge E2E Test
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    if: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g pnpm && pnpm install
+        working-directory: bridge
+      - name: Run live roundtrip test
+        working-directory: bridge
+        env:
+          # Bridge operation env vars (from secrets)
+          GRAPHQL_API_ENDPOINT: ${{ secrets.GRAPHQL_API_ENDPOINT }}
+          KMS_PROVIDER_URL: ${{ secrets.KMS_PROVIDER_URL }}
+          KMS_PROVIDER_KEY_ID: ${{ secrets.KMS_PROVIDER_KEY_ID }}
+          KMS_PROVIDER_REGION: ${{ secrets.KMS_PROVIDER_REGION }}
+          KMS_PROVIDER_AWS_ACCESSKEY: ${{ secrets.KMS_PROVIDER_AWS_ACCESSKEY }}
+          KMS_PROVIDER_AWS_SECRETKEY: ${{ secrets.KMS_PROVIDER_AWS_SECRETKEY }}
+          KMS_PROVIDER_PUBLIC_KEY: ${{ secrets.KMS_PROVIDER_PUBLIC_KEY }}
+          WNCG_CONTRACT_ADDRESS: ${{ secrets.WNCG_CONTRACT_ADDRESS }}
+          BSC_KMS_PROVIDER_URL: ${{ secrets.BSC_KMS_PROVIDER_URL }}
+          BSC_WNCG_CONTRACT_ADDRESS: ${{ secrets.BSC_WNCG_CONTRACT_ADDRESS }}
+          NCG_MINTER: ${{ secrets.NCG_MINTER }}
+          # E2E test-specific secrets
+          E2E_TEST_PRIVATE_KEY: ${{ secrets.E2E_TEST_PRIVATE_KEY }}
+          E2E_TEST_9C_PRIVATE_KEY: ${{ secrets.E2E_TEST_9C_PRIVATE_KEY }}
+          E2E_TEST_9C_ADDRESS: ${{ secrets.E2E_TEST_9C_ADDRESS }}
+          BRIDGE_LAMBDA_ARN: ${{ secrets.BRIDGE_LAMBDA_ARN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        run: npx tsx e2e/live-roundtrip.ts
+      - name: Notify Slack on failure
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-type: application/json' \
+            -d '{"text":"🚨 *브릿지 라이브 E2E 테스트 실패*\n배포 후 라운드트립 검증 실패 — 즉시 확인 필요"}'

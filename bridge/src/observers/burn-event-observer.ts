@@ -37,6 +37,7 @@ export class EthereumBurnEventObserver
     private readonly _integration: Integration;
     private readonly _multiPlanetary: MultiPlanetary;
     private readonly _failureSubscribers: string;
+    private readonly _networkKey: string;
     constructor(
         ncgTransfer: INCGTransfer,
         slackMessageSender: ISlackMessageSender,
@@ -50,7 +51,8 @@ export class EthereumBurnEventObserver
         etherscanUrl: string,
         integration: Integration,
         multiPlanetary: MultiPlanetary,
-        failureSubscribers: string
+        failureSubscribers: string,
+        networkKey: string = "ethereum"
     ) {
         this._ncgTransfer = ncgTransfer;
         this._slackMessageSender = slackMessageSender;
@@ -65,6 +67,7 @@ export class EthereumBurnEventObserver
         this._integration = integration;
         this._multiPlanetary = multiPlanetary;
         this._failureSubscribers = failureSubscribers;
+        this._networkKey = networkKey;
     }
 
     async notify(data: {
@@ -73,7 +76,7 @@ export class EthereumBurnEventObserver
     }): Promise<void> {
         const { blockHash, events } = data;
         if (events.length === 0) {
-            await this._monitorStateStore.store("ethereum", {
+            await this._monitorStateStore.store(this._networkKey, {
                 blockHash,
                 txId: null,
             });
@@ -120,7 +123,7 @@ export class EthereumBurnEventObserver
             }
 
             await this._exchangeHistoryStore.put({
-                network: "ethereum",
+                network: this._networkKey,
                 tx_id: transactionHash,
                 sender,
                 recipient: user9cAddress,
@@ -165,7 +168,7 @@ export class EthereumBurnEventObserver
                     memo
                 );
 
-                await this._monitorStateStore.store("ethereum", {
+                await this._monitorStateStore.store(this._networkKey, {
                     blockHash,
                     txId: transactionHash,
                 });

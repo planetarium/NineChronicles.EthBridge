@@ -5,6 +5,7 @@
   "main": "dist/src/index.js",
   "scripts": {
     "start": "npx tsx ./src/index.ts",
+    "start:lambda": "npx tsx ./src/lambda.ts",
     "test": "run-s test:*",
     "test:aws": "jest --config=./aws.jest.config.js",
     "test:bridge": "jest --config=./bridge.jest.config.js",
@@ -13,7 +14,8 @@
     "build": "tsc",
     "mint": "node scripts/mint-script.js mint",
     "transfer": "node scripts/transfer-script.js transfer",
-    "feeTransfer": "node scripts/fee-transfer.js feeTransfer"
+    "feeTransfer": "node scripts/fee-transfer.js feeTransfer",
+    "e2e:live": "npx tsx ./e2e/live-roundtrip.ts"
   },
   "repository": {
     "type": "git",
@@ -69,7 +71,9 @@
     "web3-core-promievent": "^1.5.3"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.721.0",
     "@aws-sdk/client-kms": "^3.721.0",
+    "@aws-sdk/client-lambda": "^3.721.0",
     "@pagerduty/pdjs": "^2.2.3",
     "@planetarium/account": "4.0.6",
     "@planetarium/account-aws-kms": "^0.0.2",
