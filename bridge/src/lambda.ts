@@ -506,7 +506,8 @@ async function initializeDeps() {
         ETHERSCAN_ROOT_URL,
         integration,
         multiPlanetary,
-        FAILURE_SUBSCRIBERS
+        FAILURE_SUBSCRIBERS,
+        "bsc"
     );
 
     const ncgTransferredEventObserver = new NCGTransferredEventObserver(
@@ -573,11 +574,20 @@ export async function handler(): Promise<void> {
 
     await pendingTransactionRetryHandler.messagePendingTransactions();
 
-    await Promise.all([
+    const relayResults = await Promise.allSettled([
         relayEthereum(ethDeps),
         relayBSC(bscDeps),
         relayNineChronicles(ncDeps),
     ]);
+    const relayNames = ["ethereum", "bsc", "nineChronicles"];
+    relayResults.forEach((result, index) => {
+        if (result.status === "rejected") {
+            console.error(
+                `[lambda] ${relayNames[index]} relay failed`,
+                result.reason
+            );
+        }
+    });
 
     console.log("[lambda] Done");
 }

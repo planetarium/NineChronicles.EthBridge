@@ -10,6 +10,8 @@ import {
     UpdateItemCommand,
     ScanCommand,
     QueryCommand,
+    QueryCommandOutput,
+    ScanCommandOutput,
     ConditionalCheckFailedException,
 } from "@aws-sdk/client-dynamodb";
 
@@ -76,38 +78,45 @@ export class DynamoExchangeHistoryStore implements IExchangeHistoryStore {
         network: string,
         sender: string
     ): Promise<number> {
-        const cutoff = new Date(
-            Date.now() - 24 * 60 * 60 * 1000
-        ).toISOString();
+        const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        let amountSum = 0;
+        let lastEvaluatedKey: QueryCommandOutput["LastEvaluatedKey"] = undefined;
 
-        const result = await this._client.send(
-            new QueryCommand({
-                TableName: this._tableName,
-                IndexName: "network-timestamp-index",
-                KeyConditionExpression:
-                    "network = :network AND #ts > :cutoff",
-                FilterExpression: "sender = :sender",
-                ExpressionAttributeNames: {
-                    "#ts": "timestamp",
-                },
-                ExpressionAttributeValues: {
-                    ":network": { S: network },
-                    ":cutoff": { S: cutoff },
-                    ":sender": { S: sender },
-                },
-            })
-        );
+        do {
+            const result: QueryCommandOutput = await this._client.send(
+                new QueryCommand({
+                    TableName: this._tableName,
+                    IndexName: "network-timestamp-index",
+                    KeyConditionExpression:
+                        "network = :network AND #ts > :cutoff",
+                    FilterExpression: "sender = :sender",
+                    ExpressionAttributeNames: {
+                        "#ts": "timestamp",
+                    },
+                    ExpressionAttributeValues: {
+                        ":network": { S: network },
+                        ":cutoff": { S: cutoff },
+                        ":sender": { S: sender },
+                    },
+                    ExclusiveStartKey: lastEvaluatedKey,
+                })
+            );
 
-        const items = result.Items ?? [];
-        return items.reduce(
-            (
-                sum: number,
-                item: Record<string, { N?: string; S?: string }>
-            ) => {
-                return sum + parseFloat(item.amount?.N ?? "0");
-            },
-            0
-        );
+            const items = result.Items ?? [];
+            amountSum += items.reduce(
+                (
+                    sum: number,
+                    item: Record<string, { N?: string; S?: string }>
+                ) => {
+                    return sum + parseFloat(item.amount?.N ?? "0");
+                },
+                0
+            );
+
+            lastEvaluatedKey = result.LastEvaluatedKey;
+        } while (lastEvaluatedKey !== undefined);
+
+        return amountSum;
     }
 
     async updateStatus(
@@ -132,31 +141,43 @@ export class DynamoExchangeHistoryStore implements IExchangeHistoryStore {
     }
 
     async getPendingTransactions(): Promise<ExchangeHistory[]> {
-        const result = await this._client.send(
-            new ScanCommand({
-                TableName: this._tableName,
-                FilterExpression: "#s = :pending",
-                ExpressionAttributeNames: {
-                    "#s": "status",
-                },
-                ExpressionAttributeValues: {
-                    ":pending": { S: TransactionStatus.PENDING },
-                },
-            })
-        );
+        const pendingTransactions: ExchangeHistory[] = [];
+        let lastEvaluatedKey: ScanCommandOutput["LastEvaluatedKey"] = undefined;
 
-        const items = result.Items ?? [];
-        return items.map(
-            (item: Record<string, { N?: string; S?: string }>) => ({
-                network: item.network?.S ?? "",
-                tx_id: item.tx_id?.S ?? "",
-                sender: item.sender?.S ?? "",
-                recipient: item.recipient?.S ?? "",
-                timestamp: item.timestamp?.S ?? "",
-                amount: parseFloat(item.amount?.N ?? "0"),
-                status: (item.status?.S ??
-                    TransactionStatus.PENDING) as TransactionStatus,
-            })
-        );
+        do {
+            const result: ScanCommandOutput = await this._client.send(
+                new ScanCommand({
+                    TableName: this._tableName,
+                    FilterExpression: "#s = :pending",
+                    ExpressionAttributeNames: {
+                        "#s": "status",
+                    },
+                    ExpressionAttributeValues: {
+                        ":pending": { S: TransactionStatus.PENDING },
+                    },
+                    ExclusiveStartKey: lastEvaluatedKey,
+                })
+            );
+
+            const items = result.Items ?? [];
+            pendingTransactions.push(
+                ...items.map(
+                    (item: Record<string, { N?: string; S?: string }>) => ({
+                        network: item.network?.S ?? "",
+                        tx_id: item.tx_id?.S ?? "",
+                        sender: item.sender?.S ?? "",
+                        recipient: item.recipient?.S ?? "",
+                        timestamp: item.timestamp?.S ?? "",
+                        amount: parseFloat(item.amount?.N ?? "0"),
+                        status: (item.status?.S ??
+                            TransactionStatus.PENDING) as TransactionStatus,
+                    })
+                )
+            );
+
+            lastEvaluatedKey = result.LastEvaluatedKey;
+        } while (lastEvaluatedKey !== undefined);
+
+        return pendingTransactions;
     }
 }
