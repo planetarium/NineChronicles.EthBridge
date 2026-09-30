@@ -25,7 +25,7 @@ async function nextWithTimers<T>(iterator: AsyncIterator<T>): Promise<T> {
     return result.value;
 }
 
-function makeClient() {
+function makeClient(): jest.Mocked<IHeadlessGraphQLClient> {
     return {
         endpoint: "http://headless.invalid/graphql",
         getBlockIndex: jest.fn(async (hash: string) => Number(hash)),
@@ -49,7 +49,7 @@ function makeClient() {
         attachSignature: jest.fn(),
         createUnsignedTx: jest.fn(),
         stageTx: jest.fn(),
-    } satisfies jest.Mocked<IHeadlessGraphQLClient>;
+    };
 }
 
 describe("Nine Chronicles authorized batch recovery", () => {
