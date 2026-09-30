@@ -326,6 +326,16 @@ describe(EthereumBurnEventMonitor.name, () => {
             ).toBe(false);
         });
 
+        it("falls through to the message check when the JSON body has no nested error", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    message: "unrelated failure",
+                    body: JSON.stringify({ result: "ok" }),
+                })
+            ).toBe(false);
+        });
+
         it("stops descending into arbitrarily deep nested errors instead of recursing forever", () => {
             // Wraps a genuine range-error message under 15 levels of nested
             // `.error` - well past the recursion depth cutoff - to prove the
@@ -693,6 +703,39 @@ describe(EthereumBurnEventMonitor.name, () => {
             await expect((monitor as any).getEvents(10)).rejects.toThrow(
                 "Missing range anchor block 2009"
             );
+        });
+
+        // Both real call sites of `validateEvents` (within getEvents itself)
+        // always pass `recheckBlock` explicitly, so this default only
+        // matters for a future/direct caller - proving it defaults to the
+        // safer "also recheck" behavior, rather than that it's exercised by
+        // any current code path.
+        it("validateEvents rechecks the block hash by default when recheckBlock is omitted", async () => {
+            const CONFIRMATIONS = 10;
+            const provider = makeMockProvider(1000, []);
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS
+            );
+
+            const events = [
+                { blockHash: "0xblock500", blockNumber: 500 },
+            ] as any;
+
+            await expect(
+                (monitor as any).validateEvents(500, events)
+            ).resolves.toBeUndefined();
+
+            // Once to look up the block hash to validate `events` against,
+            // and - only because `recheckBlock` defaulted to true - a second
+            // time for the post-read recheck inside `assertBlockHash`.
+            const getBlockCallsFor500 = (
+                provider.getBlock as jest.Mock
+            ).mock.calls.filter(([arg]: [number | string]) => arg === 500);
+            expect(getBlockCallsFor500).toHaveLength(2);
         });
     });
 

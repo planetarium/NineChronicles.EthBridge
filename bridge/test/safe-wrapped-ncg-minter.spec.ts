@@ -247,6 +247,45 @@ describe(SafeWrappedNCGMinter.name, () => {
         expect(executeTransaction).toHaveBeenCalledTimes(1);
     });
 
+    it("mints successfully using the default receipt-retry options when none are given", async () => {
+        // No `receiptRetryOptions` argument at all (as opposed to every other
+        // test in this file, which always passes one explicitly) - exercises
+        // the constructor's own default value, not the caller's.
+        const wait = jest
+            .fn()
+            .mockResolvedValue({ transactionHash: "0xMINT_TX_HASH" });
+        const executeTransaction = jest.fn().mockResolvedValue({
+            transactionResponse: { hash: "0xMINT_TX_HASH", wait },
+        });
+
+        (Safe.create as jest.Mock).mockResolvedValue(
+            makeMockSafeSdk(executeTransaction)
+        );
+        (SafeServiceClient as unknown as jest.Mock).mockImplementation(() =>
+            makeMockSafeService()
+        );
+
+        const minter = await SafeWrappedNCGMinter.create(
+            "https://safe-tx-service.example",
+            "0x1234567890123456789012345678901234567890",
+            "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157",
+            makeMockSigner("0xOwner1000000000000000000000000000000000"),
+            makeMockSigner("0xOwner2000000000000000000000000000000000"),
+            makeMockSigner("0xOwner3000000000000000000000000000000000"),
+            mockProvider,
+            mockGasPricePolicy
+        );
+
+        await expect(
+            minter.mint(
+                "0x870737cb9a2D78Bb48511508159fA39c23797355",
+                new Decimal(1000).mul(new Decimal(10).pow(18))
+            )
+        ).resolves.toBe("0xMINT_TX_HASH");
+
+        expect(executeTransaction).toHaveBeenCalledTimes(1);
+    });
+
     it("throws clearly if the Safe SDK returns no transaction response after executing", async () => {
         const executeTransaction = jest
             .fn()
