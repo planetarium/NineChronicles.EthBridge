@@ -198,4 +198,39 @@ describe(retryEthereumRpc.name, () => {
         ).rejects.toEqual({ code: "NETWORK_ERROR" });
         expect(fn).toHaveBeenCalledTimes(1);
     });
+    it("stops immediately when a retry encounters a deterministic nested error", async () => {
+        const transient = { code: "TIMEOUT" };
+        const terminal = {
+            code: "SERVER_ERROR",
+            error: { code: -32602, message: "invalid params" },
+        };
+        const fn = jest
+            .fn()
+            .mockRejectedValueOnce(transient)
+            .mockRejectedValueOnce(terminal)
+            .mockResolvedValue("must not run");
+        const onRetryableError = jest.fn();
+        await expect(
+            retryEthereumRpc(fn, {
+                maxRetry: 3,
+                delayMs: FAST_DELAY_MS,
+                onRetryableError,
+            })
+        ).rejects.toBe(terminal);
+        expect(fn).toHaveBeenCalledTimes(2);
+        expect(onRetryableError.mock.calls).toEqual([[transient, 2]]);
+    });
+
+    it("gives each operation its own retry budget", async () => {
+        const error = { code: "TIMEOUT" };
+        const fn = jest.fn().mockRejectedValue(error);
+        const options = { maxRetry: 1, delayMs: FAST_DELAY_MS };
+        await expect(retryEthereumRpc(fn, options)).rejects.toBe(error);
+        expect(fn).toHaveBeenCalledTimes(2);
+        fn.mockReset()
+            .mockRejectedValueOnce(error)
+            .mockResolvedValueOnce("recovered");
+        await expect(retryEthereumRpc(fn, options)).resolves.toBe("recovered");
+        expect(fn).toHaveBeenCalledTimes(2);
+    });
 });

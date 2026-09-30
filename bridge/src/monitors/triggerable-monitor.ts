@@ -59,6 +59,11 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
             this.latestBlockNumber = await this.getTipIndex();
         }
 
+        // The scan position can trigger several event blocks (50 for Nine
+        // Chronicles) and is distinct from their block indexes. Preserve the
+        // pending batch and its first unfinished item across RPC failures.
+        let pendingBlockIndexes: number[] | undefined;
+        let nextBlockOffset = 0;
         while (true) {
             try {
                 const tipIndex = await this.getTipIndex();
@@ -70,11 +75,14 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                     this.latestBlockNumber + 1 + this._intervalWithTipIndex <=
                     tipIndex
                 ) {
-                    const trigerredBlockIndexes = this.triggerredBlocks(
-                        this.latestBlockNumber + 1
-                    );
+                    if (pendingBlockIndexes === undefined) {
+                        pendingBlockIndexes = this.triggerredBlocks(
+                            this.latestBlockNumber + 1
+                        );
+                    }
 
-                    for (const blockIndex of trigerredBlockIndexes) {
+                    while (nextBlockOffset < pendingBlockIndexes.length) {
+                        const blockIndex = pendingBlockIndexes[nextBlockOffset];
                         this.debug("Execute triggerred block #", blockIndex);
                         const blockHash = await this.getBlockHash(blockIndex);
 
@@ -82,9 +90,14 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                             blockHash,
                             events: await this.getEvents(blockIndex),
                         };
+                        // Advance only after the consumer resumes the generator.
+                        // A read failure retries this item, not the consumed prefix.
+                        nextBlockOffset += 1;
                     }
 
                     this.latestBlockNumber += 1;
+                    pendingBlockIndexes = undefined;
+                    nextBlockOffset = 0;
                 } else {
                     this.debug(
                         `Skip check trigger current: ${this.latestBlockNumber} / tip: ${tipIndex}`

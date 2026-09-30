@@ -6,7 +6,13 @@ import {
 } from "../src/ethereum-provider";
 
 describe("Ethereum RPC failover", () => {
-    type RpcState = { down: boolean; chainId: string; requests: string[] };
+    type RpcState = {
+        down: boolean;
+        chainId: string;
+        requests: string[];
+        logError?: unknown;
+        logs?: ethers.providers.Log[];
+    };
     const endpoints = new Map<string, RpcState>();
 
     beforeEach(() => {
@@ -23,6 +29,10 @@ describe("Ethereum RPC failover", () => {
             const state = endpoints.get(this.connection.url)!;
             state.requests.push(method);
             if (state.down) throw { code: "SERVER_ERROR", status: 503 };
+            if (method === "eth_getLogs") {
+                if (state.logError) throw state.logError;
+                return state.logs ?? [];
+            }
             return method === "eth_chainId"
                 ? state.chainId
                 : method === "net_version"
@@ -163,6 +173,100 @@ describe("Ethereum RPC failover", () => {
             ).rejects.toThrow(
                 "expectedChainId must be a positive safe integer"
             );
+        }
+    );
+    const filter = { fromBlock: 1, toBlock: 2 };
+    const burnLog: ethers.providers.Log = {
+        blockNumber: 2,
+        blockHash: "0x" + "ab".repeat(32),
+        transactionHash: "0x" + "cd".repeat(32),
+        transactionIndex: 0,
+        logIndex: 0,
+        removed: false,
+        address: "0x" + "11".repeat(20),
+        data: "0x",
+        topics: [],
+    };
+
+    it("fails over a log read even when both endpoints pass network discovery", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        main.state.logError = { code: "TIMEOUT" };
+        sub.state.logs = [burnLog];
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        await expect(provider.getLogs(filter)).resolves.toEqual([burnLog]);
+        expect(main.state.requests).toContain("eth_getLogs");
+        expect(sub.state.requests).toContain("eth_getLogs");
+    });
+
+    it("propagates failure when all log reads fail instead of returning an empty batch", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        main.state.logError = sub.state.logError = { code: "TIMEOUT" };
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        await expect(provider.getLogs(filter)).rejects.toMatchObject({
+            code: "SERVER_ERROR",
+        });
+        expect(main.state.requests).toContain("eth_getLogs");
+        expect(sub.state.requests).toContain("eth_getLogs");
+    });
+
+    it("rejects a changed chain before querying burn logs", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        sub.state.chainId = "0x38";
+        sub.state.logs = [burnLog];
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await expect(provider.getLogs(filter)).rejects.toMatchObject({
+            code: "NETWORK_ERROR",
+            event: "changed",
+        });
+        expect(main.state.requests).not.toContain("eth_getLogs");
+        expect(sub.state.requests).not.toContain("eth_getLogs");
+    });
+
+    it("rejects a wrong-chain recovering peer when the previously healthy peer is now unavailable", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        sub.state.down = true;
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        main.state.down = true;
+        sub.state.down = false;
+        sub.state.chainId = "0x38";
+        sub.state.logs = [burnLog];
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await expect(provider.getLogs(filter)).rejects.toMatchObject({
+            code: "NETWORK_ERROR",
+            event: "changed",
+        });
+        expect(sub.state.requests).not.toContain("eth_getLogs");
+    });
+
+    it.each([0, -1, 1.5, Number.NaN])(
+        "rejects invalid expected chain ID %s before contacting RPCs",
+        async (expectedChainId) => {
+            const main = await rpc();
+            const sub = await rpc();
+            await expect(
+                createEthereumFallbackProvider(main.url, sub.url, {
+                    expectedChainId,
+                })
+            ).rejects.toThrow("positive safe integer");
+            expect(main.state.requests).toEqual([]);
+            expect(sub.state.requests).toEqual([]);
         }
     );
 });
