@@ -4,17 +4,57 @@ import { ContractDescription } from "../types/contract-description";
 import { TransactionLocation } from "../types/transaction-location";
 import { ethers } from "ethers";
 
+// Default maximum number of blocks fetched in a single getLogs() call while
+// catching up from far behind the chain head. Kept well under common RPC
+// provider getLogs range/result limits (e.g. Infura/Alchemy typically allow a
+// few thousand blocks per call on standard tiers).
+const DEFAULT_CATCH_UP_CHUNK_SIZE = 2000;
+
+function toBurnLogEvent(
+    pastEvent: ethers.providers.Log,
+    parsedEvent: ethers.utils.LogDescription
+) {
+    return {
+        ...pastEvent,
+        ...parsedEvent,
+        txId: pastEvent.transactionHash,
+        returnValues: {
+            ...parsedEvent.args,
+            amount: ethers.BigNumber.from(parsedEvent.args.amount).toString(),
+        },
+        raw: {
+            data: pastEvent.data,
+            topics: pastEvent.topics,
+        },
+        event: parsedEvent.name,
+    };
+}
+
+type BurnLogEvent = ReturnType<typeof toBurnLogEvent>;
+
 export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _provider: ethers.providers.BaseProvider;
     private readonly _contract: ethers.Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
+    private readonly _catchUpChunkSize: number;
+
+    // Set every time getTipIndex() is called (i.e. once per monitor loop
+    // iteration), so getEvents() can tell how far behind the chain head it
+    // currently is without an extra RPC call.
+    private _lastKnownTipIndex: number | undefined;
+    // Events already fetched as part of a batched getLogs() range call,
+    // keyed by block number, waiting to be consumed by later single-block
+    // getEvents() calls for the rest of that range.
+    private readonly _cachedEventsByBlock: Map<number, BurnLogEvent[]> =
+        new Map();
 
     constructor(
         provider: ethers.providers.BaseProvider,
         contractDescription: ContractDescription,
         latestTransactionLocation: TransactionLocation | null,
-        confirmations: number
+        confirmations: number,
+        catchUpChunkSize: number = DEFAULT_CATCH_UP_CHUNK_SIZE
     ) {
         super(latestTransactionLocation);
 
@@ -26,6 +66,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         );
         this._contractDescription = contractDescription;
         this._confirmations = confirmations;
+        this._catchUpChunkSize = catchUpChunkSize;
     }
     protected async processRemains(transactionLocation: TransactionLocation) {
         const blockIndex = await this.getBlockIndex(
@@ -70,8 +111,10 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         return block.number;
     }
 
-    protected getTipIndex(): Promise<number> {
-        return this._provider.getBlockNumber();
+    protected async getTipIndex(): Promise<number> {
+        const tipIndex = await this._provider.getBlockNumber();
+        this._lastKnownTipIndex = tipIndex;
+        return tipIndex;
     }
 
     protected async getBlockHash(blockIndex: number): Promise<string> {
@@ -79,14 +122,69 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         return block.hash;
     }
 
-    protected async getEvents(blockIndex: number) {
+    protected async getEvents(blockIndex: number): Promise<BurnLogEvent[]> {
+        const cachedEvents = this._cachedEventsByBlock.get(blockIndex);
+        if (cachedEvents !== undefined) {
+            this._cachedEventsByBlock.delete(blockIndex);
+            return cachedEvents;
+        }
+
+        // Only ever fetch (and cache ahead) blocks that are already at least
+        // `_confirmations` deep as of the last known tip - i.e. exactly the
+        // set of blocks the caller could otherwise have requested one at a
+        // time - so batching here can never serve data for a block that
+        // hasn't reached the same confirmation depth the rest of this
+        // monitor already relies on (see `triggerredBlocks`), and so can
+        // never be affected by a reorg near the chain head.
+        const confirmedTipIndex =
+            this._lastKnownTipIndex !== undefined
+                ? this._lastKnownTipIndex - this._confirmations
+                : blockIndex;
+        const chunkEndBlockIndex = Math.max(
+            blockIndex,
+            Math.min(blockIndex + this._catchUpChunkSize - 1, confirmedTipIndex)
+        );
+
+        const events = await this.fetchEvents(blockIndex, chunkEndBlockIndex);
+
+        if (chunkEndBlockIndex === blockIndex) {
+            return events;
+        }
+
+        // Bucket the wider range's events by block so the rest of this
+        // chunk's later, individual getEvents(blockIndex) calls (made as the
+        // caller advances one block at a time) are served from cache instead
+        // of triggering another getLogs() round-trip each time.
+        const eventsByBlock = new Map<number, BurnLogEvent[]>();
+        for (let i = blockIndex + 1; i <= chunkEndBlockIndex; ++i) {
+            eventsByBlock.set(i, []);
+        }
+        const eventsForBlockIndex: BurnLogEvent[] = [];
+        for (const event of events) {
+            if (event.blockNumber === blockIndex) {
+                eventsForBlockIndex.push(event);
+            } else {
+                eventsByBlock.get(event.blockNumber)?.push(event);
+            }
+        }
+        for (const [cachedBlockIndex, cachedBlockEvents] of eventsByBlock) {
+            this._cachedEventsByBlock.set(cachedBlockIndex, cachedBlockEvents);
+        }
+
+        return eventsForBlockIndex;
+    }
+
+    private async fetchEvents(
+        fromBlockIndex: number,
+        toBlockIndex: number
+    ): Promise<BurnLogEvent[]> {
         const BURN_EVENT_SIG = "Burn(address,bytes32,uint256)";
 
         const filter = {
             address: this._contractDescription.address,
             topics: [ethers.utils.id(BURN_EVENT_SIG)], // This is equal with Web3.utils.sha3
-            fromBlock: blockIndex,
-            toBlock: blockIndex,
+            fromBlock: fromBlockIndex,
+            toBlock: toBlockIndex,
         };
 
         const pastEvents = await this._provider.getLogs(filter);
@@ -94,23 +192,8 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
             this._contract.interface.parseLog(log)
         );
 
-        return parsedEvents.map((parsedEvent, idx) => {
-            return {
-                ...pastEvents[idx],
-                ...parsedEvent,
-                txId: pastEvents[idx].transactionHash,
-                returnValues: {
-                    ...parsedEvent.args,
-                    amount: ethers.BigNumber.from(
-                        parsedEvent.args.amount
-                    ).toString(),
-                },
-                raw: {
-                    data: pastEvents[idx].data,
-                    topics: pastEvents[idx].topics,
-                },
-                event: parsedEvent.name,
-            };
-        });
+        return parsedEvents.map((parsedEvent, idx) =>
+            toBurnLogEvent(pastEvents[idx], parsedEvent)
+        );
     }
 }

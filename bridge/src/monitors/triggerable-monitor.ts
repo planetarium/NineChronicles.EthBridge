@@ -97,6 +97,11 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                     "Ignore and continue loop without breaking though unexpected error occurred:",
                     error
                 );
+
+                // Without this delay, a persistent error (e.g. an RPC outage)
+                // would make this loop spin as fast as possible with no
+                // backoff at all, hammering the provider with retries.
+                await delay(this._delayMilliseconds);
             }
         }
     }
