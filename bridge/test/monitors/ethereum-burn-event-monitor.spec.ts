@@ -340,4 +340,109 @@ describe(EthereumBurnEventMonitor.name, () => {
             );
         });
     });
+
+    describe("loop - per-position progress commit across a mid-batch failure", () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        // Mirrors the equivalent regression test in the BSC bridge fork: a
+        // block-range batch is being caught up on (here, via the internal
+        // getLogs() chunk cache added in this PR), and one block partway
+        // through the batch fails once (a transient error) before
+        // succeeding on retry. The resulting sequence of blocks actually
+        // yielded to the observer, across that failure/retry boundary, must
+        // be exactly contiguous - no block already yielded (and so already
+        // handed to the observer for processing) is ever yielded again, and
+        // none is skipped.
+        it("never re-yields an already-yielded block, and never skips one, when a block fails partway through catching up", async () => {
+            const CONFIRMATIONS = 0;
+            const TIP = 8;
+
+            let blockNumberCallCount = 0;
+            const getBlockNumber = jest.fn(async () => {
+                blockNumberCallCount += 1;
+                // Starts already at block 3 (so the very first triggered
+                // block is 4), then the tip is 8 for the rest of the run.
+                return blockNumberCallCount === 1 ? 3 : TIP;
+            });
+
+            let block6Attempts = 0;
+            const getBlock = jest.fn(async (blockIndex: number) => {
+                if (blockIndex === 6) {
+                    block6Attempts += 1;
+                    if (block6Attempts === 1) {
+                        // A transient failure partway through the batch
+                        // (blocks 4-8), after 4 and 5 have already been
+                        // yielded and (in the real bridge) processed/minted.
+                        throw { code: "SERVER_ERROR", reason: "boom" };
+                    }
+                }
+                return { number: blockIndex, hash: `0xblock${blockIndex}` };
+            });
+
+            const logs = [4, 5, 6, 7, 8].map((n) => makeBurnLog(n, n));
+            const getLogs = jest.fn(
+                async (filter: { fromBlock: number; toBlock: number }) =>
+                    logs.filter(
+                        (log) =>
+                            log.blockNumber >= filter.fromBlock &&
+                            log.blockNumber <= filter.toBlock
+                    )
+            );
+
+            const provider = {
+                _isProvider: true,
+                getBlockNumber,
+                getBlock,
+                getLogs,
+            } as unknown as ethers.providers.BaseProvider;
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS
+            );
+
+            const iterator = monitor.loop();
+
+            async function nextYieldedBlockNumber(): Promise<number> {
+                const promise = iterator.next();
+                let settled = false;
+                promise.then(() => {
+                    settled = true;
+                });
+                while (!settled) {
+                    jest.runAllTimers();
+                    await Promise.resolve();
+                }
+                const result = await promise;
+                if (result.done) {
+                    throw new Error("loop() ended unexpectedly");
+                }
+                return parseInt(
+                    result.value.blockHash.replace("0xblock", ""),
+                    10
+                );
+            }
+
+            const yieldedBlockNumbers: number[] = [];
+            for (let i = 0; i < 5; ++i) {
+                yieldedBlockNumbers.push(await nextYieldedBlockNumber());
+            }
+
+            // Exactly contiguous, in order, no repeats and no gaps - even
+            // though block 6 failed once along the way.
+            expect(yieldedBlockNumbers).toEqual([4, 5, 6, 7, 8]);
+            expect(new Set(yieldedBlockNumbers).size).toEqual(
+                yieldedBlockNumbers.length
+            );
+            expect(block6Attempts).toEqual(2);
+        });
+    });
 });
