@@ -195,7 +195,9 @@ describe(NCGTransferredEventObserver.name, () => {
                 to: noLimitOnePercentFeeRecipient,
             },
         ],
-        feeCollectorAddress
+        feeCollectorAddress,
+        // Keep retry delay near-zero so tests exercising the retry path stay fast.
+        { maxRetry: 3, delayMs: 1 }
     );
 
     describe(NCGTransferredEventObserver.prototype.notify.name, () => {
@@ -1281,6 +1283,64 @@ describe(NCGTransferredEventObserver.name, () => {
         });
 
         // Try to catch cases when others, not object and error, were thrown.
+        it("retries minting on a transient RPC error and succeeds without failing the request", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint
+                .mockRejectedValueOnce({ code: "SERVER_ERROR" })
+                .mockResolvedValueOnce("MOCKED-RETRIED-TX-HASH");
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-RETRY",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(2);
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-RETRY",
+                TransactionStatus.COMPLETED
+            );
+        });
+
+        it("doesn't retry minting on a non-transient error and fails the request immediately", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(
+                new Error("execution reverted")
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-NO-RETRY",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(1);
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-NO-RETRY",
+                TransactionStatus.FAILED
+            );
+        });
+
         it("slack/opensearch string error message - snapshot", async () => {
             mockWrappedNcgMinter.mint.mockRejectedValueOnce("error message");
 

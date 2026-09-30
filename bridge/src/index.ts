@@ -59,9 +59,13 @@ process.on("uncaughtException", console.error);
     );
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
-    // const KMS_PROVIDER_SUB_URL: string = Configuration.get(
-    //     "KMS_PROVIDER_SUB_URL"
-    // );
+    // Optional Alchemy-backed (or any other vendor) sub/fallback RPC endpoint.
+    // When set, it's combined with KMS_PROVIDER_URL via ethers' FallbackProvider
+    // so a single vendor's outage/quota exhaustion doesn't take the bridge down.
+    const KMS_PROVIDER_SUB_URL: string | undefined = Configuration.get(
+        "KMS_PROVIDER_SUB_URL",
+        false
+    );
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "KMS_PROVIDER_KEY_ID"
     );
@@ -306,6 +310,12 @@ process.on("uncaughtException", console.error);
 
     const CONFIRMATIONS = 10;
 
+    // Retry policy for transient Ethereum RPC errors encountered while minting
+    // wNCG (see `retryEthereumRpc` in `./rpc-retry`). Non-transient errors (e.g.
+    // reverts, invalid nonce) are never retried regardless of this setting.
+    const ETHEREUM_RPC_MAX_RETRY = 3;
+    const ETHEREUM_RPC_RETRY_DELAY_MS = 1000;
+
     const monitorStateStore: IMonitorStateStore =
         await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
     const exchangeHistoryStore: IExchangeHistoryStore =
@@ -370,20 +380,25 @@ process.on("uncaughtException", console.error);
         gasPriceLimitPolicy,
     ]);
 
-    const provider = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
+    const providerMain = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
 
-    // const providerMain = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
-    // const providerSub = new ethers.providers.JsonRpcProvider(
-    //     KMS_PROVIDER_SUB_URL
-    // );
-
-    // const provider = new ethers.providers.FallbackProvider(
-    //     [
-    //         { provider: providerMain, priority: 1, weight: 2 },
-    //         { provider: providerSub, priority: 2, weight: 1 },
-    //     ],
-    //     1
-    // );
+    // Falls back to the main provider alone when no sub provider is configured,
+    // so this remains safe to deploy before ops fills in KMS_PROVIDER_SUB_URL.
+    const provider: ethers.providers.BaseProvider = KMS_PROVIDER_SUB_URL
+        ? new ethers.providers.FallbackProvider(
+              [
+                  { provider: providerMain, priority: 1, weight: 2 },
+                  {
+                      provider: new ethers.providers.JsonRpcProvider(
+                          KMS_PROVIDER_SUB_URL
+                      ),
+                      priority: 2,
+                      weight: 1,
+                  },
+              ],
+              1
+          )
+        : providerMain;
 
     const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
         "FEE_COLLECTOR_ADDRESS"
@@ -540,7 +555,11 @@ process.on("uncaughtException", console.error);
         integration,
         FAILURE_SUBSCRIBERS,
         whitelistAccounts,
-        FEE_COLLECTOR_ADDRESS
+        FEE_COLLECTOR_ADDRESS,
+        {
+            maxRetry: ETHEREUM_RPC_MAX_RETRY,
+            delayMs: ETHEREUM_RPC_RETRY_DELAY_MS,
+        }
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),

@@ -5,13 +5,13 @@ import { TransactionLocation } from "../types/transaction-location";
 import { ethers } from "ethers";
 
 export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
-    private readonly _provider: ethers.providers.JsonRpcProvider;
+    private readonly _provider: ethers.providers.BaseProvider;
     private readonly _contract: ethers.Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
 
     constructor(
-        provider: ethers.providers.JsonRpcProvider,
+        provider: ethers.providers.BaseProvider,
         contractDescription: ContractDescription,
         latestTransactionLocation: TransactionLocation | null,
         confirmations: number

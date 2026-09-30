@@ -22,6 +22,7 @@ import { ACCOUNT_TYPE } from "../whitelist/account-type";
 import { WhitelistAccount } from "../types/whitelist-account";
 import { SpreadsheetClient } from "../spreadsheet-client";
 import { TransactionStatus } from "../types/transaction-status";
+import { retryEthereumRpc, RetryEthereumRpcOptions } from "../rpc-retry";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -66,6 +67,10 @@ export class NCGTransferredEventObserver
     private readonly _integration: Integration;
     private readonly _whitelistAccounts: WhitelistAccount[];
     private readonly _feeCollectorAddress: string;
+    private readonly _rpcRetryOptions: Pick<
+        RetryEthereumRpcOptions,
+        "maxRetry" | "delayMs"
+    >;
     constructor(
         ncgTransfer: INCGTransfer,
         wrappedNcgTransfer: IWrappedNCGMinter,
@@ -84,7 +89,11 @@ export class NCGTransferredEventObserver
         integration: Integration,
         failureSubscribers: string,
         whitelistAccounts: WhitelistAccount[],
-        feeCollectorAddress: string
+        feeCollectorAddress: string,
+        rpcRetryOptions: Pick<
+            RetryEthereumRpcOptions,
+            "maxRetry" | "delayMs"
+        > = { maxRetry: 3, delayMs: 1000 }
     ) {
         this._ncgTransfer = ncgTransfer;
         this._wrappedNcgTransfer = wrappedNcgTransfer;
@@ -104,6 +113,7 @@ export class NCGTransferredEventObserver
         this._failureSubscribers = failureSubscribers;
         this._whitelistAccounts = whitelistAccounts;
         this._feeCollectorAddress = feeCollectorAddress;
+        this._rpcRetryOptions = rpcRetryOptions;
     }
 
     async notify(data: {
@@ -418,9 +428,27 @@ export class NCGTransferredEventObserver
         console.log("fee", fee);
         console.log("exchangeAmount", exchangeAmount);
 
-        const transactionHash = await this._wrappedNcgTransfer.mint(
-            recipient!,
-            ethereumExchangeAmount
+        // Only transient-looking Ethereum RPC errors (network/server/timeout,
+        // or a JSON-RPC internal error code) are retried here; anything else -
+        // including a revert reason or a nonce error that could mean the mint
+        // transaction was already broadcast - is rethrown immediately and
+        // handled by the caller's `_failedRequest`, without ever retrying a
+        // broadcast whose outcome is ambiguous.
+        const transactionHash = await retryEthereumRpc(
+            () =>
+                this._wrappedNcgTransfer.mint(
+                    recipient!,
+                    ethereumExchangeAmount
+                ),
+            {
+                ...this._rpcRetryOptions,
+                onRetryableError: (error, attemptsLeft) => {
+                    console.error(
+                        `Transient Ethereum RPC error while minting wNCG for tx ${txId}, ${attemptsLeft} attempt(s) left. Retrying...`,
+                        error
+                    );
+                },
+            }
         );
         console.log("WNCG mint tx", transactionHash);
 
