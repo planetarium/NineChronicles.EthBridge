@@ -208,4 +208,66 @@ describe("Safe mint submission and receipt boundaries", () => {
         expect(broadcast).toHaveBeenCalledTimes(1);
         expect(wait).toHaveBeenCalledTimes(1);
     });
+    // These fail-closed guards protect the two execution modes and pending
+    // transaction lifecycle. Invoke their internal entry points deliberately:
+    // the public mint method normally guarantees their preconditions.
+    it("rejects a direct proposal when only the Safe API is configured", async () => {
+        const { minter, sdk, broadcast } = await setup("api");
+        await expect(
+            minter["proposeMintTransactionDirect"]("1", RECIPIENT)
+        ).rejects.toThrow("Safe contract is not initialized");
+        expect(sdk.createTransaction).not.toHaveBeenCalled();
+        expect(sdk.signTransactionHash).not.toHaveBeenCalled();
+        expect(broadcast).not.toHaveBeenCalled();
+    });
+
+    it("rejects signing a direct transaction before one has been proposed", async () => {
+        const { minter, sdk, broadcast } = await setup("direct");
+        await expect(minter["confirmTransactionDirect"]()).rejects.toThrow(
+            "No pending transaction to confirm"
+        );
+        expect(sdk.signTransactionHash).not.toHaveBeenCalled();
+        expect(broadcast).not.toHaveBeenCalled();
+    });
+
+    it("clears the completed direct transaction so executing it again cannot rebroadcast", async () => {
+        const { minter, broadcast, wait } = await setup("direct");
+        await expect(minter.mint(RECIPIENT, AMOUNT)).resolves.toBe(TX_HASH);
+        await expect(minter["executeTransactionDirect"]()).rejects.toThrow(
+            "No pending transaction to execute or Safe contract not initialized"
+        );
+        expect(broadcast).toHaveBeenCalledTimes(1);
+        expect(wait).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        {
+            name: "proposal",
+            call: (minter: Minter) =>
+                minter["proposeMintTransaction"]("1", RECIPIENT),
+        },
+        {
+            name: "confirmation",
+            call: (minter: Minter) => minter["confirmTransaction"](),
+        },
+        {
+            name: "execution",
+            call: (minter: Minter) => minter["executeTransaction"](TX_HASH),
+        },
+    ])(
+        "rejects Safe API $name in direct-only mode before any side effect",
+        async ({ call }) => {
+            const { minter, sdk, broadcast, serviceConstructor } = await setup(
+                "direct"
+            );
+            await expect(call(minter)).rejects.toThrow(
+                "Safe service is not initialized"
+            );
+            expect(serviceConstructor).not.toHaveBeenCalled();
+            expect(sdk.createTransaction).not.toHaveBeenCalled();
+            expect(sdk.signTransactionHash).not.toHaveBeenCalled();
+            expect(sdk.getBalance).not.toHaveBeenCalled();
+            expect(broadcast).not.toHaveBeenCalled();
+        }
+    );
 });
