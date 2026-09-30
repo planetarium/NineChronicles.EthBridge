@@ -39,6 +39,7 @@ import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
 import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
 import { ethers } from "ethers";
+import { createEthereumFallbackProvider } from "./ethereum-provider";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
@@ -310,9 +311,13 @@ process.on("uncaughtException", console.error);
 
     const CONFIRMATIONS = 10;
 
-    // Retry policy for transient Ethereum RPC errors encountered while minting
-    // wNCG (see `retryEthereumRpc` in `./rpc-retry`). Non-transient errors (e.g.
-    // reverts, invalid nonce) are never retried regardless of this setting.
+    // Retry policy for transient Ethereum RPC errors encountered while
+    // waiting for an already-broadcast mint transaction's receipt (see
+    // `retryEthereumRpc` in `./rpc-retry` and its use in
+    // `SafeWrappedNCGMinter`). This never retries the broadcast itself, only
+    // the safe-to-repeat wait for its receipt, so it can't cause a duplicate
+    // mint. Non-transient errors (e.g. reverts, invalid nonce) are never
+    // retried regardless of this setting.
     const ETHEREUM_RPC_MAX_RETRY = 3;
     const ETHEREUM_RPC_RETRY_DELAY_MS = 1000;
 
@@ -380,25 +385,17 @@ process.on("uncaughtException", console.error);
         gasPriceLimitPolicy,
     ]);
 
-    const providerMain = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
-
-    // Falls back to the main provider alone when no sub provider is configured,
-    // so this remains safe to deploy before ops fills in KMS_PROVIDER_SUB_URL.
+    // Falls back to a single main provider alone when no sub provider is
+    // configured, so this remains safe to deploy before ops fills in
+    // KMS_PROVIDER_SUB_URL. See `createEthereumFallbackProvider` for why the
+    // combined provider is built the way it is (in short: so a down sub
+    // provider can't defeat the whole point of having a fallback).
     const provider: ethers.providers.BaseProvider = KMS_PROVIDER_SUB_URL
-        ? new ethers.providers.FallbackProvider(
-              [
-                  { provider: providerMain, priority: 1, weight: 2 },
-                  {
-                      provider: new ethers.providers.JsonRpcProvider(
-                          KMS_PROVIDER_SUB_URL
-                      ),
-                      priority: 2,
-                      weight: 1,
-                  },
-              ],
-              1
+        ? await createEthereumFallbackProvider(
+              KMS_PROVIDER_URL,
+              KMS_PROVIDER_SUB_URL
           )
-        : providerMain;
+        : new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
 
     const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
         "FEE_COLLECTOR_ADDRESS"
@@ -432,7 +429,11 @@ process.on("uncaughtException", console.error);
             owner2Signer,
             owner3Signer,
             provider,
-            gasPricePolicy
+            gasPricePolicy,
+            {
+                maxRetry: ETHEREUM_RPC_MAX_RETRY,
+                delayMs: ETHEREUM_RPC_RETRY_DELAY_MS,
+            }
         );
     }
 
@@ -555,11 +556,7 @@ process.on("uncaughtException", console.error);
         integration,
         FAILURE_SUBSCRIBERS,
         whitelistAccounts,
-        FEE_COLLECTOR_ADDRESS,
-        {
-            maxRetry: ETHEREUM_RPC_MAX_RETRY,
-            delayMs: ETHEREUM_RPC_RETRY_DELAY_MS,
-        }
+        FEE_COLLECTOR_ADDRESS
     );
     const nineChroniclesMonitor = new NineChroniclesTransferredEventMonitor(
         await monitorStateStore.load("nineChronicles"),

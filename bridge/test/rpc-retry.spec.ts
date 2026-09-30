@@ -22,11 +22,11 @@ describe(isRetryableEthereumError.name, () => {
         expect(isRetryableEthereumError({ code: -32603 })).toBe(true);
     });
 
-    it("returns true for a JSON-RPC -326xx internal error nested under `.error`", () => {
+    it("returns true for a bare JSON-RPC Internal error (-32603) nested under `.error`", () => {
         expect(
             isRetryableEthereumError({
                 code: "SERVER_ERROR",
-                error: { code: -32600 },
+                error: { code: -32603 },
             })
         ).toBe(true);
     });
@@ -55,6 +55,47 @@ describe(isRetryableEthereumError.name, () => {
         expect(isRetryableEthereumError(undefined)).toBe(false);
         expect(isRetryableEthereumError("some string error")).toBe(false);
     });
+
+    // P2 regression: not every -326xx code is safe to retry. -32600/-32601/
+    // -32602 are deterministic client-side problems (bad request, unknown
+    // method, bad params) that will never succeed no matter how many times
+    // they're retried.
+    for (const deterministicCode of [-32700, -32600, -32601, -32602]) {
+        it(`returns false for the deterministic bare JSON-RPC code ${deterministicCode}`, () => {
+            expect(isRetryableEthereumError({ code: deterministicCode })).toBe(
+                false
+            );
+        });
+
+        it(
+            `returns false for the deterministic JSON-RPC code ${deterministicCode} even ` +
+                "when nested inside an outer SERVER_ERROR-looking wrapper",
+            () => {
+                expect(
+                    isRetryableEthereumError({
+                        code: "SERVER_ERROR",
+                        error: {
+                            code: deterministicCode,
+                            message: "bad request",
+                        },
+                    })
+                ).toBe(false);
+            }
+        );
+    }
+
+    it(
+        "returns true for a plain SERVER_ERROR with no inner JSON-RPC error " +
+            "code to contradict it (e.g. a malformed/empty response)",
+        () => {
+            expect(
+                isRetryableEthereumError({
+                    code: "SERVER_ERROR",
+                    reason: "bad response",
+                })
+            ).toBe(true);
+        }
+    );
 });
 
 describe(retryEthereumRpc.name, () => {

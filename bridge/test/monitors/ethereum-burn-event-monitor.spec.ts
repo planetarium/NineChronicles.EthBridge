@@ -72,6 +72,154 @@ describe(EthereumBurnEventMonitor.name, () => {
         } as unknown as ethers.providers.BaseProvider;
     }
 
+    describe("getEvents - range-too-large adaptation", () => {
+        // A provider that rejects any getLogs() call spanning more than
+        // `maxRangeSize` blocks with a real-world "range too large" style
+        // error, and otherwise resolves normally.
+        function makeRangeLimitedMockProvider(
+            tipIndex: number,
+            maxRangeSize: number,
+            logsByRange: ethers.providers.Log[]
+        ) {
+            const getLogs = jest.fn(
+                async (filter: { fromBlock: number; toBlock: number }) => {
+                    const rangeSize = filter.toBlock - filter.fromBlock + 1;
+                    if (rangeSize > maxRangeSize) {
+                        throw {
+                            code: -32005,
+                            message:
+                                "query returned more than 10000 results. " +
+                                "Try with this block range: " +
+                                `[${filter.fromBlock}, ${
+                                    filter.fromBlock + maxRangeSize - 1
+                                }].`,
+                        };
+                    }
+
+                    return logsByRange.filter(
+                        (log) =>
+                            log.blockNumber >= filter.fromBlock &&
+                            log.blockNumber <= filter.toBlock
+                    );
+                }
+            );
+            const getBlockNumber = jest.fn(async () => tipIndex);
+            const getBlock = jest.fn(async () => {
+                throw new Error("not used in this test");
+            });
+
+            return {
+                _isProvider: true,
+                getLogs,
+                getBlockNumber,
+                getBlock,
+            } as unknown as ethers.providers.BaseProvider;
+        }
+
+        it("shrinks the chunk size and retries when getLogs rejects the range as too large, instead of repeating the same request forever", async () => {
+            const CONFIRMATIONS = 10;
+            const MAX_RANGE_SIZE = 500;
+            const tipIndex = 1_000_000;
+            const provider = makeRangeLimitedMockProvider(
+                tipIndex,
+                MAX_RANGE_SIZE,
+                [makeBurnLog(150, 42)]
+            );
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS,
+                2000 // catchUpChunkSize - larger than MAX_RANGE_SIZE on purpose
+            );
+
+            await (monitor as any).getTipIndex();
+
+            const events = await (monitor as any).getEvents(100);
+
+            // It found the log at block 150 despite starting with an
+            // oversized chunk request, by shrinking and retrying.
+            expect(events).toEqual([]); // nothing at block 100 itself
+            const eventsAt150 = await (monitor as any).getEvents(150);
+            expect(eventsAt150.map((e: any) => e.returnValues.amount)).toEqual([
+                "42",
+            ]);
+
+            const getLogsMock = provider.getLogs as jest.Mock;
+            // 2000 (rejected) -> 1000 (rejected) -> 500 (accepted): 3 calls
+            // for the first getEvents(100), then 0 more for getEvents(150)
+            // since it was served from the now-cached 500-block chunk.
+            expect(getLogsMock.mock.calls.length).toEqual(3);
+            expect(
+                getLogsMock.mock.calls.map(
+                    ([filter]: [{ fromBlock: number; toBlock: number }]) =>
+                        filter.toBlock - filter.fromBlock + 1
+                )
+            ).toEqual([2000, 1000, 500]);
+        });
+
+        it("remembers the shrunk chunk size for later calls, instead of re-discovering the same limit every time", async () => {
+            const CONFIRMATIONS = 10;
+            const MAX_RANGE_SIZE = 500;
+            const tipIndex = 1_000_000;
+            const provider = makeRangeLimitedMockProvider(
+                tipIndex,
+                MAX_RANGE_SIZE,
+                []
+            );
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS,
+                2000
+            );
+
+            await (monitor as any).getTipIndex();
+
+            await (monitor as any).getEvents(100); // discovers the limit: 2000 -> 1000 -> 500
+            const getLogsMock = provider.getLogs as jest.Mock;
+            expect(getLogsMock.mock.calls.length).toEqual(3);
+
+            await (monitor as any).getEvents(600); // next chunk, right after the previous one
+            // Only one more call, straight at the already-learned 500-block
+            // size - no repeated 2000/1000 attempts.
+            expect(getLogsMock.mock.calls.length).toEqual(4);
+            const lastRange = getLogsMock.mock.calls[3][0];
+            expect(lastRange.toBlock - lastRange.fromBlock + 1).toEqual(500);
+        });
+
+        it("does not shrink the chunk size, and rethrows immediately, for an unrelated error", async () => {
+            const CONFIRMATIONS = 10;
+            const tipIndex = 1_000_000;
+            const provider = makeRangeLimitedMockProvider(tipIndex, 500, []);
+            (provider.getLogs as jest.Mock).mockReset();
+            (provider.getLogs as jest.Mock).mockRejectedValue(
+                new Error("connect ECONNREFUSED")
+            );
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS,
+                2000
+            );
+
+            await (monitor as any).getTipIndex();
+
+            await expect((monitor as any).getEvents(100)).rejects.toThrow(
+                "connect ECONNREFUSED"
+            );
+            // A single attempt - no shrink-and-retry for an unrelated error.
+            expect((provider.getLogs as jest.Mock).mock.calls.length).toEqual(
+                1
+            );
+        });
+    });
+
     describe("getEvents", () => {
         it("fetches one block at a time when caught up (small gap to tip)", async () => {
             const CONFIRMATIONS = 10;

@@ -32,12 +32,63 @@ function toBurnLogEvent(
 
 type BurnLogEvent = ReturnType<typeof toBurnLogEvent>;
 
+// Substrings seen in real RPC providers' error messages when a getLogs()
+// call's block range (or the number of matching results within it) exceeds
+// what that provider allows in a single call - as opposed to any other kind
+// of error, which should NOT cause the chunk size to shrink. Matched
+// case-insensitively against the error's own message and any nested JSON-RPC
+// error's message.
+const BLOCK_RANGE_TOO_LARGE_MESSAGE_SUBSTRINGS = [
+    "query returned more than", // Alchemy/Infura: "... more than 10000 results ..."
+    "block range", // "block range is too large/too wide/exceeds the limit"
+    "is limited to a", // common geth-derived node message: "is limited to a X block range"
+    "exceeds the range limit",
+    "too many results",
+];
+
+function collectErrorMessages(error: unknown): string[] {
+    if (error === null || typeof error !== "object") {
+        return [];
+    }
+
+    const err = error as {
+        message?: unknown;
+        error?: { message?: unknown };
+    };
+    return [err.message, err.error?.message].filter(
+        (message): message is string => typeof message === "string"
+    );
+}
+
+/**
+ * True when `error` looks like a provider's rejection of a getLogs() call
+ * for requesting too wide a block range (or matching too many results in
+ * it) - never for an unrelated failure (a network error, a genuinely bad
+ * request, etc.), which must be handled by the normal retry/backoff path
+ * instead of by shrinking the chunk size.
+ */
+export function isBlockRangeTooLargeError(error: unknown): boolean {
+    const messages = collectErrorMessages(error).map((message) =>
+        message.toLowerCase()
+    );
+
+    return messages.some((message) =>
+        BLOCK_RANGE_TOO_LARGE_MESSAGE_SUBSTRINGS.some((substring) =>
+            message.includes(substring)
+        )
+    );
+}
+
 export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _provider: ethers.providers.BaseProvider;
     private readonly _contract: ethers.Contract;
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
-    private readonly _catchUpChunkSize: number;
+    // Not readonly: shrunk in place (see `getEvents`) whenever the RPC
+    // provider rejects a getLogs() range as too large, so the smaller,
+    // working size is remembered for later chunks instead of repeatedly
+    // re-discovering the same limit.
+    private _catchUpChunkSize: number;
 
     // Set every time getTipIndex() is called (i.e. once per monitor loop
     // iteration), so getEvents() can tell how far behind the chain head it
@@ -140,38 +191,72 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
             this._lastKnownTipIndex !== undefined
                 ? this._lastKnownTipIndex - this._confirmations
                 : blockIndex;
-        const chunkEndBlockIndex = Math.max(
-            blockIndex,
-            Math.min(blockIndex + this._catchUpChunkSize - 1, confirmedTipIndex)
-        );
 
-        const events = await this.fetchEvents(blockIndex, chunkEndBlockIndex);
+        // Retries with a shrinking chunk size specifically when the provider
+        // rejects the range as too large - as opposed to any other error,
+        // which is rethrown immediately and handled by the caller's normal
+        // retry/backoff (see `TriggerableMonitor.loop`). Without this, a
+        // chunk size that exceeds the provider's own getLogs() range/result
+        // limit would otherwise repeat the exact same oversized request
+        // forever instead of adapting to it.
+        let chunkSize = this._catchUpChunkSize;
+        while (true) {
+            const chunkEndBlockIndex = Math.max(
+                blockIndex,
+                Math.min(blockIndex + chunkSize - 1, confirmedTipIndex)
+            );
 
-        if (chunkEndBlockIndex === blockIndex) {
-            return events;
-        }
+            let events: BurnLogEvent[];
+            try {
+                events = await this.fetchEvents(blockIndex, chunkEndBlockIndex);
+            } catch (error) {
+                if (chunkSize > 1 && isBlockRangeTooLargeError(error)) {
+                    chunkSize = Math.max(1, Math.floor(chunkSize / 2));
+                    console.error(
+                        `getLogs() range [${blockIndex}, ${chunkEndBlockIndex}] was rejected as too large; ` +
+                            `shrinking the catch-up chunk size to ${chunkSize} block(s) and retrying.`,
+                        error
+                    );
+                    continue;
+                }
 
-        // Bucket the wider range's events by block so the rest of this
-        // chunk's later, individual getEvents(blockIndex) calls (made as the
-        // caller advances one block at a time) are served from cache instead
-        // of triggering another getLogs() round-trip each time.
-        const eventsByBlock = new Map<number, BurnLogEvent[]>();
-        for (let i = blockIndex + 1; i <= chunkEndBlockIndex; ++i) {
-            eventsByBlock.set(i, []);
-        }
-        const eventsForBlockIndex: BurnLogEvent[] = [];
-        for (const event of events) {
-            if (event.blockNumber === blockIndex) {
-                eventsForBlockIndex.push(event);
-            } else {
-                eventsByBlock.get(event.blockNumber)?.push(event);
+                throw error;
             }
-        }
-        for (const [cachedBlockIndex, cachedBlockEvents] of eventsByBlock) {
-            this._cachedEventsByBlock.set(cachedBlockIndex, cachedBlockEvents);
-        }
 
-        return eventsForBlockIndex;
+            // Remember the (possibly shrunk) working chunk size for later
+            // calls, so it doesn't have to re-discover the same provider
+            // limit from scratch every time.
+            this._catchUpChunkSize = chunkSize;
+
+            if (chunkEndBlockIndex === blockIndex) {
+                return events;
+            }
+
+            // Bucket the wider range's events by block so the rest of this
+            // chunk's later, individual getEvents(blockIndex) calls (made as
+            // the caller advances one block at a time) are served from cache
+            // instead of triggering another getLogs() round-trip each time.
+            const eventsByBlock = new Map<number, BurnLogEvent[]>();
+            for (let i = blockIndex + 1; i <= chunkEndBlockIndex; ++i) {
+                eventsByBlock.set(i, []);
+            }
+            const eventsForBlockIndex: BurnLogEvent[] = [];
+            for (const event of events) {
+                if (event.blockNumber === blockIndex) {
+                    eventsForBlockIndex.push(event);
+                } else {
+                    eventsByBlock.get(event.blockNumber)?.push(event);
+                }
+            }
+            for (const [cachedBlockIndex, cachedBlockEvents] of eventsByBlock) {
+                this._cachedEventsByBlock.set(
+                    cachedBlockIndex,
+                    cachedBlockEvents
+                );
+            }
+
+            return eventsForBlockIndex;
+        }
     }
 
     private async fetchEvents(
