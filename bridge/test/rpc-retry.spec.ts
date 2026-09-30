@@ -74,6 +74,22 @@ describe(isRetryableEthereumError.name, () => {
         expect(isRetryableEthereumError("some string error")).toBe(false);
     });
 
+    // HTTP-transport-level failures (no JSON-RPC error code at all, e.g. a
+    // load balancer/proxy in front of the RPC node returning a bare HTTP
+    // status). 429 (rate limited) and 5xx (upstream outage) are transient;
+    // other 4xx codes are the caller's own fault and will never succeed.
+    it("returns true for an HTTP 429 (rate limited) with no JSON-RPC code", () => {
+        expect(isRetryableEthereumError({ status: 429 })).toBe(true);
+    });
+
+    it("returns true for an HTTP 503 (server error) with no JSON-RPC code", () => {
+        expect(isRetryableEthereumError({ status: 503 })).toBe(true);
+    });
+
+    it("returns false for an HTTP 404 with no JSON-RPC code", () => {
+        expect(isRetryableEthereumError({ status: 404 })).toBe(false);
+    });
+
     // P2 regression: not every -326xx code is safe to retry. -32600/-32601/
     // -32602 are deterministic client-side problems (bad request, unknown
     // method, bad params) that will never succeed no matter how many times

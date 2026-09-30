@@ -1,5 +1,9 @@
 import { ethers } from "ethers";
-import { createEthereumFallbackProvider } from "../src/ethereum-provider";
+import {
+    createEthereumFallbackProvider,
+    ChainIdMismatchError,
+    ResilientFallbackProvider,
+} from "../src/ethereum-provider";
 
 describe("Ethereum RPC failover", () => {
     type RpcState = { down: boolean; chainId: string; requests: string[] };
@@ -145,5 +149,71 @@ describe("Ethereum RPC failover", () => {
         main.state.down = true;
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect((await provider.getGasPrice()).toNumber()).toBe(42);
+    });
+
+    it.each([0, -1, 1.5])(
+        "rejects a non-positive-integer expectedChainId (%p)",
+        async (expectedChainId) => {
+            const main = await rpc();
+            const sub = await rpc();
+            await expect(
+                createEthereumFallbackProvider(main.url, sub.url, {
+                    expectedChainId,
+                })
+            ).rejects.toThrow(
+                "expectedChainId must be a positive safe integer"
+            );
+        }
+    );
+});
+
+// Unlike the rest of this file, these tests construct ResilientFallbackProvider
+// directly with plain mock providers (no expectedChainId pinned on either
+// one), so both providers' own getNetwork() calls resolve successfully with
+// genuinely different networks - the only way to reach the cross-provider
+// comparison in detectNetwork() itself, as opposed to a single JsonRpcProvider
+// rejecting its *own* request because it disagrees with a chain ID that was
+// statically pinned on it via createEthereumFallbackProvider.
+describe(ResilientFallbackProvider.name, () => {
+    function mockProvider(network: Partial<ethers.providers.Network>) {
+        return {
+            getNetwork: jest.fn().mockResolvedValue(network),
+        } as unknown as ethers.providers.Provider;
+    }
+
+    it("throws ChainIdMismatchError when two healthy providers report different chain IDs", async () => {
+        const provider = new ResilientFallbackProvider(
+            [
+                {
+                    provider: mockProvider({
+                        chainId: 1,
+                        name: "homestead",
+                    }),
+                    priority: 1,
+                    weight: 1,
+                },
+                {
+                    provider: mockProvider({
+                        chainId: 56,
+                        name: "bnb",
+                    }),
+                    priority: 2,
+                    weight: 1,
+                },
+            ],
+            1
+        );
+
+        await expect(provider.detectNetwork()).rejects.toThrow(
+            ChainIdMismatchError
+        );
+    });
+
+    it("ChainIdMismatchError's message names both disagreeing chain IDs", () => {
+        const error = new ChainIdMismatchError(1, 56);
+        expect(error.name).toBe("ChainIdMismatchError");
+        expect(error.message).toBe(
+            "Ethereum RPC endpoints disagree on their network: 1 vs 56"
+        );
     });
 });

@@ -246,4 +246,38 @@ describe(SafeWrappedNCGMinter.name, () => {
 
         expect(executeTransaction).toHaveBeenCalledTimes(1);
     });
+
+    it("throws clearly if the Safe SDK returns no transaction response after executing", async () => {
+        const executeTransaction = jest
+            .fn()
+            .mockResolvedValue({ transactionResponse: undefined });
+
+        (Safe.create as jest.Mock).mockResolvedValue(
+            makeMockSafeSdk(executeTransaction)
+        );
+        (SafeServiceClient as unknown as jest.Mock).mockImplementation(() =>
+            makeMockSafeService()
+        );
+
+        const minter = await SafeWrappedNCGMinter.create(
+            "https://safe-tx-service.example",
+            "0x1234567890123456789012345678901234567890",
+            "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157",
+            makeMockSigner("0xOwner1000000000000000000000000000000000"),
+            makeMockSigner("0xOwner2000000000000000000000000000000000"),
+            makeMockSigner("0xOwner3000000000000000000000000000000000"),
+            mockProvider,
+            mockGasPricePolicy,
+            { maxRetry: 3, delayMs: 1 }
+        );
+
+        await expect(
+            minter.mint(
+                "0x870737cb9a2D78Bb48511508159fA39c23797355",
+                new Decimal(1000).mul(new Decimal(10).pow(18))
+            )
+        ).rejects.toThrow("Transaction response is undefined after execution");
+
+        expect(executeTransaction).toHaveBeenCalledTimes(1);
+    });
 });

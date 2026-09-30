@@ -302,6 +302,44 @@ describe(EthereumBurnEventMonitor.name, () => {
         ])("does not classify unrelated errors: %s", (message) => {
             expect(isBlockRangeTooLargeError(new Error(message))).toBe(false);
         });
+
+        it("recognizes a range error nested inside a JSON-encoded HTTP body", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    body: JSON.stringify({
+                        error: {
+                            code: -32005,
+                            message: "query returned more than 10000 results",
+                        },
+                    }),
+                })
+            ).toBe(true);
+        });
+
+        it("does not treat a non-JSON HTTP body as a range error", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    body: "<html>502 Bad Gateway</html>",
+                })
+            ).toBe(false);
+        });
+
+        it("stops descending into arbitrarily deep nested errors instead of recursing forever", () => {
+            // Wraps a genuine range-error message under 15 levels of nested
+            // `.error` - well past the recursion depth cutoff - to prove the
+            // cutoff actually bounds the recursion rather than the function
+            // eventually reaching (and matching) the innermost message.
+            function nestError(depth: number): unknown {
+                if (depth === 0) {
+                    return { message: "block range is too wide" };
+                }
+                return { error: nestError(depth - 1) };
+            }
+
+            expect(isBlockRangeTooLargeError(nestError(15))).toBe(false);
+        });
     });
 
     describe("getEvents - range-too-large adaptation", () => {
@@ -611,6 +649,49 @@ describe(EthereumBurnEventMonitor.name, () => {
             ]);
             expect((provider.getLogs as jest.Mock).mock.calls[0][0]).toEqual(
                 expect.objectContaining({ fromBlock: 42, toBlock: 42 })
+            );
+        });
+
+        it("throws clearly when the wide-range anchor block is missing (e.g. reorged away)", async () => {
+            const CONFIRMATIONS = 10;
+            const tipIndex = 5000; // confirmed tip = 4990
+            const getLogs = jest.fn().mockResolvedValue([]);
+            const getBlockNumber = jest.fn(async () => tipIndex);
+            // Every block resolves normally except the wide-range chunk's
+            // end anchor (2009, per catchUpChunkSize=2000 starting at 10),
+            // which is missing entirely - as if it were reorged away between
+            // being selected as the anchor and being read.
+            const getBlock = jest.fn(
+                async (blockHashOrIndex: number | string) => {
+                    if (blockHashOrIndex === 2009) return null;
+                    if (typeof blockHashOrIndex === "number") {
+                        return {
+                            number: blockHashOrIndex,
+                            hash: `0xblock${blockHashOrIndex}`,
+                        };
+                    }
+                    return { number: 10, hash: blockHashOrIndex };
+                }
+            );
+            const provider = {
+                _isProvider: true,
+                getLogs,
+                getBlockNumber,
+                getBlock,
+            } as unknown as ethers.providers.BaseProvider;
+
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                CONFIRMATIONS,
+                2000 // catchUpChunkSize
+            );
+
+            await (monitor as any).getTipIndex();
+
+            await expect((monitor as any).getEvents(10)).rejects.toThrow(
+                "Missing range anchor block 2009"
             );
         });
     });
