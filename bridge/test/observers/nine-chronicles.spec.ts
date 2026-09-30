@@ -1256,7 +1256,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
-        it("pagerduty ethereum transfer error message - snapshot", async () => {
+        it("keeps PagerDuty disabled on mint failure", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce(
                 (address, amount) => {
                     throw new Error("mockWrappedNcgMinter.mint error");
@@ -1277,7 +1277,7 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockIntegration.error.mock.calls).toMatchSnapshot();
+            expect(mockIntegration.error).not.toHaveBeenCalled();
         });
 
         // `mint()` proposes, confirms AND broadcasts a transaction, so it

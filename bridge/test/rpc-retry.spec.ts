@@ -1,6 +1,24 @@
 import { isRetryableEthereumError, retryEthereumRpc } from "../src/rpc-retry";
 
 describe(isRetryableEthereumError.name, () => {
+    it.each([
+        { code: "NETWORK_ERROR", event: "changed" },
+        {
+            code: "SERVER_ERROR",
+            error: { code: -32000, message: "execution reverted" },
+        },
+        { code: "SERVER_ERROR", error: { code: "CALL_EXCEPTION" } },
+        {
+            code: "SERVER_ERROR",
+            error: { code: "SERVER_ERROR", error: { code: -32602 } },
+        },
+    ])(
+        "does not retry deterministic or changed-chain failures: %j",
+        (error) => {
+            expect(isRetryableEthereumError(error)).toBe(false);
+        }
+    );
+
     it("returns true for ethers SERVER_ERROR", () => {
         expect(
             isRetryableEthereumError({

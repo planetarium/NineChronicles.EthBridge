@@ -467,7 +467,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             throw new Error("Safe service is not initialized");
         }
 
-        let safeBalance = await this._safeSdkOwner1.getBalance();
+        const safeBalance = await this._safeSdkOwner1.getBalance();
 
         console.log(
             `[Before Transaction] Safe Balance: ${ethers.utils.formatUnits(
@@ -512,14 +512,21 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
                 },
             }
         );
-        safeBalance = await this._safeSdkOwner1.getBalance();
-
-        console.log(
-            `[After Transaction] Safe Balance: ${ethers.utils.formatUnits(
-                safeBalance,
-                "ether"
-            )} ETH`
-        );
+        // A diagnostic read must not turn a confirmed mint into a failure.
+        try {
+            const balanceAfter = await this._safeSdkOwner1.getBalance();
+            console.log(
+                `[After Transaction] Safe Balance: ${ethers.utils.formatUnits(
+                    balanceAfter,
+                    "ether"
+                )} ETH`
+            );
+        } catch (error) {
+            console.error(
+                "Mint confirmed; could not read the Safe balance",
+                error
+            );
+        }
 
         if (receipt === undefined) {
             throw new Error("Transaction receipt is undefined");

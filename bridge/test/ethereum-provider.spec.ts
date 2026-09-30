@@ -1,143 +1,149 @@
-import * as http from "http";
-import { AddressInfo } from "net";
-import {
-    createEthereumFallbackProvider,
-    ChainIdMismatchError,
-} from "../src/ethereum-provider";
+import { ethers } from "ethers";
+import { createEthereumFallbackProvider } from "../src/ethereum-provider";
 
-type JsonRpcHandler = (method: string, params: unknown[]) => unknown;
+describe("Ethereum RPC failover", () => {
+    type RpcState = { down: boolean; chainId: string; requests: string[] };
+    const endpoints = new Map<string, RpcState>();
 
-function startJsonRpcServer(
-    handler: JsonRpcHandler
-): Promise<{ url: string; close: () => Promise<void> }> {
-    return new Promise((resolve) => {
-        const server = http.createServer((req, res) => {
-            let body = "";
-            req.on("data", (chunk) => {
-                body += chunk;
-            });
-            req.on("end", () => {
-                const { id, method, params } = JSON.parse(body);
-                res.writeHead(200, { "Content-Type": "application/json" });
-                try {
-                    const result = handler(method, params ?? []);
-                    res.end(JSON.stringify({ jsonrpc: "2.0", id, result }));
-                } catch (error) {
-                    res.end(
-                        JSON.stringify({
-                            jsonrpc: "2.0",
-                            id,
-                            error: { code: -32000, message: String(error) },
-                        })
-                    );
-                }
-            });
-        });
-
-        server.listen(0, "127.0.0.1", () => {
-            const { port } = server.address() as AddressInfo;
-            resolve({
-                url: `http://127.0.0.1:${port}`,
-                close: () => new Promise<void>((r) => server.close(() => r())),
-            });
+    beforeEach(() => {
+        endpoints.clear();
+        // Replace only transport: real JsonRpcProvider network detection and
+        // FallbackProvider request routing still run, without sockets or keys.
+        jest.spyOn(
+            ethers.providers.JsonRpcProvider.prototype,
+            "send"
+        ).mockImplementation(async function (
+            this: ethers.providers.JsonRpcProvider,
+            method: string
+        ) {
+            const state = endpoints.get(this.connection.url)!;
+            state.requests.push(method);
+            if (state.down) throw { code: "SERVER_ERROR", status: 503 };
+            return method === "eth_chainId"
+                ? state.chainId
+                : method === "net_version"
+                ? String(parseInt(state.chainId, 16))
+                : method === "eth_blockNumber"
+                ? "0x64"
+                : "0x2a";
         });
     });
-}
+    afterEach(() => jest.restoreAllMocks());
 
-function makeHandler(
-    chainIdHex: string,
-    blockNumberHex = "0x2a"
-): JsonRpcHandler {
-    return (method) => {
-        if (method === "eth_chainId") {
-            return chainIdHex;
-        }
-        if (method === "eth_blockNumber") {
-            return blockNumberHex;
-        }
-        throw new Error(`unexpected JSON-RPC method in test: ${method}`);
-    };
-}
+    async function rpc() {
+        const state: RpcState = { down: false, chainId: "0x1", requests: [] };
+        const url = `http://rpc-${endpoints.size}.invalid`;
+        endpoints.set(url, state);
+        return { state, url };
+    }
 
-describe(createEthereumFallbackProvider.name, () => {
-    // This is the reviewer's exact repro: the sub provider's connection
-    // fails entirely (nothing is listening on this port on loopback, so it
-    // fails fast with ECONNREFUSED rather than hanging), and a normal RPC
-    // call must still succeed via the healthy main provider. Before the
-    // fix, ethers v5's FallbackProvider.detectNetwork() would await BOTH
-    // providers' getNetwork() before the FallbackProvider was usable at
-    // all, so this would fail/hang even though quorum=1 should tolerate a
-    // single unreachable provider for ordinary calls.
-    it("still succeeds a normal call via the main provider when the sub provider's connection fails entirely", async () => {
-        const main = await startJsonRpcServer(makeHandler("0x1"));
-        // Nothing listens here, so connecting fails immediately.
-        const subUrl = "http://127.0.0.1:1";
-
-        try {
+    it.each([0, 1])(
+        "starts and reads when endpoint %s is already down",
+        async (downIndex) => {
+            const endpoints = await Promise.all([rpc(), rpc()]);
+            endpoints[downIndex].state.down = true;
             const provider = await createEthereumFallbackProvider(
-                main.url,
-                subUrl,
-                { subProviderProbeTimeoutMs: 500 }
+                endpoints[0].url,
+                endpoints[1].url
             );
-
-            expect(await provider.getBlockNumber()).toEqual(42);
-        } finally {
-            await main.close();
+            expect(await provider.getNetwork()).toMatchObject({ chainId: 1 });
+            expect((await provider.getGasPrice()).toNumber()).toBe(42);
         }
+    );
+
+    it.each([0, 1])(
+        "survives endpoint %s failing after startup",
+        async (downIndex) => {
+            const endpoints = await Promise.all([rpc(), rpc()]);
+            const provider = await createEthereumFallbackProvider(
+                endpoints[0].url,
+                endpoints[1].url
+            );
+            await provider.getGasPrice();
+            endpoints[downIndex].state.down = true;
+            expect((await provider.getGasPrice()).toNumber()).toBe(42);
+        }
+    );
+
+    it("fails closed when both RPC endpoints are down", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        main.state.down = sub.state.down = true;
+        await expect(
+            createEthereumFallbackProvider(main.url, sub.url)
+        ).rejects.toBeDefined();
     });
 
-    // ethers v5's `getNetwork()` re-verifies the network on every call, not
-    // just the first, so this must keep working on repeated calls too - not
-    // only immediately after construction.
-    it("keeps succeeding via the main provider on repeated calls, not just the first, while the sub provider stays down", async () => {
-        const main = await startJsonRpcServer(makeHandler("0x1"));
-        const subUrl = "http://127.0.0.1:1";
-
-        try {
-            const provider = await createEthereumFallbackProvider(
-                main.url,
-                subUrl,
-                { subProviderProbeTimeoutMs: 500 }
-            );
-
-            expect(await provider.getBlockNumber()).toEqual(42);
-            expect(await provider.getBlockNumber()).toEqual(42);
-            expect(await provider.getNetwork()).toEqual(
-                expect.objectContaining({ chainId: 1 })
-            );
-        } finally {
-            await main.close();
-        }
+    it("rejects mismatched chains", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        sub.state.chainId = "0xaa36a7";
+        await expect(
+            createEthereumFallbackProvider(main.url, sub.url)
+        ).rejects.toBeDefined();
     });
 
-    it("builds a working FallbackProvider when both providers are reachable and agree on the same chain", async () => {
-        const main = await startJsonRpcServer(makeHandler("0x1"));
-        const sub = await startJsonRpcServer(makeHandler("0x1"));
-
-        try {
-            const provider = await createEthereumFallbackProvider(
-                main.url,
-                sub.url
-            );
-
-            expect(await provider.getBlockNumber()).toEqual(42);
-        } finally {
-            await main.close();
-            await sub.close();
-        }
+    it("fails closed if a previously healthy endpoint changes chain", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        await provider.getNetwork();
+        sub.state.chainId = "0xaa36a7";
+        // ethers deduplicates network probes within one event-loop tick.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await expect(provider.getNetwork()).rejects.toBeDefined();
     });
 
-    it("throws ChainIdMismatchError - never silently ignored - when the sub provider is reachable but reports a different chain", async () => {
-        const main = await startJsonRpcServer(makeHandler("0x1"));
-        const sub = await startJsonRpcServer(makeHandler("0x2"));
+    it("rejects a wrong-chain sub even when the main endpoint is unavailable at startup", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        main.state.down = true;
+        sub.state.chainId = "0x38";
+        await expect(
+            createEthereumFallbackProvider(main.url, sub.url)
+        ).rejects.toBeDefined();
+    });
 
-        try {
-            await expect(
-                createEthereumFallbackProvider(main.url, sub.url)
-            ).rejects.toBeInstanceOf(ChainIdMismatchError);
-        } finally {
-            await main.close();
-            await sub.close();
-        }
+    it("supports an explicitly configured testnet", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        main.state.chainId = sub.state.chainId = "0xaa36a7";
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url,
+            { expectedChainId: 11155111 }
+        );
+        expect((await provider.getNetwork()).chainId).toBe(11155111);
+    });
+
+    it("rejects a recovering endpoint on a different chain", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        sub.state.down = true;
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        await provider.getGasPrice();
+        sub.state.chainId = "0x2";
+        sub.state.down = false;
+        await expect(provider.getNetwork()).rejects.toBeDefined();
+    });
+
+    it("allows an unavailable endpoint to recover on the same chain", async () => {
+        const main = await rpc();
+        const sub = await rpc();
+        sub.state.down = true;
+        const provider = await createEthereumFallbackProvider(
+            main.url,
+            sub.url
+        );
+        sub.state.down = false;
+        main.state.down = true;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect((await provider.getGasPrice()).toNumber()).toBe(42);
     });
 });

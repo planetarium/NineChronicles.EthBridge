@@ -3,6 +3,7 @@ import { TriggerableMonitor } from "./triggerable-monitor";
 import { ContractDescription } from "../types/contract-description";
 import { TransactionLocation } from "../types/transaction-location";
 import { ethers } from "ethers";
+import { isRetryableEthereumError } from "../rpc-retry";
 
 // Default maximum number of blocks fetched in a single getLogs() call while
 // catching up from far behind the chain head. Kept well under common RPC
@@ -32,51 +33,55 @@ function toBurnLogEvent(
 
 type BurnLogEvent = ReturnType<typeof toBurnLogEvent>;
 
-// Substrings seen in real RPC providers' error messages when a getLogs()
-// call's block range (or the number of matching results within it) exceeds
-// what that provider allows in a single call - as opposed to any other kind
-// of error, which should NOT cause the chunk size to shrink. Matched
-// case-insensitively against the error's own message and any nested JSON-RPC
-// error's message.
-const BLOCK_RANGE_TOO_LARGE_MESSAGE_SUBSTRINGS = [
-    "query returned more than", // Alchemy/Infura: "... more than 10000 results ..."
-    "block range", // "block range is too large/too wide/exceeds the limit"
-    "is limited to a", // common geth-derived node message: "is limited to a X block range"
-    "exceeds the range limit",
-    "too many results",
-];
-
-function collectErrorMessages(error: unknown): string[] {
-    if (error === null || typeof error !== "object") {
-        return [];
-    }
-
-    const err = error as {
-        message?: unknown;
-        error?: { message?: unknown };
-    };
-    return [err.message, err.error?.message].filter(
-        (message): message is string => typeof message === "string"
-    );
-}
-
-/**
- * True when `error` looks like a provider's rejection of a getLogs() call
- * for requesting too wide a block range (or matching too many results in
- * it) - never for an unrelated failure (a network error, a genuinely bad
- * request, etc.), which must be handled by the normal retry/backoff path
- * instead of by shrinking the chunk size.
- */
+// Check structured errors before wrapper messages: ethers includes serialized
+// child errors in "failed to meet quorum" messages, including unrelated errors.
 export function isBlockRangeTooLargeError(error: unknown): boolean {
-    const messages = collectErrorMessages(error).map((message) =>
-        message.toLowerCase()
-    );
-
-    return messages.some((message) =>
-        BLOCK_RANGE_TOO_LARGE_MESSAGE_SUBSTRINGS.some((substring) =>
-            message.includes(substring)
-        )
-    );
+    function inspect(value: unknown, depth = 0): boolean {
+        if (value === null || typeof value !== "object" || depth > 10) {
+            return false;
+        }
+        const err = value as {
+            message?: unknown;
+            error?: unknown;
+            body?: unknown;
+            results?: { error?: unknown }[];
+        };
+        if (Array.isArray(err.results)) {
+            const errors = err.results
+                .map((result) => result.error)
+                .filter((child) => child !== undefined);
+            const rangeErrors = errors.map((child) =>
+                inspect(child, depth + 1)
+            );
+            return (
+                rangeErrors.some(Boolean) &&
+                errors.every(
+                    (child, index) =>
+                        rangeErrors[index] || isRetryableEthereumError(child)
+                )
+            );
+        }
+        if (err.error !== undefined) {
+            return inspect(err.error, depth + 1);
+        }
+        if (typeof err.body === "string") {
+            try {
+                const body = JSON.parse(err.body);
+                if (body.error !== undefined) {
+                    return inspect(body.error, depth + 1);
+                }
+            } catch (_) {
+                // A non-JSON transport response is not a range error.
+            }
+        }
+        return (
+            typeof err.message === "string" &&
+            /query returned more than|too many (results|logs)|(?:block.*range|range.*block).*(?:too (?:large|wide)|exceed|limit|maximum)|(?:limit|maximum|exceed).*block.*range|response.*size.*(?:exceed|limit)/i.test(
+                err.message
+            )
+        );
+    }
+    return inspect(error);
 }
 
 export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
@@ -94,6 +99,8 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     // iteration), so getEvents() can tell how far behind the chain head it
     // currently is without an extra RPC call.
     private _lastKnownTipIndex: number | undefined;
+    private _cacheAnchor: { index: number; hash: string } | undefined;
+    private _requestedBlock: { index: number; hash: string } | undefined;
     // Events already fetched as part of a batched getLogs() range call,
     // keyed by block number, waiting to be consumed by later single-block
     // getEvents() calls for the rest of that range.
@@ -170,23 +177,69 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
 
     protected async getBlockHash(blockIndex: number): Promise<string> {
         const block = await this._provider.getBlock(blockIndex);
+        this._requestedBlock = { index: blockIndex, hash: block.hash };
         return block.hash;
+    }
+
+    private invalidateCache(): void {
+        this._cachedEventsByBlock.clear();
+        this._cacheAnchor = undefined;
+    }
+
+    private async assertBlockHash(index: number, hash: string): Promise<void> {
+        const block = await this._provider.getBlock(index);
+        if (block === null || block.hash !== hash) {
+            this.invalidateCache();
+            throw new Error(
+                `Chain changed while reading burn events at block ${index}`
+            );
+        }
+    }
+
+    private async validateEvents(
+        blockIndex: number,
+        events: BurnLogEvent[],
+        recheckBlock = true
+    ): Promise<void> {
+        const requested = this._requestedBlock;
+        const hash =
+            requested?.index === blockIndex
+                ? requested.hash
+                : (await this._provider.getBlock(blockIndex)).hash;
+        if (events.some((event) => event.blockHash !== hash)) {
+            this.invalidateCache();
+            throw new Error(
+                `Burn logs disagree with block hash at ${blockIndex}`
+            );
+        }
+        if (recheckBlock) {
+            await this.assertBlockHash(blockIndex, hash);
+        }
     }
 
     protected async getEvents(blockIndex: number): Promise<BurnLogEvent[]> {
         const cachedEvents = this._cachedEventsByBlock.get(blockIndex);
-        if (cachedEvents !== undefined) {
+        if (cachedEvents !== undefined && this._cacheAnchor !== undefined) {
+            await this.validateEvents(blockIndex, cachedEvents, false);
+            // The anchor commits to every ancestor in this range, including
+            // empty blocks. Check it after the loop's current-block read.
+            await this.assertBlockHash(
+                this._cacheAnchor.index,
+                this._cacheAnchor.hash
+            );
             this._cachedEventsByBlock.delete(blockIndex);
             return cachedEvents;
         }
+        this.invalidateCache();
 
         // Only ever fetch (and cache ahead) blocks that are already at least
         // `_confirmations` deep as of the last known tip - i.e. exactly the
         // set of blocks the caller could otherwise have requested one at a
         // time - so batching here can never serve data for a block that
         // hasn't reached the same confirmation depth the rest of this
-        // monitor already relies on (see `triggerredBlocks`), and so can
-        // never be affected by a reorg near the chain head.
+        // monitor already relies on (see `triggerredBlocks`). A range anchor
+        // also detects deeper reorgs before cached events, including empty
+        // results, can be consumed.
         const confirmedTipIndex =
             this._lastKnownTipIndex !== undefined
                 ? this._lastKnownTipIndex - this._confirmations
@@ -207,6 +260,21 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
             );
 
             let events: BurnLogEvent[];
+            // In steady state, the loop already read this single block's
+            // hash immediately before getEvents. Reuse it as the pre-read
+            // anchor; the post-read check also validates the yielded hash.
+            const requested = this._requestedBlock;
+            const reuseCurrentAnchor =
+                chunkEndBlockIndex === blockIndex &&
+                requested?.index === blockIndex;
+            const anchor = reuseCurrentAnchor
+                ? requested
+                : await this._provider.getBlock(chunkEndBlockIndex);
+            if (anchor === null) {
+                throw new Error(
+                    `Missing range anchor block ${chunkEndBlockIndex}`
+                );
+            }
             try {
                 events = await this.fetchEvents(blockIndex, chunkEndBlockIndex);
             } catch (error) {
@@ -223,6 +291,13 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
                 throw error;
             }
 
+            await this.assertBlockHash(chunkEndBlockIndex, anchor.hash);
+            await this.validateEvents(
+                blockIndex,
+                events.filter((event) => event.blockNumber === blockIndex),
+                !reuseCurrentAnchor
+            );
+
             // Remember the (possibly shrunk) working chunk size for later
             // calls, so it doesn't have to re-discover the same provider
             // limit from scratch every time.
@@ -231,6 +306,11 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
             if (chunkEndBlockIndex === blockIndex) {
                 return events;
             }
+
+            this._cacheAnchor = {
+                index: chunkEndBlockIndex,
+                hash: anchor.hash,
+            };
 
             // Bucket the wider range's events by block so the rest of this
             // chunk's later, individual getEvents(blockIndex) calls (made as

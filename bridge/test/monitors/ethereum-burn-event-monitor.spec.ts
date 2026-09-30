@@ -1,5 +1,8 @@
 import { ethers } from "ethers";
-import { EthereumBurnEventMonitor } from "../../src/monitors/ethereum-burn-event-monitor";
+import {
+    EthereumBurnEventMonitor,
+    isBlockRangeTooLargeError,
+} from "../../src/monitors/ethereum-burn-event-monitor";
 import { wNCGTokenAbi } from "../../src/wrapped-ncg-token";
 import { ContractDescription } from "../../src/types/contract-description";
 
@@ -72,6 +75,235 @@ describe(EthereumBurnEventMonitor.name, () => {
         } as unknown as ethers.providers.BaseProvider;
     }
 
+    describe("cached range consistency", () => {
+        it("reuses the loop's block hash as the single-block range anchor", async () => {
+            const provider = makeMockProvider(12, [makeBurnLog(2, 9)]);
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                10
+            );
+            await (monitor as any).getTipIndex();
+            await (monitor as any).getBlockHash(2);
+            const events = await (monitor as any).getEvents(2);
+            expect(events).toHaveLength(1);
+            // One read by the loop, one post-getLogs consistency check.
+            expect(provider.getBlock).toHaveBeenCalledTimes(2);
+            expect(provider.getLogs).toHaveBeenCalledTimes(1);
+        });
+
+        it.each([false, true])(
+            "rejects a single-block branch change during getLogs (empty: %s)",
+            async (empty) => {
+                const provider = makeMockProvider(12, []);
+                const monitor = new EthereumBurnEventMonitor(
+                    provider,
+                    contractDescription,
+                    null,
+                    10
+                );
+                await (monitor as any).getTipIndex();
+                await (monitor as any).getBlockHash(2);
+                (provider.getLogs as jest.Mock).mockImplementationOnce(
+                    async () => {
+                        (provider.getBlock as jest.Mock).mockResolvedValue({
+                            number: 2,
+                            hash: "0xnew2",
+                        });
+                        return empty
+                            ? []
+                            : [{ ...makeBurnLog(2, 9), blockHash: "0xnew2" }];
+                    }
+                );
+                await expect((monitor as any).getEvents(2)).rejects.toThrow(
+                    "Chain changed"
+                );
+                expect(provider.getBlock).toHaveBeenCalledTimes(2);
+            }
+        );
+
+        it.each([false, true])(
+            "invalidates changed ranges before consuming cached logs (initially empty: %s)",
+            async (initiallyEmpty) => {
+                const original = makeBurnLog(2, 1);
+                const replacement = {
+                    ...makeBurnLog(2, 9),
+                    blockHash: "0xnew2",
+                };
+                const provider = makeMockProvider(
+                    15,
+                    initiallyEmpty ? [] : [original]
+                );
+                const monitor = new EthereumBurnEventMonitor(
+                    provider,
+                    contractDescription,
+                    null,
+                    10,
+                    5
+                );
+                await (monitor as any).getTipIndex();
+                await (monitor as any).getEvents(1);
+
+                (provider.getBlock as jest.Mock).mockImplementation(
+                    async (index: number) => ({
+                        number: index,
+                        hash: `0xnew${index}`,
+                    })
+                );
+                (provider.getLogs as jest.Mock).mockResolvedValue([
+                    replacement,
+                ]);
+                await (monitor as any).getBlockHash(2);
+                await expect((monitor as any).getEvents(2)).rejects.toThrow(
+                    initiallyEmpty ? "Chain changed" : "Burn logs disagree"
+                );
+                const events = await (monitor as any).getEvents(2);
+                expect(
+                    events.map((event: any) => event.returnValues.amount)
+                ).toEqual(["9"]);
+                expect(events[0].blockHash).toEqual("0xnew2");
+                expect(provider.getLogs).toHaveBeenCalledTimes(2);
+            }
+        );
+
+        it("discards empty results if the range changes during getLogs", async () => {
+            const provider = makeMockProvider(15, []);
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                10,
+                5
+            );
+            await (monitor as any).getTipIndex();
+            (provider.getLogs as jest.Mock).mockImplementationOnce(async () => {
+                (provider.getBlock as jest.Mock).mockImplementation(
+                    async (index: number) => ({
+                        number: index,
+                        hash: `0xnew${index}`,
+                    })
+                );
+                return [];
+            });
+            await expect((monitor as any).getEvents(1)).rejects.toThrow(
+                "Chain changed"
+            );
+            const replacement = { ...makeBurnLog(2, 9), blockHash: "0xnew2" };
+            (provider.getLogs as jest.Mock).mockResolvedValue([replacement]);
+            await (monitor as any).getEvents(1);
+            expect(await (monitor as any).getEvents(2)).toHaveLength(1);
+            expect(provider.getLogs).toHaveBeenCalledTimes(2);
+        });
+
+        it("rejects mismatched logs even when a different RPC reports a stable range anchor", async () => {
+            const provider = makeMockProvider(15, [makeBurnLog(2, 1)]);
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                10,
+                5
+            );
+            await (monitor as any).getTipIndex();
+            await (monitor as any).getEvents(1);
+            (provider.getBlock as jest.Mock).mockImplementation(
+                async (index: number) => ({
+                    number: index,
+                    hash: index === 2 ? "0xnew2" : `0xblock${index}`,
+                })
+            );
+            await (monitor as any).getBlockHash(2);
+            await expect((monitor as any).getEvents(2)).rejects.toThrow(
+                "Burn logs disagree"
+            );
+        });
+
+        it("rejects a block change after the loop read its block hash", async () => {
+            const provider = makeMockProvider(15, []);
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                10,
+                5
+            );
+            await (monitor as any).getTipIndex();
+            await (monitor as any).getBlockHash(1);
+            (provider.getBlock as jest.Mock).mockImplementation(
+                async (index: number) => ({
+                    number: index,
+                    hash: `0xnew${index}`,
+                })
+            );
+            await expect((monitor as any).getEvents(1)).rejects.toThrow(
+                "Chain changed"
+            );
+        });
+    });
+
+    describe("range error classification", () => {
+        const rangeError = { code: -32005, message: "block range is too wide" };
+        it("recognizes structured FallbackProvider quorum errors", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    message: "failed to meet quorum",
+                    results: [
+                        { error: rangeError },
+                        { error: { error: rangeError } },
+                    ],
+                })
+            ).toBe(true);
+        });
+        it("can shrink the healthy provider's range while another provider is offline", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    message: "failed to meet quorum",
+                    results: [
+                        { error: rangeError },
+                        {
+                            error: {
+                                code: "SERVER_ERROR",
+                                message: "missing response",
+                            },
+                        },
+                    ],
+                })
+            ).toBe(true);
+        });
+        it("does not split when every provider only timed out", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    code: "SERVER_ERROR",
+                    message: "failed to meet quorum",
+                    results: [
+                        { error: { code: "TIMEOUT", message: "timeout" } },
+                    ],
+                })
+            ).toBe(false);
+        });
+        it("does not split on a quorum error containing an unrelated failure", () => {
+            expect(
+                isBlockRangeTooLargeError({
+                    message: "failed to meet quorum: block range is too wide",
+                    results: [
+                        { error: rangeError },
+                        { error: new Error("invalid API key") },
+                    ],
+                })
+            ).toBe(false);
+        });
+        it.each([
+            "invalid block range",
+            "request is limited to a rate of 5 per second",
+            "timeout",
+        ])("does not classify unrelated errors: %s", (message) => {
+            expect(isBlockRangeTooLargeError(new Error(message))).toBe(false);
+        });
+    });
+
     describe("getEvents - range-too-large adaptation", () => {
         // A provider that rejects any getLogs() call spanning more than
         // `maxRangeSize` blocks with a real-world "range too large" style
@@ -104,9 +336,10 @@ describe(EthereumBurnEventMonitor.name, () => {
                 }
             );
             const getBlockNumber = jest.fn(async () => tipIndex);
-            const getBlock = jest.fn(async () => {
-                throw new Error("not used in this test");
-            });
+            const getBlock = jest.fn(async (index: number) => ({
+                number: index,
+                hash: `0xblock${index}`,
+            }));
 
             return {
                 _isProvider: true,
@@ -157,6 +390,47 @@ describe(EthereumBurnEventMonitor.name, () => {
                         filter.toBlock - filter.fromBlock + 1
                 )
             ).toEqual([2000, 1000, 500]);
+        });
+
+        it("recovers from a range rejection with a second fallback provider offline", async () => {
+            const provider = makeRangeLimitedMockProvider(1000, 500, []);
+            (provider.getLogs as jest.Mock).mockImplementation(
+                async (filter) => {
+                    if (filter.toBlock - filter.fromBlock + 1 > 500) {
+                        throw {
+                            code: "SERVER_ERROR",
+                            message: "failed to meet quorum",
+                            results: [
+                                {
+                                    error: {
+                                        code: -32005,
+                                        message:
+                                            "query returned more than 10000 results",
+                                    },
+                                },
+                                {
+                                    error: {
+                                        code: "SERVER_ERROR",
+                                        message: "missing response",
+                                    },
+                                },
+                            ],
+                        };
+                    }
+                    return [makeBurnLog(100, 9)];
+                }
+            );
+            const monitor = new EthereumBurnEventMonitor(
+                provider,
+                contractDescription,
+                null,
+                10,
+                1000
+            );
+            await (monitor as any).getTipIndex();
+            const events = await (monitor as any).getEvents(100);
+            expect(events[0].returnValues.amount).toEqual("9");
+            expect(provider.getLogs).toHaveBeenCalledTimes(2);
         });
 
         it("remembers the shrunk chunk size for later calls, instead of re-discovering the same limit every time", async () => {
@@ -295,7 +569,7 @@ describe(EthereumBurnEventMonitor.name, () => {
             expect((provider.getLogs as jest.Mock).mock.calls).toHaveLength(1);
         });
 
-        it("never batches beyond the confirmed tip, so it can't serve stale near-head data across a reorg window", async () => {
+        it("never batches beyond the confirmed tip", async () => {
             const CONFIRMATIONS = 10;
             const tipIndex = 1000; // confirmed tip = 990
             const provider = makeMockProvider(tipIndex, []);

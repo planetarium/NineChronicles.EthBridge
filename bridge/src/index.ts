@@ -67,6 +67,12 @@ process.on("uncaughtException", console.error);
         "KMS_PROVIDER_SUB_URL",
         false
     );
+    const ETHEREUM_CHAIN_ID = Number(
+        Configuration.get("ETHEREUM_CHAIN_ID", false) ?? "1"
+    );
+    if (!Number.isSafeInteger(ETHEREUM_CHAIN_ID) || ETHEREUM_CHAIN_ID <= 0) {
+        throw new Error("ETHEREUM_CHAIN_ID must be a positive safe integer");
+    }
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "KMS_PROVIDER_KEY_ID"
     );
@@ -393,9 +399,13 @@ process.on("uncaughtException", console.error);
     const provider: ethers.providers.BaseProvider = KMS_PROVIDER_SUB_URL
         ? await createEthereumFallbackProvider(
               KMS_PROVIDER_URL,
-              KMS_PROVIDER_SUB_URL
+              KMS_PROVIDER_SUB_URL,
+              { expectedChainId: ETHEREUM_CHAIN_ID }
           )
-        : new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
+        : new ethers.providers.JsonRpcProvider(
+              KMS_PROVIDER_URL,
+              ETHEREUM_CHAIN_ID
+          );
 
     const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
         "FEE_COLLECTOR_ADDRESS"
