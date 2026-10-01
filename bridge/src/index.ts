@@ -1,5 +1,4 @@
 import Web3 from "web3";
-import { KmsProvider } from "@planetarium/aws-kms-provider";
 
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { EthereumBurnEventMonitor } from "./monitors/ethereum-burn-event-monitor";
@@ -38,8 +37,8 @@ import {
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
 import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
-import { ethers } from "ethers";
 import { createEthereumFallbackProvider } from "./ethereum-provider";
+import { Web3RpcProvider } from "./web3-rpc-provider";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
@@ -60,13 +59,9 @@ process.on("uncaughtException", console.error);
     );
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
-    // Optional Alchemy-backed (or any other vendor) sub/fallback RPC endpoint.
-    // When set, it's combined with KMS_PROVIDER_URL via ethers' FallbackProvider
-    // so a single vendor's outage/quota exhaustion doesn't take the bridge down.
-    const KMS_PROVIDER_SUB_URL: string | undefined = Configuration.get(
-        "KMS_PROVIDER_SUB_URL",
-        false
-    );
+    // Primary: NodeReal; optional secondary: Infura. Only transient reads fail over.
+    const KMS_PROVIDER_SUB_URL: string | undefined =
+        Configuration.get("KMS_PROVIDER_SUB_URL", false)?.trim() || undefined;
     const ETHEREUM_CHAIN_ID = Number(
         Configuration.get("ETHEREUM_CHAIN_ID", false) ?? "1"
     );
@@ -355,15 +350,21 @@ process.on("uncaughtException", console.error);
     const integration: Integration = new PagerDutyIntegration(
         PAGERDUTY_ROUTING_KEY
     );
-    const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
-        region: KMS_PROVIDER_REGION,
-        keyIds: [KMS_PROVIDER_KEY_ID],
-        credential: {
+    const provider = await createEthereumFallbackProvider(
+        KMS_PROVIDER_URL,
+        KMS_PROVIDER_SUB_URL,
+        { expectedChainId: ETHEREUM_CHAIN_ID }
+    );
+    const ethereumSigner = new AwsKmsSigner(
+        {
+            region: KMS_PROVIDER_REGION,
+            keyId: KMS_PROVIDER_KEY_ID,
             accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
             secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
         },
-    });
-    const web3 = new Web3(kmsProvider);
+        provider
+    );
+    const web3 = new Web3(new Web3RpcProvider(provider, ethereumSigner));
 
     const wNCGToken: ContractDescription = {
         abi: wNCGTokenAbi,
@@ -374,11 +375,7 @@ process.on("uncaughtException", console.error);
         throw Error("NCG_MINTER is invalid - it is not valid address format.");
     }
 
-    const kmsAddresses = await kmsProvider.getAccounts();
-    if (kmsAddresses.length != 1) {
-        throw Error("NineChronicles.EthBridge is supported only one address.");
-    }
-    const kmsAddress = kmsAddresses[0];
+    const kmsAddress = await ethereumSigner.getAddress();
     console.log(kmsAddress);
     const gasPriceLimitPolicy: IGasPricePolicy = new GasPriceLimitPolicy(
         MAX_GAS_PRICE
@@ -390,22 +387,6 @@ process.on("uncaughtException", console.error);
         gasPriceTipPolicy,
         gasPriceLimitPolicy,
     ]);
-
-    // Falls back to a single main provider alone when no sub provider is
-    // configured, so this remains safe to deploy before ops fills in
-    // KMS_PROVIDER_SUB_URL. See `createEthereumFallbackProvider` for why the
-    // combined provider is built the way it is (in short: so a down sub
-    // provider can't defeat the whole point of having a fallback).
-    const provider: ethers.providers.BaseProvider = KMS_PROVIDER_SUB_URL
-        ? await createEthereumFallbackProvider(
-              KMS_PROVIDER_URL,
-              KMS_PROVIDER_SUB_URL,
-              { expectedChainId: ETHEREUM_CHAIN_ID }
-          )
-        : new ethers.providers.JsonRpcProvider(
-              KMS_PROVIDER_URL,
-              ETHEREUM_CHAIN_ID
-          );
 
     const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
         "FEE_COLLECTOR_ADDRESS"
@@ -447,7 +428,6 @@ process.on("uncaughtException", console.error);
         );
     }
 
-    // Todo: Apply Multi-provider at WrappedNCGMinter
     const minter: IWrappedNCGMinter = USE_SAFE_WRAPPED_NCG_MINTER
         ? await makeSafeWrappedNCGMinter()
         : new WrappedNCGMinter(

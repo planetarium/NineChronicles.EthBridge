@@ -77,3 +77,26 @@ docker build .
 ```
 
 [Ethereum]: https://ethereum.org/
+
+## RPC routing
+
+Set `KMS_PROVIDER_URL` to the NodeReal endpoint and `KMS_PROVIDER_SUB_URL`
+to the Infura endpoint for the same chain. Use the URLs issued by each dashboard;
+credentials belong in the deployment secret store. An empty secondary URL keeps
+single-endpoint operation. Set `ETHEREUM_CHAIN_ID` explicitly for test networks
+(default: 1). Each endpoint's chain ID is checked before use; a wrong chain
+fails closed. The secondary is first checked when failover is needed.
+
+Reads use the primary only while healthy. Timeouts, connection failures, quota
+errors and server outages switch reads to the secondary. Requests time out after
+10 seconds; after a primary failure the secondary is used for 30 seconds before
+probing the primary again. Invalid requests, contract reverts and log range limits
+are passed to the caller instead of retried on another endpoint. Transaction
+broadcasts are sent once; an ambiguous timeout must be reconciled using the
+transaction hash/history, not by creating another payment.
+
+The Safe and legacy Web3 minters share this routing. The legacy minter uses the
+existing AWS KMS ethers signer, so address lookup no longer starts a separate
+RPC block tracker. Preserve the configured KMS key and persistent exchange-history
+database when deploying. Existing pending/failed payments are not automatically
+resubmitted.
