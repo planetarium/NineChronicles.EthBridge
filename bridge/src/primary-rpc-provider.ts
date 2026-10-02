@@ -43,9 +43,31 @@ export function isPrimaryRpcTransientError(error: unknown): boolean {
         event?: unknown;
         status?: number;
         message?: string;
+        reason?: string;
+        data?: unknown;
         error?: unknown;
         serverError?: unknown;
     };
+    if (err.code === "CALL_EXCEPTION") {
+        // ethers v5 also wraps transport failures from eth_call in this synthetic
+        // exception. Its nested cause still distinguishes outages from real reverts.
+        if (
+            err.reason ===
+                "missing revert data in call exception; Transaction reverted without a reason string" &&
+            err.data === "0x" &&
+            err.error !== undefined
+        )
+            return isPrimaryRpcTransientError(err.error);
+        return false;
+    }
+    // Some nodes use the generic internal-error code (-32603) for a revert.
+    // Preserve execution failures even when an HTTP/server wrapper looks transient.
+    if (
+        /\bexecution revert(?:ed)?\b|\bVM Exception while processing transaction: revert\b/i.test(
+            `${err.message ?? ""} ${err.reason ?? ""}`
+        )
+    )
+        return false;
     if (err.error !== undefined) return isPrimaryRpcTransientError(err.error);
     if (err.status !== undefined) {
         return err.status === 402 || err.status === 429 || err.status >= 500;
@@ -73,7 +95,9 @@ export function isPrimaryRpcTransientError(error: unknown): boolean {
         !/block.*range|range.*block|too many (results|logs)|query returned more than|response.*size/i.test(
             err.message ?? ""
         ) &&
-        /rate|quota|requests per|request limit/i.test(err.message ?? "")
+        /rate|quota|requests per|request limit|maximum API usage limit|^\s*limit exceeded[.!]?\s*$/i.test(
+            err.message ?? ""
+        )
     );
 }
 
@@ -89,12 +113,28 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     private readonly secondary: ethers.providers.JsonRpcProvider | undefined;
     private readonly cooldownMs: number;
     private primaryUnavailableUntil = 0;
+    private lastDispatchProvider: ethers.providers.JsonRpcProvider | undefined;
+    private endpointEpoch = 0;
+    private readSession:
+        | { provider: ethers.providers.JsonRpcProvider; users: number }
+        | undefined;
+    private readSessionProbe:
+        | Promise<{
+              provider: ethers.providers.JsonRpcProvider;
+              users: number;
+          }>
+        | undefined;
+
+    /** Monotonic endpoint changes for dispatched operations, excluding probes. */
+    public get readEpoch(): number {
+        return this.endpointEpoch;
+    }
     private primaryProbe: Promise<ethers.providers.JsonRpcProvider> | undefined;
 
     constructor(
-        primaryUrl: string,
-        secondaryUrl: string | undefined,
-        options: PrimaryRpcProviderOptions
+        private readonly primaryUrl: string,
+        private readonly secondaryUrl: string | undefined,
+        private readonly options: PrimaryRpcProviderOptions
     ) {
         const {
             expectedChainId,
@@ -122,6 +162,15 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         this.secondary =
             secondaryUrl === undefined ? undefined : connect(secondaryUrl);
         this.cooldownMs = cooldownMs;
+    }
+
+    /** Independent routing/session state for a monitor sharing a signer provider. */
+    public createReadProvider(): PrimaryRpcProvider {
+        return new PrimaryRpcProvider(
+            this.primaryUrl,
+            this.secondaryUrl,
+            this.options
+        );
     }
 
     private async validate(
@@ -159,6 +208,20 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     }
 
     private async selectProvider(): Promise<ethers.providers.JsonRpcProvider> {
+        if (this.readSession) {
+            const provider = this.readSession.provider;
+            try {
+                return await this.validate(provider);
+            } catch (error) {
+                if (
+                    provider === this.primary &&
+                    this.secondary &&
+                    isPrimaryRpcTransientError(error)
+                )
+                    this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
+                throw error;
+            }
+        }
         if (this.secondary && Date.now() < this.primaryUnavailableUntil)
             return this.validate(this.secondary);
         if (this.primaryProbe) return this.primaryProbe;
@@ -170,9 +233,54 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         }
     }
 
+    /** Pin related reads until every overlapping session has been released. */
+    public async beginReadSession(): Promise<() => void> {
+        let session = this.readSession;
+        if (!session) {
+            if (!this.readSessionProbe) {
+                this.readSessionProbe = this.selectProvider().then(
+                    (provider) => {
+                        const selected = { provider, users: 0 };
+                        this.readSession = selected;
+                        return selected;
+                    }
+                );
+            }
+            const pending = this.readSessionProbe;
+            try {
+                session = await pending;
+            } finally {
+                if (this.readSessionProbe === pending)
+                    this.readSessionProbe = undefined;
+            }
+        }
+        session.users += 1;
+        const selected = session;
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            selected.users -= 1;
+            if (selected.users === 0 && this.readSession === selected)
+                this.readSession = undefined;
+        };
+    }
+
+    public async getBlockNumber(): Promise<number> {
+        // BaseProvider keeps a monotonic maximum across reads. A fallback may lag,
+        // so confirmation checks need the currently selected endpoint's real tip.
+        return this.formatter.number(await this.perform("getBlockNumber", {}));
+    }
+
     async detectNetwork(): Promise<ethers.providers.Network> {
         const provider = await this.selectProvider();
         return provider.network;
+    }
+
+    private recordDispatch(provider: ethers.providers.JsonRpcProvider): void {
+        if (this.lastDispatchProvider && this.lastDispatchProvider !== provider)
+            this.endpointEpoch += 1;
+        this.lastDispatchProvider = provider;
     }
 
     private async dispatch<T>(
@@ -180,6 +288,9 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         retryable: boolean
     ): Promise<T> {
         const provider = await this.selectProvider();
+        // Record before each operation, not its completion: concurrent requests and
+        // A -> B -> A recovery must retain every intervening endpoint transition.
+        this.recordDispatch(provider);
         try {
             return await operation(provider);
         } catch (error) {
@@ -193,7 +304,11 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             )
                 throw error;
             this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
+            // A session must restart from its anchor after failure; crossing endpoints
+            // here could mix branches or continually invalidate a long-running range.
+            if (this.readSession) throw error;
             const secondary = await this.validate(this.secondary);
+            this.recordDispatch(secondary);
             return operation(secondary);
         }
     }

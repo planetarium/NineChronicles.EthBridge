@@ -48,6 +48,76 @@ describe("sequential primary RPC provider", () => {
             cooldownMs,
         });
 
+    it("isolates monitor read leases from concurrent mint/receipt traffic", async () => {
+        const shared = create();
+        const scanner = shared.createReadProvider();
+        const release = await scanner.beginReadSession();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        // A mint's independent read can fall back while the monitor stays pinned.
+        await expect(shared.send("eth_gasPrice", [])).resolves.toBe("0x2a");
+        await expect(scanner.send("eth_gasPrice", [])).rejects.toMatchObject({
+            code: "TIMEOUT",
+        });
+        expect(
+            secondary.calls.filter((x) => x === "eth_gasPrice")
+        ).toHaveLength(1);
+        release();
+        const retry = await scanner.beginReadSession();
+        await expect(scanner.send("eth_gasPrice", [])).resolves.toBe("0x2a");
+        retry();
+    });
+    it("never repeats an ambiguous broadcast while an independent scan is pinned", async () => {
+        const shared = create();
+        const scanner = shared.createReadProvider();
+        const release = await scanner.beginReadSession();
+        primary.failures.eth_sendRawTransaction = { code: "TIMEOUT" };
+        await expect(
+            shared.send("eth_sendRawTransaction", ["0x1234"])
+        ).rejects.toMatchObject({ code: "TIMEOUT" });
+        expect(
+            primary.calls.filter((x) => x === "eth_sendRawTransaction")
+        ).toHaveLength(1);
+        expect(secondary.calls).toEqual([]);
+        release();
+    });
+    it("shares a nested lease acquired after the first lease has settled", async () => {
+        const provider = create();
+        const first = await provider.beginReadSession();
+        const second = await provider.beginReadSession();
+        first();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await expect(provider.send("eth_gasPrice", [])).rejects.toMatchObject({
+            code: "TIMEOUT",
+        });
+        expect(secondary.calls).toEqual([]);
+        second();
+        await expect(provider.send("eth_gasPrice", [])).resolves.toBe("0x2a");
+    });
+    it.each(["secondary", "deterministic", "single"])(
+        "preserves a pinned %s probe failure without switching endpoints",
+        async (variant) => {
+            const provider =
+                variant === "single"
+                    ? new PrimaryRpcProvider(PRIMARY, undefined, {
+                          expectedChainId: 1,
+                      })
+                    : create();
+            if (variant === "secondary") primary.down = true;
+            const release = await provider.beginReadSession();
+            const state = variant === "secondary" ? secondary : primary;
+            const failure =
+                variant === "deterministic"
+                    ? { status: 401 }
+                    : { code: "TIMEOUT" };
+            state.failures.eth_chainId = failure;
+            await expect(provider.send("eth_gasPrice", [])).rejects.toBe(
+                failure
+            );
+            expect(primary.calls).not.toContain("eth_gasPrice");
+            expect(secondary.calls).not.toContain("eth_gasPrice");
+            release();
+        }
+    );
     it("constructs without RPC and keeps an unused secondary completely idle", async () => {
         const provider = create();
         expect(primary.calls).toEqual([]);
@@ -57,6 +127,175 @@ describe("sequential primary RPC provider", () => {
         await tick();
         expect((await provider.getGasPrice()).toNumber()).toBe(42);
         expect(secondary.calls).toEqual([]);
+    });
+    it("counts A -> B -> A dispatches without counting discovery probes", async () => {
+        const provider = create();
+        expect(provider.readEpoch).toBe(0);
+        await provider.detectNetwork();
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(0);
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(1);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(1);
+
+        delete primary.failures.eth_gasPrice;
+        now += 30000;
+        await provider.detectNetwork();
+        expect(provider.readEpoch).toBe(1);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(2);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(2);
+    });
+    it("does not count probe failover before the first data dispatch", async () => {
+        const provider = create();
+        primary.down = true;
+        await provider.detectNetwork();
+        expect(provider.readEpoch).toBe(0);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(0);
+        primary.down = false;
+        now += 30000;
+        await provider.detectNetwork();
+        expect(provider.readEpoch).toBe(0);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(1);
+    });
+    it("keeps concurrent completion from undoing a dispatch epoch", async () => {
+        const provider = create();
+        const transport = (
+            ethers.providers.JsonRpcProvider.prototype.send as jest.Mock
+        ).getMockImplementation()!;
+        let release!: (value: string) => void;
+        let started!: () => void;
+        const pendingStarted = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        (
+            ethers.providers.JsonRpcProvider.prototype.send as jest.Mock
+        ).mockImplementation(function (
+            this: ethers.providers.JsonRpcProvider,
+            method: string,
+            params: any[]
+        ) {
+            if (
+                this.connection.url === PRIMARY &&
+                method === "eth_blockNumber"
+            ) {
+                started();
+                return new Promise<string>((resolve) => {
+                    release = resolve;
+                });
+            }
+            return transport.call(this, method, params);
+        });
+        const pending = provider.send("eth_blockNumber", []);
+        await pendingStarted;
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(1);
+        delete primary.failures.eth_gasPrice;
+        now += 30000;
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(2);
+        release("0x2a");
+        await pending;
+        expect(provider.readEpoch).toBe(2);
+    });
+    it("pins overlapping sessions past cooldown until the final release", async () => {
+        primary.down = true;
+        const provider = create();
+        const [releaseFirst, releaseSecond] = await Promise.all([
+            provider.beginReadSession(),
+            provider.beginReadSession(),
+        ]);
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(0);
+        const calls = primary.calls.length;
+        primary.down = false;
+        now += 32000;
+        await provider.detectNetwork();
+        await provider.send("eth_gasPrice", []);
+        expect(primary.calls).toHaveLength(calls);
+        releaseFirst();
+        releaseFirst();
+        await provider.send("eth_gasPrice", []);
+        expect(primary.calls).toHaveLength(calls);
+        releaseSecond();
+        await provider.send("eth_gasPrice", []);
+        expect(primary.calls).toHaveLength(calls + 2);
+        expect(provider.readEpoch).toBe(1);
+    });
+    it("aborts a pinned primary read then starts the next session on secondary", async () => {
+        const provider = create();
+        const release = await provider.beginReadSession();
+        await provider.send("eth_gasPrice", []);
+        const error = { code: "TIMEOUT" };
+        primary.failures.eth_gasPrice = error;
+        await expect(provider.send("eth_gasPrice", [])).rejects.toBe(error);
+        expect(secondary.calls).toEqual([]);
+        expect(provider.readEpoch).toBe(0);
+        release();
+        const releaseSecondary = await provider.beginReadSession();
+        await provider.send("eth_gasPrice", []);
+        expect(provider.readEpoch).toBe(1);
+        const calls = primary.calls.length;
+        now += 32000;
+        await provider.send("eth_gasPrice", []);
+        expect(primary.calls).toHaveLength(calls);
+        releaseSecondary();
+    });
+    it("starts the next session on secondary when a pinned primary probe fails", async () => {
+        const provider = create();
+        const release = await provider.beginReadSession();
+        const error = { code: "SERVER_ERROR", status: 429 };
+        primary.failures.eth_chainId = error;
+        await expect(provider.send("eth_gasPrice", [])).rejects.toBe(error);
+        expect(secondary.calls).toEqual([]);
+        expect(primary.calls).not.toContain("eth_gasPrice");
+        release();
+        delete primary.failures.eth_chainId;
+        const primaryCalls = primary.calls.length;
+        const releaseSecondary = await provider.beginReadSession();
+        await expect(provider.send("eth_gasPrice", [])).resolves.toBe("0x2a");
+        expect(primary.calls).toHaveLength(primaryCalls);
+        expect(secondary.calls).toContain("eth_gasPrice");
+        releaseSecondary();
+    });
+    it("clears failed session acquisition so a later session can recover", async () => {
+        const provider = create();
+        primary.down = secondary.down = true;
+        await expect(provider.beginReadSession()).rejects.toMatchObject({
+            status: 503,
+        });
+        secondary.down = false;
+        const release = await provider.beginReadSession();
+        await provider.send("eth_gasPrice", []);
+        release();
+    });
+    it("returns the fallback's lower real tip instead of a cached primary maximum", async () => {
+        const provider = create();
+        const transport = (
+            ethers.providers.JsonRpcProvider.prototype.send as jest.Mock
+        ).getMockImplementation()!;
+        (
+            ethers.providers.JsonRpcProvider.prototype.send as jest.Mock
+        ).mockImplementation(async function (
+            this: ethers.providers.JsonRpcProvider,
+            method: string,
+            params: any[]
+        ) {
+            const result = await transport.call(this, method, params);
+            if (method === "eth_blockNumber")
+                return this.connection.url === PRIMARY ? "0x3f2" : "0x3e8";
+            return result;
+        });
+        expect(await provider.getBlockNumber()).toBe(1010);
+        primary.failures.eth_blockNumber = { code: "TIMEOUT" };
+        expect(await provider.getBlockNumber()).toBe(1000);
+        expect(await provider.getBlockNumber()).toBe(1000);
     });
     it("does not contact an unavailable secondary while the primary is healthy", async () => {
         secondary.down = true;
@@ -253,6 +492,11 @@ describe("sequential primary RPC provider", () => {
         },
         { code: -32005, message: "query returned more than 10000 results" },
         { code: "CALL_EXCEPTION", reason: "execution reverted" },
+        { code: -32603, message: "execution reverted" },
+        {
+            code: "SERVER_ERROR",
+            error: { code: -32603, message: "execution reverted" },
+        },
     ])(
         "preserves deterministic read errors for the caller: %j",
         async (error) => {
@@ -263,6 +507,52 @@ describe("sequential primary RPC provider", () => {
             expect(secondary.calls).toEqual([]);
         }
     );
+    it.each([
+        { code: "TIMEOUT", message: "request timed out" },
+        { code: "SERVER_ERROR", status: 429, message: "bad response" },
+        {
+            code: "SERVER_ERROR",
+            error: { code: -32005, message: "limit exceeded" },
+        },
+    ])(
+        "retries an eth_call transport failure wrapped by ethers: %j",
+        async (error) => {
+            primary.failures.eth_call = error;
+            await expect(
+                create().perform("call", {
+                    transaction: {
+                        to: "0x0000000000000000000000000000000000000001",
+                    },
+                    blockTag: "latest",
+                })
+            ).resolves.toBe("0x2a");
+            expect(primary.calls).toEqual(["eth_chainId", "eth_call"]);
+            expect(secondary.calls).toEqual(["eth_chainId", "eth_call"]);
+        }
+    );
+    it("preserves an actual eth_call execution revert inside ethers' missing-data wrapper", async () => {
+        primary.failures.eth_call = {
+            code: -32603,
+            message: "execution reverted: not authorized",
+        };
+        await expect(
+            create().perform("call", {
+                transaction: {
+                    to: "0x0000000000000000000000000000000000000001",
+                },
+                blockTag: "latest",
+            })
+        ).rejects.toMatchObject({
+            code: "CALL_EXCEPTION",
+            data: "0x",
+            error: {
+                code: -32603,
+                message: "execution reverted: not authorized",
+            },
+        });
+        expect(primary.calls).toEqual(["eth_chainId", "eth_call"]);
+        expect(secondary.calls).toEqual([]);
+    });
     it("does not retry an ambiguously submitted transaction", async () => {
         const error = { code: "TIMEOUT" };
         primary.failures.eth_sendRawTransaction = error;
@@ -279,7 +569,9 @@ describe("sequential primary RPC provider", () => {
     it("does not retry an unknown method", async () => {
         await expect(
             create().perform("unknownWrite", {})
-        ).rejects.toMatchObject({ code: "NOT_IMPLEMENTED" });
+        ).rejects.toMatchObject({
+            code: "NOT_IMPLEMENTED",
+        });
         expect(secondary.calls).toEqual([]);
     });
     it("works without a secondary but never hides its primary errors", async () => {
@@ -431,6 +723,12 @@ describe("primary RPC transient classification", () => {
         { status: 429 },
         { serverError: { code: "ECONNRESET" } },
         { code: -32005, message: "rate limit exceeded" },
+        { code: -32005, message: "limit exceeded" },
+        {
+            code: -32005,
+            message:
+                "You have reached the maximum API usage limit. If you need higher throughput, please check out https://meganode.nodereal.io/",
+        },
     ])("recognizes a transient failure: %j", (error) =>
         expect(isPrimaryRpcTransientError(error)).toBe(true)
     );
@@ -448,6 +746,38 @@ describe("primary RPC transient classification", () => {
         { code: -32005 },
         { code: -32005, message: "block range too wide" },
         { code: -32005, message: "request limit exceeded for block range" },
+        { code: -32005, message: "rate limit exceeded: too many logs" },
+        { code: -32005, message: "response size limit exceeded" },
+        { code: -32603, message: "execution reverted: not allowed" },
+        { code: "CALL_EXCEPTION" },
+        {
+            code: "CALL_EXCEPTION",
+            reason: "execution reverted",
+            data: "0x",
+            error: { code: "TIMEOUT" },
+        },
+        {
+            code: "CALL_EXCEPTION",
+            reason: "missing revert data in call exception; Transaction reverted without a reason string",
+            data: "0x1234",
+            error: { code: "TIMEOUT" },
+        },
+        {
+            code: "CALL_EXCEPTION",
+            reason: "missing revert data in call exception; Transaction reverted without a reason string",
+            data: "0x",
+            error: { code: -32603, message: "execution reverted" },
+        },
+        {
+            code: "SERVER_ERROR",
+            status: 503,
+            error: { code: -32603, message: "execution reverted" },
+        },
+        { code: -32603, reason: "execution reverted" },
+        {
+            code: -32603,
+            message: "VM Exception while processing transaction: revert",
+        },
         { error: { code: -32602 }, code: "SERVER_ERROR", status: 500 },
     ])("preserves deterministic or unrecognized errors: %j", (error) =>
         expect(isPrimaryRpcTransientError(error)).toBe(false)

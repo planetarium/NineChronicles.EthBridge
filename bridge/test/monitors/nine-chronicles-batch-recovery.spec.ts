@@ -189,7 +189,35 @@ describe("Nine Chronicles authorized batch recovery", () => {
                 }
                 return { number: index, hash: `hash-${index}` };
             }),
-            getLogs: jest.fn().mockResolvedValue([]),
+            getLogs: jest.fn(
+                async ({
+                    fromBlock,
+                    toBlock,
+                }: {
+                    fromBlock: number;
+                    toBlock: number;
+                }) =>
+                    Array.from({ length: 5 }, (_, i) => i + 1)
+                        .filter((n) => n >= fromBlock && n <= toBlock)
+                        .map((n) => ({
+                            ...new ethers.Contract(
+                                "0x1111111111111111111111111111111111111111",
+                                wNCGTokenAbi
+                            ).interface.encodeEventLog("Burn", [
+                                "0x1111111111111111111111111111111111111111",
+                                ethers.constants.HashZero,
+                                1,
+                            ]),
+                            address:
+                                "0x1111111111111111111111111111111111111111",
+                            blockNumber: n,
+                            blockHash: `hash-${n}`,
+                            transactionHash: `tx-${n}`,
+                            transactionIndex: 0,
+                            logIndex: 0,
+                            removed: false,
+                        }))
+            ),
         };
         const monitor = new EthereumBurnEventMonitor(
             provider as unknown as ethers.providers.BaseProvider,

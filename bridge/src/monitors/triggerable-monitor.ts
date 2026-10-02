@@ -2,14 +2,6 @@ import { Monitor } from ".";
 import { TransactionLocation } from "../types/transaction-location";
 import { BlockHash } from "../types/block-hash";
 
-function delay(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve();
-        }, ms);
-    });
-}
-
 type ProcessRemainsResult<TEventData> = {
     nextBlockIndex: number;
     remainedEvents: RemainedEvent<TEventData>[];
@@ -46,66 +38,108 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
         blockHash: BlockHash;
         events: (TEventData & TransactionLocation)[];
     }> {
-        if (this._latestTransactionLocation !== null) {
-            const { nextBlockIndex, remainedEvents } =
-                await this.processRemains(this._latestTransactionLocation);
-
-            for (const remainedEvent of remainedEvents) {
-                yield remainedEvent;
-            }
-
-            this.latestBlockNumber = nextBlockIndex;
-        } else {
-            this.latestBlockNumber = await this.getTipIndex();
-        }
-
         // The scan position can trigger several event blocks (50 for Nine
         // Chronicles) and is distinct from their block indexes. Preserve the
         // pending batch and its first unfinished item across RPC failures.
         let pendingBlockIndexes: number[] | undefined;
         let nextBlockOffset = 0;
-        while (true) {
+        while (!this.stopped) {
             try {
-                const tipIndex = await this.getTipIndex();
-                this.debug(
-                    "Try to check trigger at",
-                    this.latestBlockNumber + 1
-                );
-                if (
-                    this.latestBlockNumber + 1 + this._intervalWithTipIndex <=
-                    tipIndex
-                ) {
-                    if (pendingBlockIndexes === undefined) {
-                        pendingBlockIndexes = this.triggerredBlocks(
-                            this.latestBlockNumber + 1
-                        );
+                let idle = false;
+                const releaseSession = await this.beginReadSession();
+                try {
+                    if (this.stopped) return;
+                    if (this.latestBlockNumber === undefined) {
+                        if (this._latestTransactionLocation !== null) {
+                            const { nextBlockIndex, remainedEvents } =
+                                await this.processRemains(
+                                    this._latestTransactionLocation
+                                );
+
+                            for (const remainedEvent of remainedEvents) {
+                                if (this.stopped) return;
+                                yield remainedEvent;
+                            }
+
+                            this.latestBlockNumber = nextBlockIndex;
+                        } else {
+                            this.latestBlockNumber = await this.getTipIndex();
+                        }
                     }
-
-                    while (nextBlockOffset < pendingBlockIndexes.length) {
-                        const blockIndex = pendingBlockIndexes[nextBlockOffset];
-                        this.debug("Execute triggerred block #", blockIndex);
-                        const blockHash = await this.getBlockHash(blockIndex);
-
-                        yield {
-                            blockHash,
-                            events: await this.getEvents(blockIndex),
-                        };
-                        // Advance only after the consumer resumes the generator.
-                        // A read failure retries this item, not the consumed prefix.
-                        nextBlockOffset += 1;
-                    }
-
-                    this.latestBlockNumber += 1;
-                    pendingBlockIndexes = undefined;
-                    nextBlockOffset = 0;
-                } else {
+                    const tipIndex = await this.getTipIndex();
+                    if (this.stopped) return;
                     this.debug(
-                        `Skip check trigger current: ${this.latestBlockNumber} / tip: ${tipIndex}`
+                        "Try to check trigger at",
+                        this.latestBlockNumber + 1
                     );
+                    if (
+                        this.latestBlockNumber +
+                            1 +
+                            this._intervalWithTipIndex <=
+                        tipIndex
+                    ) {
+                        if (
+                            pendingBlockIndexes === undefined &&
+                            this.shouldCatchUp(
+                                this.latestBlockNumber + 1,
+                                tipIndex
+                            )
+                        ) {
+                            for await (const item of this.catchUp(
+                                this.latestBlockNumber + 1,
+                                tipIndex
+                            )) {
+                                if (this.stopped) return;
+                                yield {
+                                    blockHash: item.blockHash,
+                                    events: item.events,
+                                };
+                                // Acknowledge only the prefix the consumer completed.
+                                this.latestBlockNumber = item.scanIndex;
+                            }
+                            continue;
+                        }
+                        if (pendingBlockIndexes === undefined) {
+                            pendingBlockIndexes = this.triggerredBlocks(
+                                this.latestBlockNumber + 1
+                            );
+                        }
 
-                    await delay(this._delayMilliseconds);
+                        while (nextBlockOffset < pendingBlockIndexes.length) {
+                            const blockIndex =
+                                pendingBlockIndexes[nextBlockOffset];
+                            this.debug(
+                                "Execute triggerred block #",
+                                blockIndex
+                            );
+                            const blockHash = await this.getBlockHash(
+                                blockIndex
+                            );
+
+                            const events = await this.getEvents(blockIndex);
+                            if (this.stopped) return;
+                            yield { blockHash, events };
+                            // Advance only after the consumer resumes the generator.
+                            // A read failure retries this item, not the consumed prefix.
+                            nextBlockOffset += 1;
+                        }
+
+                        this.latestBlockNumber += 1;
+                        pendingBlockIndexes = undefined;
+                        nextBlockOffset = 0;
+                    } else {
+                        this.debug(
+                            `Skip check trigger current: ${this.latestBlockNumber} / tip: ${tipIndex}`
+                        );
+
+                        idle = true;
+                    }
+                } finally {
+                    releaseSession();
                 }
+                if (idle) await this.wait(this._delayMilliseconds);
             } catch (error) {
+                if (this.stopped) return;
                 this.error(
                     "Ignore and continue loop without breaking though unexpected error occurred:",
                     error
@@ -114,9 +148,28 @@ export abstract class TriggerableMonitor<TEventData> extends Monitor<
                 // Without this delay, a persistent error (e.g. an RPC outage)
                 // would make this loop spin as fast as possible with no
                 // backoff at all, hammering the provider with retries.
-                await delay(this._delayMilliseconds);
+                await this.wait(this._delayMilliseconds);
             }
         }
+    }
+
+    protected async beginReadSession(): Promise<() => void> {
+        return () => undefined;
+    }
+
+    protected shouldCatchUp(_from: number, _tip: number): boolean {
+        return false;
+    }
+
+    protected async *catchUp(
+        _from: number,
+        _tip: number
+    ): AsyncIterableIterator<{
+        scanIndex: number;
+        blockHash: string;
+        events: (TEventData & TransactionLocation)[];
+    }> {
+        throw new Error("Range scanning is not supported by this monitor");
     }
 
     protected abstract processRemains(

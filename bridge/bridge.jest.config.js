@@ -11,5 +11,8 @@ module.exports = {
     testMatch: ["**/*/*.spec.{ts,tsx}"],
     coverageDirectory: "coverage",
     coverageReporters: ["lcov"],
-    coveragePathIgnorePatterns: ["/src/monitors/triggerable-monitor.ts"]
+    coveragePathIgnorePatterns: ["/node_modules/"],
+    coverageThreshold: {
+        global: { lines: 99.8, statements: 99.8, functions: 99.8, branches: 99.8 },
+    }
 };
