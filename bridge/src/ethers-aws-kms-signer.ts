@@ -200,6 +200,19 @@ export class AwsKmsSigner extends ethers.Signer {
         transaction: ethers.utils.Deferrable<ethers.providers.TransactionRequest>
     ): Promise<string> {
         const unsignedTx = await ethers.utils.resolveProperties(transaction);
+        // Signer.populateTransaction adds from, but it is not an encoded
+        // transaction field. Validate ownership before removing it.
+        if (unsignedTx.from != null) {
+            if (
+                ethers.utils.getAddress(unsignedTx.from) !==
+                (await this.getAddress())
+            ) {
+                throw new Error(
+                    "Transaction from address does not match KMS signer"
+                );
+            }
+            delete unsignedTx.from;
+        }
         const serializedTx = ethers.utils.serializeTransaction(
             <UnsignedTransaction>unsignedTx
         );

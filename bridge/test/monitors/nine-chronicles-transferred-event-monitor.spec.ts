@@ -213,5 +213,64 @@ describe("NineChroniclesTransferredEventMonitor", () => {
                 monitor.stop();
             });
         }
+
+        it("should back off with a delay before retrying after an unexpected error, instead of busy-looping", async () => {
+            const monitor = new NineChroniclesTransferredEventMonitor(
+                null,
+                mockHeadlessGraphQLClient,
+                ""
+            );
+
+            mockHeadlessGraphQLClient.getTipIndex.mockResolvedValueOnce(0); // initial tip
+            monitor.attach(mockObserver);
+            monitor.run();
+
+            mockHeadlessGraphQLClient.getTipIndex.mockRejectedValueOnce(
+                new Error("transient RPC error")
+            );
+            mockHeadlessGraphQLClient.getTipIndex.mockResolvedValue(0);
+
+            async function hasRejectedResult(): Promise<boolean> {
+                return existsAsync(
+                    mockHeadlessGraphQLClient.getTipIndex.mock.results,
+                    async (result) => {
+                        try {
+                            await result.value;
+                            return false;
+                        } catch {
+                            return true;
+                        }
+                    }
+                );
+            }
+
+            // Wait until the loop has actually hit the rejecting call.
+            while (!(await hasRejectedResult())) {
+                jest.runAllTimers();
+                await Promise.resolve();
+            }
+
+            const callsRightAfterError =
+                mockHeadlessGraphQLClient.getTipIndex.mock.calls.length;
+
+            // Without advancing timers, the loop must NOT retry yet - it
+            // should be waiting out the delay, not busy-looping.
+            for (let i = 0; i < 10; ++i) {
+                await Promise.resolve();
+            }
+            expect(
+                mockHeadlessGraphQLClient.getTipIndex.mock.calls.length
+            ).toEqual(callsRightAfterError);
+
+            // Once the delay elapses, it retries.
+            jest.advanceTimersByTime(15 * 1000 + 1);
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(
+                mockHeadlessGraphQLClient.getTipIndex.mock.calls.length
+            ).toBeGreaterThan(callsRightAfterError);
+
+            monitor.stop();
+        });
     });
 });

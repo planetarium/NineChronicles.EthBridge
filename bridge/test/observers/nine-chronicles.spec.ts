@@ -1256,7 +1256,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
-        it("pagerduty ethereum transfer error message - snapshot", async () => {
+        it("keeps PagerDuty disabled on mint failure", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce(
                 (address, amount) => {
                     throw new Error("mockWrappedNcgMinter.mint error");
@@ -1277,8 +1277,52 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockIntegration.error.mock.calls).toMatchSnapshot();
+            expect(mockIntegration.error).not.toHaveBeenCalled();
         });
+
+        // `mint()` proposes, confirms AND broadcasts a transaction, so it
+        // must never be retried wholesale at this level: retrying it after
+        // a failure - even one that looks transient - could re-broadcast a
+        // second, separate transaction after the first already succeeded on
+        // chain (a duplicate mint). Any retry of the safe-to-repeat parts of
+        // minting happens inside the `IWrappedNCGMinter` implementation
+        // itself (see `SafeWrappedNCGMinter`), never here.
+        for (const transientLookingError of [
+            { code: "SERVER_ERROR" },
+            { code: "TIMEOUT" },
+            { code: -32603 },
+        ]) {
+            it(`never retries mint() at this level, even for a transient-looking error (${JSON.stringify(
+                transientLookingError
+            )})`, async () => {
+                mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                    0
+                );
+                mockWrappedNcgMinter.mint.mockRejectedValueOnce(
+                    transientLookingError
+                );
+
+                await observer.notify({
+                    blockHash: "BLOCK-HASH",
+                    events: [
+                        {
+                            amount: "100.23",
+                            memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                            blockHash: "BLOCK-HASH",
+                            txId: "TX-NO-RETRY",
+                            recipient:
+                                "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                            sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        },
+                    ],
+                });
+
+                expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(1);
+                expect(
+                    mockExchangeHistoryStore.updateStatus
+                ).toHaveBeenCalledWith("TX-NO-RETRY", TransactionStatus.FAILED);
+            });
+        }
 
         // Try to catch cases when others, not object and error, were thrown.
         it("slack/opensearch string error message - snapshot", async () => {

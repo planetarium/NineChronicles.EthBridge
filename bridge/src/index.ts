@@ -1,5 +1,4 @@
 import Web3 from "web3";
-import { KmsProvider } from "@planetarium/aws-kms-provider";
 
 import { IWrappedNCGMinter } from "./interfaces/wrapped-ncg-minter";
 import { EthereumBurnEventMonitor } from "./monitors/ethereum-burn-event-monitor";
@@ -38,7 +37,8 @@ import {
 import { SlackChannel } from "./slack-channel";
 import { AwsKmsSigner, AwsKmsSignerCredentials } from "./ethers-aws-kms-signer";
 import { SafeWrappedNCGMinter } from "./safe-wrapped-ncg-minter";
-import { ethers } from "ethers";
+import { createEthereumFallbackProvider } from "./ethereum-provider";
+import { Web3RpcProvider } from "./web3-rpc-provider";
 import { whitelistAccounts } from "./whitelist/whitelist-accounts";
 import { SpreadsheetClient } from "./spreadsheet-client";
 import { google } from "googleapis";
@@ -59,9 +59,15 @@ process.on("uncaughtException", console.error);
     );
     const NCG_MINTER: string = Configuration.get("NCG_MINTER");
     const KMS_PROVIDER_URL: string = Configuration.get("KMS_PROVIDER_URL");
-    // const KMS_PROVIDER_SUB_URL: string = Configuration.get(
-    //     "KMS_PROVIDER_SUB_URL"
-    // );
+    // Primary: NodeReal; optional secondary: Infura. Only transient reads fail over.
+    const KMS_PROVIDER_SUB_URL: string | undefined =
+        Configuration.get("KMS_PROVIDER_SUB_URL", false)?.trim() || undefined;
+    const ETHEREUM_CHAIN_ID = Number(
+        Configuration.get("ETHEREUM_CHAIN_ID", false) ?? "1"
+    );
+    if (!Number.isSafeInteger(ETHEREUM_CHAIN_ID) || ETHEREUM_CHAIN_ID <= 0) {
+        throw new Error("ETHEREUM_CHAIN_ID must be a positive safe integer");
+    }
     const KMS_PROVIDER_KEY_ID: string = Configuration.get(
         "KMS_PROVIDER_KEY_ID"
     );
@@ -306,6 +312,16 @@ process.on("uncaughtException", console.error);
 
     const CONFIRMATIONS = 10;
 
+    // Retry policy for transient Ethereum RPC errors encountered while
+    // waiting for an already-broadcast mint transaction's receipt (see
+    // `retryEthereumRpc` in `./rpc-retry` and its use in
+    // `SafeWrappedNCGMinter`). This never retries the broadcast itself, only
+    // the safe-to-repeat wait for its receipt, so it can't cause a duplicate
+    // mint. Non-transient errors (e.g. reverts, invalid nonce) are never
+    // retried regardless of this setting.
+    const ETHEREUM_RPC_MAX_RETRY = 3;
+    const ETHEREUM_RPC_RETRY_DELAY_MS = 1000;
+
     const monitorStateStore: IMonitorStateStore =
         await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
     const exchangeHistoryStore: IExchangeHistoryStore =
@@ -334,15 +350,21 @@ process.on("uncaughtException", console.error);
     const integration: Integration = new PagerDutyIntegration(
         PAGERDUTY_ROUTING_KEY
     );
-    const kmsProvider = new KmsProvider(KMS_PROVIDER_URL, {
-        region: KMS_PROVIDER_REGION,
-        keyIds: [KMS_PROVIDER_KEY_ID],
-        credential: {
+    const provider = await createEthereumFallbackProvider(
+        KMS_PROVIDER_URL,
+        KMS_PROVIDER_SUB_URL,
+        { expectedChainId: ETHEREUM_CHAIN_ID }
+    );
+    const ethereumSigner = new AwsKmsSigner(
+        {
+            region: KMS_PROVIDER_REGION,
+            keyId: KMS_PROVIDER_KEY_ID,
             accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,
             secretAccessKey: KMS_PROVIDER_AWS_SECRETKEY,
         },
-    });
-    const web3 = new Web3(kmsProvider);
+        provider
+    );
+    const web3 = new Web3(new Web3RpcProvider(provider, ethereumSigner));
 
     const wNCGToken: ContractDescription = {
         abi: wNCGTokenAbi,
@@ -353,11 +375,7 @@ process.on("uncaughtException", console.error);
         throw Error("NCG_MINTER is invalid - it is not valid address format.");
     }
 
-    const kmsAddresses = await kmsProvider.getAccounts();
-    if (kmsAddresses.length != 1) {
-        throw Error("NineChronicles.EthBridge is supported only one address.");
-    }
-    const kmsAddress = kmsAddresses[0];
+    const kmsAddress = await ethereumSigner.getAddress();
     console.log(kmsAddress);
     const gasPriceLimitPolicy: IGasPricePolicy = new GasPriceLimitPolicy(
         MAX_GAS_PRICE
@@ -369,21 +387,6 @@ process.on("uncaughtException", console.error);
         gasPriceTipPolicy,
         gasPriceLimitPolicy,
     ]);
-
-    const provider = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
-
-    // const providerMain = new ethers.providers.JsonRpcProvider(KMS_PROVIDER_URL);
-    // const providerSub = new ethers.providers.JsonRpcProvider(
-    //     KMS_PROVIDER_SUB_URL
-    // );
-
-    // const provider = new ethers.providers.FallbackProvider(
-    //     [
-    //         { provider: providerMain, priority: 1, weight: 2 },
-    //         { provider: providerSub, priority: 2, weight: 1 },
-    //     ],
-    //     1
-    // );
 
     const FEE_COLLECTOR_ADDRESS: string = Configuration.get(
         "FEE_COLLECTOR_ADDRESS"
@@ -417,11 +420,14 @@ process.on("uncaughtException", console.error);
             owner2Signer,
             owner3Signer,
             provider,
-            gasPricePolicy
+            gasPricePolicy,
+            {
+                maxRetry: ETHEREUM_RPC_MAX_RETRY,
+                delayMs: ETHEREUM_RPC_RETRY_DELAY_MS,
+            }
         );
     }
 
-    // Todo: Apply Multi-provider at WrappedNCGMinter
     const minter: IWrappedNCGMinter = USE_SAFE_WRAPPED_NCG_MINTER
         ? await makeSafeWrappedNCGMinter()
         : new WrappedNCGMinter(

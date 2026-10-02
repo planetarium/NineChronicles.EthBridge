@@ -418,6 +418,17 @@ export class NCGTransferredEventObserver
         console.log("fee", fee);
         console.log("exchangeAmount", exchangeAmount);
 
+        // This is intentionally called exactly once, with no retry at this
+        // level: `mint()` proposes, confirms AND broadcasts a transaction,
+        // so retrying it wholesale here on a failure - even one that looks
+        // transient - could re-broadcast a second, separate transaction
+        // after the first one already succeeded on-chain (a genuine
+        // duplicate mint). Any retry of the safe-to-repeat parts of minting
+        // (e.g. waiting for the already-broadcast transaction's receipt)
+        // happens inside the `IWrappedNCGMinter` implementation itself,
+        // where it's known which parts are idempotent reads and which part
+        // is the one-time broadcast. A failure here always means the mint
+        // attempt as a whole failed and falls through to `_failedRequest`.
         const transactionHash = await this._wrappedNcgTransfer.mint(
             recipient!,
             ethereumExchangeAmount
