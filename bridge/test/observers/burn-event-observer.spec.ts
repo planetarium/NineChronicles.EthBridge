@@ -85,6 +85,7 @@ describe(EthereumBurnEventObserver.name, () => {
         exist: jest.fn(),
         updateStatus: jest.fn().mockResolvedValue(undefined),
         getPendingTransactions: jest.fn(),
+        getUnconfirmedTransactions: jest.fn().mockResolvedValue([]),
     };
 
     const mockIntegration: jest.Mocked<Integration> = {

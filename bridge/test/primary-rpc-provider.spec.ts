@@ -574,7 +574,12 @@ describe("sequential primary RPC provider", () => {
         it("sends once to a healthy primary and counts the broadcast", async () => {
             const provider = create();
             expect(provider.broadcastAttempts).toBe(0);
+            expect(provider.lastBroadcast).toBeUndefined();
             await expect(broadcast(provider)).resolves.toBe("0x2a");
+            expect(provider.lastBroadcast).toEqual({
+                hash: HASH,
+                rejected: false,
+            });
             expect(sends(primary)).toBe(1);
             expect(secondary.calls).toEqual([]);
             expect(provider.broadcastAttempts).toBe(1);
@@ -588,6 +593,10 @@ describe("sequential primary RPC provider", () => {
             await expect(broadcast(provider)).rejects.toMatchObject({
                 code: "INSUFFICIENT_FUNDS",
                 broadcastRejected: true,
+            });
+            expect(provider.lastBroadcast).toEqual({
+                hash: HASH,
+                rejected: true,
             });
             expect(secondary.calls).toEqual([]);
             expect(provider.broadcastAttempts).toBe(1);

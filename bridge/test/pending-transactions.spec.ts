@@ -16,6 +16,7 @@ describe("PendingTransactionHandler", () => {
     beforeEach(() => {
         exchangeHistoryStore = {
             getPendingTransactions: jest.fn(),
+            getUnconfirmedTransactions: jest.fn().mockResolvedValue([]),
             updateStatus: jest.fn(),
         } as unknown as jest.Mocked<IExchangeHistoryStore>;
 
@@ -73,6 +74,31 @@ describe("PendingTransactionHandler", () => {
             "TX-2",
             TransactionStatus.FAILED
         );
+    });
+
+    it("reminds about unconfirmed mints without ever failing them", async () => {
+        exchangeHistoryStore.getPendingTransactions.mockResolvedValue([]);
+        exchangeHistoryStore.getUnconfirmedTransactions.mockResolvedValue([
+            {
+                tx_id: "TX-3",
+                network: "nineChronicles",
+                amount: 300,
+                sender: "sender3",
+                recipient: "recipient3",
+                timestamp: new Date().toISOString(),
+                status: TransactionStatus.UNCONFIRMED,
+            },
+        ]);
+
+        await handler.messagePendingTransactions();
+
+        expect(slackMessageSender.sendMessage).toHaveBeenCalledTimes(1);
+        const message = slackMessageSender.sendMessage.mock.calls[0][0];
+        expect(message).toBeInstanceOf(PendingTransactionMessage);
+        expect((message as unknown as { kind: string }).kind).toBe(
+            "Unconfirmed"
+        );
+        expect(exchangeHistoryStore.updateStatus).not.toHaveBeenCalled();
     });
 
     it("should not send a message if there are no pending transactions", async () => {

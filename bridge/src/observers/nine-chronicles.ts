@@ -344,6 +344,16 @@ export class NCGTransferredEventObserver
             errorMessage = JSON.stringify(e);
         }
 
+        // Record the status before any notification I/O can fail. A broadcast
+        // mint may still land: it stays UNCONFIRMED, never FAILED, so nobody
+        // refunds or re-mints it without checking the hash on-chain.
+        await this._exchangeHistoryStore.updateStatus(
+            txId,
+            e instanceof MintOutcomeUnknownError
+                ? TransactionStatus.UNCONFIRMED
+                : TransactionStatus.FAILED
+        );
+
         const slackMsgRes = await this._slackMessageSender.sendMessage(
             new WrappingFailureEvent(
                 this._explorerUrl,
@@ -356,16 +366,6 @@ export class NCGTransferredEventObserver
                 errorMessage,
                 this._failureSubscribers
             )
-        );
-
-        // A broadcast mint may still land: mark it UNCONFIRMED, never FAILED
-        // (startup turns leftover PENDING rows into FAILED), so nobody refunds
-        // or re-mints it without checking the hash on-chain.
-        this._exchangeHistoryStore.updateStatus(
-            txId,
-            e instanceof MintOutcomeUnknownError
-                ? TransactionStatus.UNCONFIRMED
-                : TransactionStatus.FAILED
         );
 
         await this._spreadsheetClient.to_spreadsheet_mint({
@@ -435,6 +435,13 @@ export class NCGTransferredEventObserver
         // signed bytes, and receipt reads for that fixed hash. A failure here
         // is either definitive (falls through to `_failedRequest` as FAILED)
         // or a MintOutcomeUnknownError, recorded as UNCONFIRMED.
+        // From here a mint may land at any moment. Startup turns leftover
+        // PENDING rows into FAILED, so a crash during the (possibly long)
+        // receipt wait must leave UNCONFIRMED instead.
+        await this._exchangeHistoryStore.updateStatus(
+            txId,
+            TransactionStatus.UNCONFIRMED
+        );
         const transactionHash = await this._wrappedNcgTransfer.mint(
             recipient!,
             ethereumExchangeAmount
@@ -458,6 +465,28 @@ export class NCGTransferredEventObserver
                     `Minted ${transactionHash} but the fee transfer failed`,
                     feeError
                 );
+                try {
+                    await this._slackMessageSender.sendMessage(
+                        new WrappingFailureEvent(
+                            this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
+                            sender,
+                            String(recipient),
+                            fee.toString(),
+                            txId,
+                            `Mint ${transactionHash} was delivered, but transferring the ${fee.toString()} NCG fee to the fee collector failed; collect it manually. ${String(
+                                feeError
+                            )}`,
+                            this._failureSubscribers
+                        )
+                    );
+                } catch (slackError) {
+                    console.error(
+                        "Could not report the fee failure",
+                        slackError
+                    );
+                }
                 this._opensearchClient.to_opensearch("error", {
                     content: "NCG -> wNCG fee transfer failure after mint",
                     cause: String(feeError),

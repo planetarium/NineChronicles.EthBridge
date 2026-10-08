@@ -103,6 +103,7 @@ describe(NCGTransferredEventObserver.name, () => {
         exist: jest.fn(),
         updateStatus: jest.fn(),
         getPendingTransactions: jest.fn(),
+        getUnconfirmedTransactions: jest.fn().mockResolvedValue([]),
     };
 
     const limitationPolicy = {
@@ -1403,6 +1404,73 @@ describe(NCGTransferredEventObserver.name, () => {
                     libplanetTxId: "TX-FEE-FAIL",
                 })
             );
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("collect it manually");
+        });
+
+        it("still completes a delivered mint when the fee failure alert cannot be sent", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockNcgTransfer.transfer.mockRejectedValueOnce(
+                new Error("fee transfer down")
+            );
+            mockSlackChannel.sendMessage.mockRejectedValueOnce(
+                new Error("slack down")
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-SLACK",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-FEE-SLACK",
+                TransactionStatus.COMPLETED
+            );
+        });
+
+        it("marks a mint UNCONFIRMED before it can broadcast", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint.mockImplementationOnce(async () => {
+                expect(
+                    mockExchangeHistoryStore.updateStatus
+                ).toHaveBeenLastCalledWith(
+                    "TX-ORDER",
+                    TransactionStatus.UNCONFIRMED
+                );
+                return "MINT-HASH";
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ORDER",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).toHaveBeenLastCalledWith("TX-ORDER", TransactionStatus.COMPLETED);
         });
 
         // Try to catch cases when others, not object and error, were thrown.

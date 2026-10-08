@@ -67,7 +67,7 @@ describe("mint broadcast through real ethers signing", () => {
         provider = new PrimaryRpcProvider(PRIMARY, SECONDARY, {
             expectedChainId: 1,
         });
-        wallet = ethers.Wallet.createRandom().connect(provider);
+        wallet = new ethers.Wallet(`0x${"42".repeat(32)}`, provider);
     });
     afterEach(() => jest.restoreAllMocks());
 

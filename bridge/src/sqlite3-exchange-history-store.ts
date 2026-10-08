@@ -127,14 +127,23 @@ export class Sqlite3ExchangeHistoryStore implements IExchangeHistoryStore {
     }
 
     async getPendingTransactions(): Promise<ExchangeHistory[]> {
+        return this.getByStatus(TransactionStatus.PENDING);
+    }
+
+    async getUnconfirmedTransactions(): Promise<ExchangeHistory[]> {
+        return this.getByStatus(TransactionStatus.UNCONFIRMED);
+    }
+
+    private async getByStatus(
+        status: TransactionStatus
+    ): Promise<ExchangeHistory[]> {
         this.checkClosed();
 
         const all: (sql: string, params: any[]) => Promise<ExchangeHistory[]> =
             promisify(this._database.all.bind(this._database));
 
-        return await all(
-            `SELECT * FROM exchange_histories WHERE status = '${TransactionStatus.PENDING}'`,
-            []
-        );
+        return await all("SELECT * FROM exchange_histories WHERE status = ?", [
+            status,
+        ]);
     }
 }

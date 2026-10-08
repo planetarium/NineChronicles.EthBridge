@@ -38,6 +38,8 @@ function describe(error: unknown): string {
 export interface BroadcastTrackingProvider {
     beginReadSession(): Promise<() => void>;
     readonly broadcastAttempts: number;
+    /** Survives callers (e.g. Web3) that replace the thrown error. */
+    readonly lastBroadcast?: { hash: string; rejected: boolean };
 }
 
 function isBroadcastTracking(
@@ -92,11 +94,14 @@ export async function pinnedUntilBroadcast<T>(
             return await attempt();
         } catch (error) {
             if (provider.broadcastAttempts !== broadcastsBefore) {
-                if (isBroadcastRejection(error)) throw error;
+                const last = provider.lastBroadcast;
+                if (isBroadcastRejection(error) || last?.rejected) throw error;
                 throw new MintOutcomeUnknownError(
                     String(
                         (error as { transactionHash?: unknown } | null)
-                            ?.transactionHash ?? "unknown"
+                            ?.transactionHash ??
+                            last?.hash ??
+                            "unknown"
                     ),
                     error
                 );

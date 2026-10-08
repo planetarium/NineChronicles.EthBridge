@@ -189,6 +189,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     private readonly retryMaxDelayMs: number;
     private readonly sleep: (ms: number) => Promise<void>;
     private broadcasts = 0;
+    private lastBroadcastState: { hash: string; rejected: boolean } | undefined;
     private readonly chainCheckedUntil = new Map<
         ethers.providers.JsonRpcProvider,
         number
@@ -210,6 +211,14 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
      * "nothing was sent" (safe to re-sign) from "sent" (never re-sign). */
     public get broadcastAttempts(): number {
         return this.broadcasts;
+    }
+
+    /** The latest sent transaction, kept here because callers such as Web3
+     * unwrap errors and lose the hash and the rejection tag. */
+    public get lastBroadcast():
+        | { hash: string; rejected: boolean }
+        | undefined {
+        return this.lastBroadcastState;
     }
 
     /** Monotonic endpoint changes for dispatched operations, excluding probes. */
@@ -515,6 +524,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
                 if (!sent) {
                     sent = true;
                     this.broadcasts += 1;
+                    this.lastBroadcastState = { hash, rejected: false };
                 }
                 try {
                     return await target.perform("sendTransaction", {
@@ -524,6 +534,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
                     if (isAlreadyKnownError(error)) return hash;
                     if (isDefinitiveRejection(error)) {
                         if (ambiguous) return hash;
+                        this.lastBroadcastState = { hash, rejected: true };
                         throw Object.assign(error as object, {
                             [BROADCAST_REJECTED]: true,
                         });

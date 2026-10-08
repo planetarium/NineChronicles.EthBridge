@@ -28,4 +28,7 @@ export interface IExchangeHistoryStore {
     ): Promise<void>;
 
     getPendingTransactions(): Promise<ExchangeHistory[]>;
+
+    /** Mints that may have landed; reported until resolved by hand. */
+    getUnconfirmedTransactions(): Promise<ExchangeHistory[]>;
 }

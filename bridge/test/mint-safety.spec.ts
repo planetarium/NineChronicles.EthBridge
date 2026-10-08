@@ -117,6 +117,42 @@ describe(pinnedUntilBroadcast.name, () => {
         ).rejects.toMatchObject({ transactionHash: "unknown" });
     });
 
+    it("uses the provider's record when a caller replaced the error", async () => {
+        const { provider } = trackingProvider();
+        const tracked = provider as typeof provider & {
+            lastBroadcast?: { hash: string; rejected: boolean };
+        };
+        const unwrapped = { code: -32000, message: "nonce too low" };
+        const rejectAttempt = jest.fn(async () => {
+            provider.broadcastAttempts += 1;
+            tracked.lastBroadcast = { hash: HASH, rejected: true };
+            throw unwrapped;
+        });
+        await expect(
+            pinnedUntilBroadcast(provider, rejectAttempt, {
+                attempts: 5,
+                delayMs: 1,
+                sleep,
+            })
+        ).rejects.toBe(unwrapped);
+
+        const ambiguousAttempt = jest.fn(async () => {
+            provider.broadcastAttempts += 1;
+            tracked.lastBroadcast = { hash: HASH, rejected: false };
+            throw new Error("Web3 replaced this error");
+        });
+        await expect(
+            pinnedUntilBroadcast(provider, ambiguousAttempt, {
+                attempts: 5,
+                delayMs: 1,
+                sleep,
+            })
+        ).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            transactionHash: HASH,
+        });
+    });
+
     it("propagates a definitive broadcast rejection without restarting", async () => {
         const { provider } = trackingProvider();
         const error = { code: "NONCE_EXPIRED", broadcastRejected: true };

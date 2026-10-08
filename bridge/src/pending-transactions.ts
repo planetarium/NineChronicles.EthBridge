@@ -32,5 +32,20 @@ export class PendingTransactionHandler {
                 );
             }
         }
+
+        // Possibly-landed mints are never auto-failed; remind until resolved.
+        const unconfirmed =
+            await this._exchangeHistoryStore.getUnconfirmedTransactions();
+        if (unconfirmed.length > 0) {
+            await this._slackMessageSender.sendMessage(
+                new PendingTransactionMessage(
+                    unconfirmed,
+                    this._multiPlanetary,
+                    undefined,
+                    undefined,
+                    "Unconfirmed"
+                )
+            );
+        }
     }
 }
