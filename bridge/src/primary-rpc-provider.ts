@@ -100,6 +100,42 @@ export interface PrimaryRpcProviderOptions {
     cooldownMs?: number;
     /** How long a successful eth_chainId check vouches for an endpoint. */
     chainCheckIntervalMs?: number;
+    /**
+     * Rounds for idempotent reads outside a pinned session and for re-sending
+     * a signed transaction. Each round tries the preferred endpoint, then the
+     * other one. 1 (the default) disables backoff retries.
+     */
+    retryRounds?: number;
+    retryBaseDelayMs?: number;
+    retryMaxDelayMs?: number;
+    /** Test hook for backoff waits. */
+    sleep?: (ms: number) => Promise<void>;
+}
+
+const defaultSleep = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A node already holding (or having mined) this exact signed transaction.
+ * ethers maps "nonce too low" to NONCE_EXPIRED and "replacement transaction
+ * underpriced" to REPLACEMENT_UNDERPRICED; "already known" stays a raw message.
+ */
+export function isAlreadySubmittedError(error: unknown): boolean {
+    if (error === null || typeof error !== "object") return false;
+    const err = error as { code?: unknown; message?: unknown; error?: unknown };
+    if (
+        err.code === ethers.errors.NONCE_EXPIRED ||
+        err.code === ethers.errors.REPLACEMENT_UNDERPRICED
+    )
+        return true;
+    if (
+        typeof err.message === "string" &&
+        /already known|known transaction|already imported|already exists|nonce (is )?too low/i.test(
+            err.message
+        )
+    )
+        return true;
+    return err.error !== undefined && isAlreadySubmittedError(err.error);
 }
 
 /** Sequential failover: a healthy primary never causes secondary RPC traffic. */
@@ -108,6 +144,11 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     private readonly secondary: ethers.providers.JsonRpcProvider | undefined;
     private readonly cooldownMs: number;
     private readonly chainCheckIntervalMs: number;
+    private readonly retryRounds: number;
+    private readonly retryBaseDelayMs: number;
+    private readonly retryMaxDelayMs: number;
+    private readonly sleep: (ms: number) => Promise<void>;
+    private broadcasts = 0;
     private readonly chainCheckedUntil = new Map<
         ethers.providers.JsonRpcProvider,
         number
@@ -125,6 +166,12 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
           }>
         | undefined;
 
+    /** Signed transactions handed to the network; lets a caller tell "nothing
+     * was sent" (safe to re-sign) from "sent, outcome pending" (never re-sign). */
+    public get broadcastAttempts(): number {
+        return this.broadcasts;
+    }
+
     /** Monotonic endpoint changes for dispatched operations, excluding probes. */
     public get readEpoch(): number {
         return this.endpointEpoch;
@@ -141,6 +188,10 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             requestTimeoutMs = 10000,
             cooldownMs = 30000,
             chainCheckIntervalMs = 60000,
+            retryRounds = 1,
+            retryBaseDelayMs = 1000,
+            retryMaxDelayMs = 30000,
+            sleep = defaultSleep,
         } = options;
         if (!Number.isSafeInteger(expectedChainId) || expectedChainId <= 0)
             throw new Error("expectedChainId must be a positive safe integer");
@@ -152,6 +203,15 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             throw new Error(
                 "chainCheckIntervalMs must be nonnegative and finite"
             );
+        if (!Number.isSafeInteger(retryRounds) || retryRounds < 1)
+            throw new Error("retryRounds must be a positive integer");
+        if (
+            !Number.isFinite(retryBaseDelayMs) ||
+            retryBaseDelayMs < 0 ||
+            !Number.isFinite(retryMaxDelayMs) ||
+            retryMaxDelayMs < retryBaseDelayMs
+        )
+            throw new Error("retry delays must be finite and ordered");
         if (
             !primaryUrl.trim() ||
             (secondaryUrl !== undefined && !secondaryUrl.trim())
@@ -168,6 +228,10 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             secondaryUrl === undefined ? undefined : connect(secondaryUrl);
         this.cooldownMs = cooldownMs;
         this.chainCheckIntervalMs = chainCheckIntervalMs;
+        this.retryRounds = retryRounds;
+        this.retryBaseDelayMs = retryBaseDelayMs;
+        this.retryMaxDelayMs = retryMaxDelayMs;
+        this.sleep = sleep;
     }
 
     /** Independent routing/session state for a monitor sharing a signer provider. */
@@ -297,7 +361,37 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         this.lastDispatchProvider = provider;
     }
 
+    /** Exponential backoff with jitter, so retries do not deepen a quota outage. */
+    private backoff(round: number): Promise<void> {
+        const ceiling = Math.min(
+            this.retryMaxDelayMs,
+            this.retryBaseDelayMs * 2 ** (round - 1)
+        );
+        return this.sleep(ceiling / 2 + (Math.random() * ceiling) / 2);
+    }
+
     private async dispatch<T>(
+        operation: (provider: ethers.providers.JsonRpcProvider) => Promise<T>,
+        retryable: boolean
+    ): Promise<T> {
+        for (let round = 1; ; round++) {
+            try {
+                return await this.dispatchOnce(operation, retryable);
+            } catch (error) {
+                // A pinned session restarts from its own anchor instead.
+                if (
+                    !retryable ||
+                    this.readSession ||
+                    round >= this.retryRounds ||
+                    !isPrimaryRpcTransientError(error)
+                )
+                    throw error;
+                await this.backoff(round);
+            }
+        }
+    }
+
+    private async dispatchOnce<T>(
         operation: (provider: ethers.providers.JsonRpcProvider) => Promise<T>,
         retryable: boolean
     ): Promise<T> {
@@ -311,8 +405,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             // A failing endpoint may come back on another chain or node.
             if (isPrimaryRpcTransientError(error))
                 this.chainCheckedUntil.delete(provider);
-            // Sending a signed transaction is never repeated: a timeout can
-            // mean it was accepted. Unknown methods also fail closed.
+            // Unknown (possibly state-changing) methods fail closed.
             if (
                 provider !== this.primary ||
                 !this.secondary ||
@@ -330,7 +423,73 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         }
     }
 
+    /**
+     * Re-sending identical signed bytes cannot pay twice: they carry one hash
+     * and one nonce. A clean first rejection means nothing was accepted. After
+     * any ambiguous attempt, the hash is returned and the receipt wait decides
+     * between mined, replaced and unconfirmed. Ignores read-session pins.
+     */
+    private async broadcast(signedTransaction: string): Promise<string> {
+        const hash = ethers.utils.keccak256(signedTransaction);
+        this.broadcasts += 1;
+        let ambiguous = false;
+        for (let round = 1; ; round++) {
+            const coolingDown =
+                this.secondary !== undefined &&
+                Date.now() < this.primaryUnavailableUntil;
+            const targets = (
+                coolingDown
+                    ? [this.secondary, this.primary]
+                    : [this.primary, this.secondary]
+            ).filter(
+                (target): target is ethers.providers.JsonRpcProvider =>
+                    target !== undefined
+            );
+            for (const target of targets) {
+                try {
+                    await this.validate(target);
+                } catch (error) {
+                    if (!isPrimaryRpcTransientError(error)) {
+                        if (ambiguous) return hash;
+                        throw error;
+                    }
+                    continue;
+                }
+                this.recordDispatch(target);
+                try {
+                    return await target.perform("sendTransaction", {
+                        signedTransaction,
+                    });
+                } catch (error) {
+                    if (isAlreadySubmittedError(error)) {
+                        if (ambiguous) return hash;
+                        throw error;
+                    }
+                    if (!isPrimaryRpcTransientError(error)) {
+                        if (ambiguous) return hash;
+                        throw error;
+                    }
+                    ambiguous = true;
+                    this.chainCheckedUntil.delete(target);
+                    if (target === this.primary && this.secondary)
+                        this.primaryUnavailableUntil =
+                            Date.now() + this.cooldownMs;
+                }
+            }
+            if (round >= this.retryRounds) {
+                if (ambiguous) return hash;
+                throw Object.assign(
+                    new Error("No RPC endpoint accepted the transaction"),
+                    { code: ethers.errors.SERVER_ERROR, transactionHash: hash }
+                );
+            }
+            await this.backoff(round);
+        }
+    }
+
     async perform(method: string, params: any): Promise<any> {
+        if (method === "sendTransaction")
+            return this.broadcast(params.signedTransaction);
         return this.dispatch(
             (provider) => provider.perform(method, params),
             READ_METHODS.has(method)
@@ -338,6 +497,8 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     }
 
     async send(method: string, params: any[]): Promise<any> {
+        if (method === "eth_sendRawTransaction")
+            return this.broadcast(params[0]);
         return this.dispatch(async (provider) => {
             const result = await provider.send(method, params);
             if (method === "eth_chainId" || method === "net_version") {

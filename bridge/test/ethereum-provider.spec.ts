@@ -39,6 +39,21 @@ describe("Ethereum RPC configuration", () => {
         }
     );
 
+    it("enables about a minute of backoff rounds for reads and re-sends", async () => {
+        jest.spyOn(
+            ethers.providers.JsonRpcProvider.prototype,
+            "send"
+        ).mockResolvedValue("0x1");
+        const provider = await createEthereumFallbackProvider(
+            "https://nodereal.example",
+            "https://infura.example"
+        );
+        expect(provider["retryRounds"]).toBe(7);
+        expect(provider["retryBaseDelayMs"]).toBe(1000);
+        expect(provider["retryMaxDelayMs"]).toBe(30000);
+        expect(provider.createReadProvider()["retryRounds"]).toBe(7);
+    });
+
     it("allows single-endpoint deployments while secondary is not configured", async () => {
         jest.spyOn(
             ethers.providers.JsonRpcProvider.prototype,

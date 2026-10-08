@@ -21,6 +21,7 @@ import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 import { ACCOUNT_TYPE } from "../whitelist/account-type";
 import { WhitelistAccount } from "../types/whitelist-account";
 import { SpreadsheetClient } from "../spreadsheet-client";
+import { MintOutcomeUnknownError } from "../mint-safety";
 import { TransactionStatus } from "../types/transaction-status";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
@@ -357,7 +358,13 @@ export class NCGTransferredEventObserver
             )
         );
 
-        this._exchangeHistoryStore.updateStatus(txId, TransactionStatus.FAILED);
+        // A broadcast mint may still land: keep it PENDING (never FAILED) so
+        // nobody refunds or re-mints it without checking the hash on-chain.
+        if (!(e instanceof MintOutcomeUnknownError))
+            this._exchangeHistoryStore.updateStatus(
+                txId,
+                TransactionStatus.FAILED
+            );
 
         await this._spreadsheetClient.to_spreadsheet_mint({
             slackMessageId: `${
@@ -419,16 +426,13 @@ export class NCGTransferredEventObserver
         console.log("exchangeAmount", exchangeAmount);
 
         // This is intentionally called exactly once, with no retry at this
-        // level: `mint()` proposes, confirms AND broadcasts a transaction,
-        // so retrying it wholesale here on a failure - even one that looks
-        // transient - could re-broadcast a second, separate transaction
-        // after the first one already succeeded on-chain (a genuine
-        // duplicate mint). Any retry of the safe-to-repeat parts of minting
-        // (e.g. waiting for the already-broadcast transaction's receipt)
-        // happens inside the `IWrappedNCGMinter` implementation itself,
-        // where it's known which parts are idempotent reads and which part
-        // is the one-time broadcast. A failure here always means the mint
-        // attempt as a whole failed and falls through to `_failedRequest`.
+        // level: `mint()` signs a transaction, so retrying it wholesale could
+        // sign a second, separate mint after the first one already landed.
+        // The minter itself retries only what is safe: pre-broadcast reads
+        // (nothing signed onto the network yet), re-sends of the identical
+        // signed bytes, and receipt reads for that fixed hash. A failure here
+        // is either definitive (falls through to `_failedRequest` as FAILED)
+        // or a MintOutcomeUnknownError, which stays PENDING.
         const transactionHash = await this._wrappedNcgTransfer.mint(
             recipient!,
             ethereumExchangeAmount

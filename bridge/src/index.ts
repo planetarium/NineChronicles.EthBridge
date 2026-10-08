@@ -312,17 +312,19 @@ process.on("uncaughtException", console.error);
 
     const CONFIRMATIONS = 10;
 
-    // Retry policy for transient Ethereum RPC errors encountered while
-    // waiting for an already-broadcast mint transaction's receipt (see
-    // `retryEthereumRpc` in `./rpc-retry` and its use in
-    // `SafeWrappedNCGMinter`). This never retries the broadcast itself, only
-    // the safe-to-repeat wait for its receipt, so it can't cause a duplicate
-    // mint. Non-transient errors (e.g. reverts, invalid nonce) are never
-    // retried regardless of this setting. Giving up records an already
-    // broadcast mint as FAILED, so the budget (~5 minutes) outlasts a quota
-    // burst and several primary cooldowns rather than failing fast.
-    const ETHEREUM_RPC_MAX_RETRY = 20;
-    const ETHEREUM_RPC_RETRY_DELAY_MS = 15000;
+    // Mint safety (see `./mint-safety`): a mint is signed once. Before its
+    // broadcast, reads are pinned to one endpoint and a transient failure
+    // restarts the attempt (nothing was sent, so re-signing is safe). After
+    // it, only the receipt of that fixed hash is awaited; reverts are
+    // definitive, while an unresolved wait ends as "outcome unknown" (left
+    // PENDING and alerted), never FAILED. Worst case per mint during an
+    // outage: ~5 pre-broadcast attempts plus a 30-minute receipt deadline.
+    const MINT_RECEIPT_WAIT = {
+        maxRetry: 20,
+        delayMs: 15000,
+        timeoutMs: 30 * 60 * 1000,
+    };
+    const MINT_PRE_BROADCAST_RETRY = { attempts: 5, delayMs: 5000 };
 
     const monitorStateStore: IMonitorStateStore =
         await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);
@@ -423,10 +425,8 @@ process.on("uncaughtException", console.error);
             owner3Signer,
             provider,
             gasPricePolicy,
-            {
-                maxRetry: ETHEREUM_RPC_MAX_RETRY,
-                delayMs: ETHEREUM_RPC_RETRY_DELAY_MS,
-            }
+            MINT_RECEIPT_WAIT,
+            MINT_PRE_BROADCAST_RETRY
         );
     }
 
@@ -437,7 +437,12 @@ process.on("uncaughtException", console.error);
               wNCGToken,
               kmsAddress,
               gasPricePolicy,
-              new Decimal(PRIORITY_FEE)
+              new Decimal(PRIORITY_FEE),
+              {
+                  provider,
+                  receipt: MINT_RECEIPT_WAIT,
+                  preBroadcast: MINT_PRE_BROADCAST_RETRY,
+              }
           );
     const signer = new KMSNCGSigner(KMS_PROVIDER_REGION, KMS_PROVIDER_KEY_ID, {
         accessKeyId: KMS_PROVIDER_AWS_ACCESSKEY,

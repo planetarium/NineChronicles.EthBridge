@@ -30,8 +30,8 @@ export class Web3RpcProvider {
                     ).toNumber();
                 }
             }
-            // Sign and submit exactly once. A timeout after broadcasting is
-            // ambiguous and must reach the caller, never re-enter mint().
+            // Sign exactly once. The routing provider may re-send these same
+            // bytes (one hash, one nonce); re-entering mint() would re-sign.
             const response = await this.signer.sendTransaction(transaction);
             return response.hash;
         }

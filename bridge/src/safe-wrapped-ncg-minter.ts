@@ -14,7 +14,12 @@ import SafeServiceClient from "@safe-global/safe-service-client";
 import EthersAdapter from "@safe-global/safe-ethers-lib";
 import { Provider } from "@ethersproject/abstract-provider";
 import { IGasPricePolicy } from "./policies/gas-price";
-import { retryEthereumRpc, RetryEthereumRpcOptions } from "./rpc-retry";
+import {
+    pinnedUntilBroadcast,
+    PreBroadcastRetryOptions,
+    ReceiptWaitOptions,
+    waitForMintReceipt,
+} from "./mint-safety";
 
 // Safe Contract ABI
 const SAFE_ABI = [
@@ -38,10 +43,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
     private readonly _provider: Provider;
     private readonly _gasPricePolicy: IGasPricePolicy;
     private readonly _safeContract: ethers.Contract | null = null;
-    private readonly _receiptRetryOptions: Pick<
-        RetryEthereumRpcOptions,
-        "maxRetry" | "delayMs"
-    >;
+    private readonly _receiptRetryOptions: ReceiptWaitOptions;
+    private readonly _preBroadcastRetryOptions: PreBroadcastRetryOptions;
     private _pendingTx: {
         to: string;
         value: string;
@@ -63,10 +66,14 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         safeSdkOwner2: Safe,
         provider: Provider,
         gasPricePolicy: IGasPricePolicy,
-        receiptRetryOptions: Pick<
-            RetryEthereumRpcOptions,
-            "maxRetry" | "delayMs"
-        > = { maxRetry: 3, delayMs: 1000 }
+        receiptRetryOptions: ReceiptWaitOptions = {
+            maxRetry: 3,
+            delayMs: 1000,
+        },
+        preBroadcastRetryOptions: PreBroadcastRetryOptions = {
+            attempts: 5,
+            delayMs: 2000,
+        }
     ) {
         this._safeService = safeService;
         this._safeAddress = safeAddress;
@@ -79,6 +86,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         this._provider = provider;
         this._gasPricePolicy = gasPricePolicy;
         this._receiptRetryOptions = receiptRetryOptions;
+        this._preBroadcastRetryOptions = preBroadcastRetryOptions;
 
         // Safe API를 사용하지 않는 경우 Safe 컨트랙트 인스턴스 생성
         if (!USE_SAFE_API) {
@@ -110,11 +118,23 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             );
             return transactionHash;
         } else {
-            // 직접 컨트랙트 호출 방식
-            await this.proposeMintTransactionDirect(adjustedAmount, address);
-            await this.confirmTransactionDirect();
-            const txHash = await this.executeTransactionDirect();
-            return txHash;
+            // 직접 컨트랙트 호출 방식. Everything up to the broadcast reads one
+            // endpoint and restarts from the proposal after a transient error;
+            // the Safe nonce read there must match the node that executes it.
+            const tx = await pinnedUntilBroadcast(
+                this._provider,
+                async () => {
+                    this._pendingTx = null;
+                    await this.proposeMintTransactionDirect(
+                        adjustedAmount,
+                        address
+                    );
+                    await this.confirmTransactionDirect();
+                    return this.broadcastTransactionDirect();
+                },
+                this._preBroadcastRetryOptions
+            );
+            return this.waitForDirectReceipt(tx);
         }
     }
 
@@ -127,10 +147,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         owner3Signer: Signer,
         provider: Provider,
         gasPricePolicy: IGasPricePolicy,
-        receiptRetryOptions?: Pick<
-            RetryEthereumRpcOptions,
-            "maxRetry" | "delayMs"
-        >
+        receiptRetryOptions?: ReceiptWaitOptions,
+        preBroadcastRetryOptions?: PreBroadcastRetryOptions
     ): Promise<SafeWrappedNCGMinter> {
         const ethAdapterOwner1 = new EthersAdapter({
             ethers,
@@ -170,7 +188,8 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             safeSdkOwner2,
             provider,
             gasPricePolicy,
-            receiptRetryOptions
+            receiptRetryOptions,
+            preBroadcastRetryOptions
         );
     }
 
@@ -280,7 +299,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         console.log("Transaction confirmed directly");
     }
 
-    private async executeTransactionDirect(): Promise<string> {
+    private async broadcastTransactionDirect(): Promise<ethers.ContractTransaction> {
         if (!this._pendingTx || !this._safeContract) {
             throw new Error(
                 "No pending transaction to execute or Safe contract not initialized"
@@ -332,10 +351,9 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
 
         console.log(`Executing transaction with signatures: ${signatures}`);
 
-        // 트랜잭션 실행 - broadcast exactly once (see the comment in
-        // `executeTransaction` above: this is never retried, only the
-        // receipt wait below is).
-        const tx = await this._safeContract.execTransaction(
+        // 트랜잭션 실행 - signed exactly once. The provider may re-send these
+        // identical bytes, which cannot mint twice; re-signing could.
+        return this._safeContract.execTransaction(
             this._pendingTx.to,
             this._pendingTx.value,
             this._pendingTx.data,
@@ -347,19 +365,12 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             refundReceiver,
             signatures
         );
+    }
 
-        const receipt = await retryEthereumRpc<ethers.ContractReceipt>(
-            () => tx.wait(),
-            {
-                ...this._receiptRetryOptions,
-                onRetryableError: (error, attemptsLeft) => {
-                    console.error(
-                        `Transient error while waiting for the receipt of mint tx ${tx.hash}, ${attemptsLeft} attempt(s) left. Retrying...`,
-                        error
-                    );
-                },
-            }
-        );
+    private async waitForDirectReceipt(
+        tx: ethers.ContractTransaction
+    ): Promise<string> {
+        const receipt = await waitForMintReceipt(tx, this._receiptRetryOptions);
         console.log("Transaction executed directly:", receipt.transactionHash);
 
         // 보류 중인 트랜잭션 초기화
@@ -467,50 +478,49 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
             throw new Error("Safe service is not initialized");
         }
 
-        const safeBalance = await this._safeSdkOwner1.getBalance();
+        const safeService = this._safeService;
+        // Reads before the broadcast share one endpoint and restart together.
+        // The Safe transaction itself is fixed by its Safe nonce, so it can
+        // execute at most once however often this part restarts.
+        const transactionResponse = await pinnedUntilBroadcast(
+            this._provider,
+            async () => {
+                const safeBalance = await this._safeSdkOwner1.getBalance();
 
-        console.log(
-            `[Before Transaction] Safe Balance: ${ethers.utils.formatUnits(
-                safeBalance,
-                "ether"
-            )} ETH`
-        );
+                console.log(
+                    `[Before Transaction] Safe Balance: ${ethers.utils.formatUnits(
+                        safeBalance,
+                        "ether"
+                    )} ETH`
+                );
 
-        const safeTransaction = await this._safeService.getTransaction(
-            safeTxHash
-        );
+                const safeTransaction = await safeService.getTransaction(
+                    safeTxHash
+                );
 
-        // Broadcasts the transaction exactly once. This call is
-        // intentionally NOT retried: retrying it would submit an entirely
-        // separate, new transaction (a genuine duplicate mint) rather than
-        // repeat anything idempotent. Any failure from this point on must be
-        // resolved by re-checking the ALREADY-broadcast transaction below
-        // (by its fixed hash), never by calling this again.
-        const executeTxResponse = await this._safeSdkOwner1.executeTransaction(
-            safeTransaction
-        );
-        const transactionResponse = executeTxResponse.transactionResponse;
-        if (transactionResponse === undefined) {
-            throw new Error(
-                "Transaction response is undefined after execution"
-            );
-        }
-
-        // `wait()` only polls the provider for the receipt of the
-        // already-broadcast transaction above (by its fixed hash) - it
-        // never resubmits anything, so retrying it on a transient RPC error
-        // can't cause a duplicate mint.
-        const receipt = await retryEthereumRpc(
-            () => transactionResponse.wait(),
-            {
-                ...this._receiptRetryOptions,
-                onRetryableError: (error, attemptsLeft) => {
-                    console.error(
-                        `Transient error while waiting for the receipt of mint tx ${transactionResponse.hash}, ${attemptsLeft} attempt(s) left. Retrying...`,
-                        error
+                // Signs the outer transaction exactly once. The provider may
+                // re-send these identical bytes; re-running this after a
+                // broadcast would sign a new transaction instead.
+                const executeTxResponse =
+                    await this._safeSdkOwner1.executeTransaction(
+                        safeTransaction
                     );
-                },
-            }
+                const response = executeTxResponse.transactionResponse;
+                if (response === undefined) {
+                    throw new Error(
+                        "Transaction response is undefined after execution"
+                    );
+                }
+                return response;
+            },
+            this._preBroadcastRetryOptions
+        );
+
+        // Only polls for the receipt of the already-broadcast transaction (by
+        // its fixed hash); it never resubmits anything.
+        const receipt = await waitForMintReceipt(
+            transactionResponse,
+            this._receiptRetryOptions
         );
         // A diagnostic read must not turn a confirmed mint into a failure.
         try {

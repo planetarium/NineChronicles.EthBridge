@@ -15,6 +15,7 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
+import { MintOutcomeUnknownError } from "../../src/mint-safety";
 import { TransactionStatus } from "../../src/types/transaction-status";
 
 jest.mock("@slack/web-api", () => {
@@ -1323,6 +1324,44 @@ describe(NCGTransferredEventObserver.name, () => {
                 ).toHaveBeenCalledWith("TX-NO-RETRY", TransactionStatus.FAILED);
             });
         }
+
+        it("keeps a broadcast mint with an unconfirmed outcome PENDING, never FAILED", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            const unknown = new MintOutcomeUnknownError("0xMINTED_MAYBE", {
+                code: "TIMEOUT",
+            });
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(unknown);
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-UNKNOWN",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(1);
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith("TX-UNKNOWN", TransactionStatus.FAILED);
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith(
+                "TX-UNKNOWN",
+                TransactionStatus.COMPLETED
+            );
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("0xMINTED_MAYBE");
+        });
 
         // Try to catch cases when others, not object and error, were thrown.
         it("slack/opensearch string error message - snapshot", async () => {

@@ -173,7 +173,7 @@ describe(SafeWrappedNCGMinter.name, () => {
         expect(sdk.getBalance).toHaveBeenCalledTimes(2);
     });
 
-    it("still fails (without ever re-broadcasting) once receipt-wait retries are exhausted", async () => {
+    it("reports an unknown outcome (without ever re-broadcasting) once receipt-wait retries are exhausted", async () => {
         const wait = jest.fn().mockRejectedValue({ code: "TIMEOUT" });
 
         const executeTransaction = jest.fn().mockResolvedValue({
@@ -204,7 +204,11 @@ describe(SafeWrappedNCGMinter.name, () => {
                 "0x870737cb9a2D78Bb48511508159fA39c23797355",
                 new Decimal(1000).mul(new Decimal(10).pow(18))
             )
-        ).rejects.toEqual({ code: "TIMEOUT" });
+        ).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            transactionHash: "0xMINT_TX_HASH",
+            cause: { code: "TIMEOUT" },
+        });
 
         // Still exactly one broadcast - exhausting retries on the receipt
         // wait must never fall back to re-broadcasting.

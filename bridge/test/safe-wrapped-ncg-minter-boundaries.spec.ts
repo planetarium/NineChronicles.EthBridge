@@ -151,11 +151,17 @@ describe("Safe mint submission and receipt boundaries", () => {
                 expect(wait).toHaveBeenCalledTimes(1);
             }
         );
-        it("exhausts its receipt retry budget without resubmitting", async () => {
+        it("reports an unconfirmed outcome after its receipt retry budget without resubmitting", async () => {
             const { minter, broadcast, wait } = await setup(mode);
             const error = { code: "TIMEOUT" };
             wait.mockRejectedValue(error);
-            await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toBe(error);
+            // Broadcast but unconfirmed: never a plain failure that invites a
+            // second mint.
+            await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toMatchObject({
+                name: "MintOutcomeUnknownError",
+                transactionHash: TX_HASH,
+                cause: error,
+            });
             expect(broadcast).toHaveBeenCalledTimes(1);
             expect(wait).toHaveBeenCalledTimes(3);
         });
@@ -233,7 +239,7 @@ describe("Safe mint submission and receipt boundaries", () => {
     it("clears the completed direct transaction so executing it again cannot rebroadcast", async () => {
         const { minter, broadcast, wait } = await setup("direct");
         await expect(minter.mint(RECIPIENT, AMOUNT)).resolves.toBe(TX_HASH);
-        await expect(minter["executeTransactionDirect"]()).rejects.toThrow(
+        await expect(minter["broadcastTransactionDirect"]()).rejects.toThrow(
             "No pending transaction to execute or Safe contract not initialized"
         );
         expect(broadcast).toHaveBeenCalledTimes(1);
