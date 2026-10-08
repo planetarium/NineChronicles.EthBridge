@@ -51,6 +51,24 @@ const OWNER1_ADDRESS = "0x0000000000000000000000000000000000000001";
 const OWNER2_ADDRESS = "0x0000000000000000000000000000000000000002";
 const OWNER3_ADDRESS = "0x0000000000000000000000000000000000000003";
 
+// A mined Safe execution whose inner call minted wNCG (Transfer from 0x0).
+function minted(transactionHash: string, token: string) {
+    return {
+        transactionHash,
+        status: 1,
+        logs: [
+            {
+                address: token,
+                topics: [
+                    ethers.utils.id("Transfer(address,address,uint256)"),
+                    ethers.utils.hexZeroPad("0x00", 32),
+                    ethers.utils.hexZeroPad("0x01", 32),
+                ],
+            },
+        ],
+    };
+}
+
 describe(`${SafeWrappedNCGMinter.name} (USE_SAFE_API=false, direct contract call path)`, () => {
     // The minter waits by hash through the provider (ethers' Contract drops
     // tx.wait's timeout); route it to the broadcast response's `wait` mock.
@@ -135,9 +153,12 @@ describe(`${SafeWrappedNCGMinter.name} (USE_SAFE_API=false, direct contract call
         const wait = jest
             .fn()
             .mockRejectedValueOnce({ code: "TIMEOUT" })
-            .mockResolvedValueOnce({
-                transactionHash: "0xDIRECT_MINT_TX_HASH",
-            });
+            .mockResolvedValueOnce(
+                minted(
+                    "0xDIRECT_MINT_TX_HASH",
+                    "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157"
+                )
+            );
         const execTransaction = jest.fn().mockResolvedValue({
             hash: "0xDIRECT_MINT_TX_HASH",
             wait: (currentWait = wait),

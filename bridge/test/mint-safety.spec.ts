@@ -1,4 +1,7 @@
+import { ethers } from "ethers";
 import {
+    assertSafeMinted,
+    waitForMintReceiptByHash,
     DEFAULT_RECEIPT_TIMEOUT_MS,
     MintOutcomeUnknownError,
     pinnedUntilBroadcast,
@@ -364,5 +367,97 @@ describe(MintOutcomeUnknownError.name, () => {
         expect(new MintOutcomeUnknownError(HASH, cause).message).toContain(
             "[object Object]"
         );
+    });
+});
+
+describe(assertSafeMinted.name, () => {
+    const SAFE = "0x1111111111111111111111111111111111111111";
+    const TOKEN = "0x2222222222222222222222222222222222222222";
+    const transfer = (address: string, from: string) => ({
+        address,
+        topics: [
+            ethers.utils.id("Transfer(address,address,uint256)"),
+            ethers.utils.hexZeroPad(from, 32),
+            ethers.utils.hexZeroPad("0x01", 32),
+        ],
+    });
+    const executionFailure = {
+        address: SAFE.toUpperCase().replace("0X", "0x"),
+        topics: [ethers.utils.id("ExecutionFailure(bytes32,uint256)")],
+    };
+
+    it("accepts a mint Transfer from the token, case-insensitively", () => {
+        expect(() =>
+            assertSafeMinted(
+                {
+                    transactionHash: HASH,
+                    logs: [
+                        transfer(
+                            TOKEN.toUpperCase().replace("0X", "0x"),
+                            "0x00"
+                        ),
+                    ],
+                },
+                SAFE,
+                TOKEN
+            )
+        ).not.toThrow();
+    });
+
+    it("fails definitively when the Safe reports ExecutionFailure", () => {
+        expect(() =>
+            assertSafeMinted(
+                { transactionHash: HASH, logs: [executionFailure] },
+                SAFE,
+                TOKEN
+            )
+        ).toThrow(
+            expect.objectContaining({
+                code: "CALL_EXCEPTION",
+                message: expect.stringContaining("inner wNCG mint failed"),
+            })
+        );
+    });
+
+    it.each([
+        ["no logs", undefined],
+        ["a non-mint transfer", [transfer(TOKEN, "0x05")]],
+        ["a mint from another contract", [transfer(SAFE, "0x00")]],
+    ])("reports an unknown outcome for %s", (_name, logs) => {
+        expect(() =>
+            assertSafeMinted({ transactionHash: HASH, logs }, SAFE, TOKEN)
+        ).toThrow(MintOutcomeUnknownError);
+    });
+});
+
+describe(waitForMintReceiptByHash.name, () => {
+    it("waits through the provider with one confirmation and a deadline", async () => {
+        const provider = {
+            waitForTransaction: jest.fn().mockResolvedValue({ status: 1 }),
+        };
+        await expect(
+            waitForMintReceiptByHash(provider, HASH, {
+                maxRetry: 0,
+                delayMs: 1,
+                timeoutMs: 1000,
+            })
+        ).resolves.toEqual({ status: 1 });
+        expect(provider.waitForTransaction).toHaveBeenCalledWith(
+            HASH,
+            1,
+            expect.any(Number)
+        );
+    });
+
+    it("reports an unknown outcome when no receipt comes back", async () => {
+        const provider = {
+            waitForTransaction: jest.fn().mockResolvedValue(null),
+        };
+        await expect(
+            waitForMintReceiptByHash(provider, HASH, {
+                maxRetry: 0,
+                delayMs: 1,
+            })
+        ).rejects.toBeInstanceOf(MintOutcomeUnknownError);
     });
 });

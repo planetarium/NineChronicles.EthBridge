@@ -332,7 +332,7 @@ describe("Ethereum adaptive scan safety and RPC budgets", () => {
             "Chain or RPC endpoint changed"
         );
     });
-    it("shrinks explicit range limits and remembers the successful chunk size", async () => {
+    it("shrinks explicit range limits, then probes a doubled size after each success", async () => {
         const { provider, monitor } = fixture([], 110, 64);
         provider.getLogs.mockImplementation(async (f) => {
             if (f.toBlock - f.fromBlock + 1 > 16)
@@ -347,6 +347,8 @@ describe("Ethereum adaptive scan safety and RPC budgets", () => {
             [1, 64],
             [1, 32],
             [1, 16],
+            // A success probes double the working size, capped at the start.
+            [17, 48],
             [17, 32],
         ]);
     });

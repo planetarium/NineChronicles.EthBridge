@@ -334,23 +334,39 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         }
     }
 
+    /**
+     * A failing primary cools down; a failing secondary ends that cooldown so
+     * the next attempt probes the primary again instead of retrying the same
+     * failing fallback (e.g. a spent Infura quota) for the whole window.
+     */
+    private noteTransientFailure(
+        provider: ethers.providers.JsonRpcProvider,
+        error: unknown
+    ): void {
+        if (!this.secondary || !isPrimaryRpcTransientError(error)) return;
+        if (provider === this.primary)
+            this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
+        else this.primaryUnavailableUntil = 0;
+    }
+
     private async selectProvider(): Promise<ethers.providers.JsonRpcProvider> {
         if (this.readSession) {
             const provider = this.readSession.provider;
             try {
                 return await this.validate(provider);
             } catch (error) {
-                if (
-                    provider === this.primary &&
-                    this.secondary &&
-                    isPrimaryRpcTransientError(error)
-                )
-                    this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
+                this.noteTransientFailure(provider, error);
                 throw error;
             }
         }
-        if (this.secondary && Date.now() < this.primaryUnavailableUntil)
-            return this.validate(this.secondary);
+        if (this.secondary && Date.now() < this.primaryUnavailableUntil) {
+            try {
+                return await this.validate(this.secondary);
+            } catch (error) {
+                this.noteTransientFailure(this.secondary, error);
+                throw error;
+            }
+        }
         if (this.primaryProbe) return this.primaryProbe;
         this.primaryProbe = this.probePrimary();
         try {
@@ -465,6 +481,8 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             // A failing endpoint may come back on another chain or node.
             if (isPrimaryRpcTransientError(error))
                 this.chainCheckedUntil.delete(provider);
+            if (provider === this.secondary)
+                this.noteTransientFailure(provider, error);
             // Unknown (possibly state-changing) methods fail closed.
             if (
                 provider !== this.primary ||
@@ -484,6 +502,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             } catch (secondaryError) {
                 if (isPrimaryRpcTransientError(secondaryError))
                     this.chainCheckedUntil.delete(secondary);
+                this.noteTransientFailure(secondary, secondaryError);
                 throw secondaryError;
             }
         }

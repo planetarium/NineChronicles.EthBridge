@@ -95,6 +95,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _contractDescription: ContractDescription;
     private readonly _confirmations: number;
     private _catchUpChunkSize: number;
+    private readonly _maxCatchUpChunkSize: number;
     private _requestedBlock: { index: number; hash: string } | undefined;
 
     constructor(
@@ -123,6 +124,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
         );
         this._confirmations = confirmations;
         this._catchUpChunkSize = catchUpChunkSize;
+        this._maxCatchUpChunkSize = catchUpChunkSize;
     }
     protected async processRemains(transactionLocation: TransactionLocation) {
         const savedBlock = await this.getRecoveryBlock(
@@ -340,7 +342,12 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
                 throw error;
             }
             await this.assertAnchor(end, hash, epoch);
-            this._catchUpChunkSize = chunkSize;
+            // Remember the working size, but grow back after each success so
+            // one dense range does not shrink scans for the process lifetime.
+            this._catchUpChunkSize = Math.min(
+                this._maxCatchUpChunkSize,
+                chunkSize * 2
+            );
             const byBlock = new Map<number, BurnLogEvent[]>();
             for (const event of events) {
                 const group = byBlock.get(event.blockNumber) ?? [];

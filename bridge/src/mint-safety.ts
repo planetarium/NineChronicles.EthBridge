@@ -145,10 +145,11 @@ function isDefinitiveReceiptOutcome(error: unknown): boolean {
 }
 
 /**
- * Wait for an already-broadcast mint. Only reverts and replacements are
- * definitive and propagate as-is. Transient errors are retried; anything else,
- * or anything unresolved when the budget or deadline runs out, becomes
- * {@link MintOutcomeUnknownError}.
+ * Wait for an already-broadcast mint. A mined revert is definitive (as is a
+ * cancelling replacement, for waiters that detect replacements; waiting by
+ * hash does not, so a replaced mint ends unconfirmed). Transient errors are
+ * retried; anything else, or anything unresolved when the budget or deadline
+ * runs out, becomes {@link MintOutcomeUnknownError}.
  */
 export async function waitForMintReceipt<R extends { status?: number }>(
     tx: {
@@ -186,12 +187,100 @@ export async function waitForMintReceipt<R extends { status?: number }>(
             await sleep(options.delayMs);
             continue;
         }
+        if (receipt == null)
+            throw new MintOutcomeUnknownError(
+                tx.hash,
+                new Error("The receipt wait resolved without a receipt")
+            );
         // waitForTransaction resolves (not rejects) for a mined revert.
-        if (receipt?.status === 0)
+        if (receipt.status === 0)
             throw Object.assign(
                 new Error(`Mint transaction ${tx.hash} reverted`),
                 { code: ethers.errors.CALL_EXCEPTION, receipt }
             );
         return receipt;
     }
+}
+
+/**
+ * Wait by hash through a provider. ethers' Contract replaces a response's
+ * `wait` with one that drops the timeout, so never wait on such a `tx.wait`.
+ */
+export function waitForMintReceiptByHash<R extends { status?: number }>(
+    provider: {
+        waitForTransaction(
+            hash: string,
+            confirmations?: number,
+            timeout?: number
+        ): Promise<R>;
+    },
+    hash: string,
+    options: ReceiptWaitOptions
+): Promise<R> {
+    return waitForMintReceipt(
+        {
+            hash,
+            wait: (confirmations, timeout) =>
+                provider.waitForTransaction(hash, confirmations, timeout),
+        },
+        options
+    );
+}
+
+const TRANSFER_TOPIC = ethers.utils.id("Transfer(address,address,uint256)");
+const EXECUTION_FAILURE_TOPIC = ethers.utils.id(
+    "ExecutionFailure(bytes32,uint256)"
+);
+const ZERO_ADDRESS_TOPIC = ethers.utils.hexZeroPad(
+    ethers.constants.AddressZero,
+    32
+);
+
+interface ReceiptLog {
+    address: string;
+    topics: string[];
+}
+
+/**
+ * A Safe with a non-zero safeTxGas or gasPrice does not revert when its inner
+ * call fails: the outer transaction succeeds and only emits ExecutionFailure.
+ * Confirm the token actually minted: a mint Transfer means success, a Safe
+ * ExecutionFailure means nothing was minted, and anything else is unknown.
+ */
+export function assertSafeMinted(
+    receipt: { transactionHash: string; logs?: ReceiptLog[] },
+    safeAddress: string,
+    tokenAddress: string
+): void {
+    const logs = receipt.logs ?? [];
+    const from = (log: ReceiptLog, address: string) =>
+        log.address.toLowerCase() === address.toLowerCase();
+    if (
+        logs.some(
+            (log) =>
+                from(log, tokenAddress) &&
+                log.topics[0] === TRANSFER_TOPIC &&
+                log.topics[1]?.toLowerCase() === ZERO_ADDRESS_TOPIC
+        )
+    )
+        return;
+    if (
+        logs.some(
+            (log) =>
+                from(log, safeAddress) &&
+                log.topics[0] === EXECUTION_FAILURE_TOPIC
+        )
+    )
+        throw Object.assign(
+            new Error(
+                `Safe executed ${receipt.transactionHash} but its inner wNCG mint failed (ExecutionFailure)`
+            ),
+            { code: ethers.errors.CALL_EXCEPTION, receipt }
+        );
+    throw new MintOutcomeUnknownError(
+        receipt.transactionHash,
+        new Error(
+            "Mined Safe transaction shows neither a mint nor ExecutionFailure"
+        )
+    );
 }

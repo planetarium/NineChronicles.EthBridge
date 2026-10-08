@@ -10,7 +10,7 @@ import {
     pinnedUntilBroadcast,
     PreBroadcastRetryOptions,
     ReceiptWaitOptions,
-    waitForMintReceipt,
+    waitForMintReceiptByHash,
 } from "./mint-safety";
 
 export interface WrappedNCGMinterSafetyOptions {
@@ -108,16 +108,9 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
                 `Web3 lost track of mint tx ${hash}; waiting for its receipt by hash`,
                 error
             );
-            const receipt = await waitForMintReceipt(
-                {
-                    hash,
-                    wait: (confirmations, timeout) =>
-                        provider.waitForTransaction(
-                            hash,
-                            confirmations,
-                            timeout
-                        ),
-                },
+            await waitForMintReceiptByHash(
+                provider,
+                hash,
                 this._safety!.receipt
             );
             return hash;

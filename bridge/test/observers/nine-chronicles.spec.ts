@@ -1477,6 +1477,44 @@ describe(NCGTransferredEventObserver.name, () => {
             );
         });
 
+        it("still alerts and keeps processing when recording a failure fails", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(
+                new Error("definitive")
+            );
+            mockExchangeHistoryStore.updateStatus.mockImplementation(
+                async (_txId, status) => {
+                    if (status === TransactionStatus.FAILED)
+                        throw new Error("SQLITE_BUSY");
+                }
+            );
+            try {
+                await expect(
+                    observer.notify({
+                        blockHash: "BLOCK-HASH",
+                        events: [
+                            {
+                                amount: "100.23",
+                                memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                                blockHash: "BLOCK-HASH",
+                                txId: "TX-WRITE-FAIL",
+                                recipient:
+                                    "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                                sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            },
+                        ],
+                    })
+                ).resolves.toBeUndefined();
+            } finally {
+                mockExchangeHistoryStore.updateStatus.mockReset();
+            }
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("TX-WRITE-FAIL");
+        });
+
         it("marks a mint UNCONFIRMED before it can broadcast", async () => {
             mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
                 0

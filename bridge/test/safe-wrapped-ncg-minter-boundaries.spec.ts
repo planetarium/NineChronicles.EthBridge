@@ -13,6 +13,23 @@ const OWNERS = [
 const TX_HASH = `0x${"ab".repeat(32)}`;
 const AMOUNT = new Decimal(10).pow(18);
 type Mode = "api" | "direct";
+// A mined Safe execution whose inner call minted wNCG (Transfer from 0x0).
+function minted(transactionHash: string, token: string) {
+    return {
+        transactionHash,
+        status: 1,
+        logs: [
+            {
+                address: token,
+                topics: [
+                    ethers.utils.id("Transfer(address,address,uint256)"),
+                    ethers.utils.hexZeroPad("0x00", 32),
+                    ethers.utils.hexZeroPad("0x01", 32),
+                ],
+            },
+        ],
+    };
+}
 
 // Reload to exercise USE_SAFE_API's real module-load configuration. Only
 // external SDK/contract boundaries are mocked; both public mint paths and
@@ -20,7 +37,7 @@ type Mode = "api" | "direct";
 async function setup(mode: Mode, tracking = false) {
     jest.resetModules();
     process.env.USE_SAFE_API = mode === "api" ? "true" : "false";
-    const wait = jest.fn().mockResolvedValue({ transactionHash: TX_HASH });
+    const wait = jest.fn().mockResolvedValue(minted(TX_HASH, TOKEN));
     const broadcast = jest
         .fn()
         .mockResolvedValue(
@@ -294,9 +311,10 @@ describe("Safe mint submission and receipt boundaries", () => {
     it("does not report success or resubmit when the receipt is missing", async () => {
         const { minter, broadcast, wait } = await setup("api");
         wait.mockResolvedValue(undefined);
-        await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toThrow(
-            "Transaction receipt is undefined"
-        );
+        await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            transactionHash: TX_HASH,
+        });
         expect(broadcast).toHaveBeenCalledTimes(1);
         expect(wait).toHaveBeenCalledTimes(1);
     });

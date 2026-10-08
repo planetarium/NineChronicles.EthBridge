@@ -15,10 +15,11 @@ import EthersAdapter from "@safe-global/safe-ethers-lib";
 import { Provider } from "@ethersproject/abstract-provider";
 import { IGasPricePolicy } from "./policies/gas-price";
 import {
+    assertSafeMinted,
     pinnedUntilBroadcast,
     PreBroadcastRetryOptions,
     ReceiptWaitOptions,
-    waitForMintReceipt,
+    waitForMintReceiptByHash,
 } from "./mint-safety";
 
 // Safe Contract ABI
@@ -367,25 +368,15 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         );
     }
 
-    /**
-     * Wait by hash through the provider: ethers' Contract wraps the response's
-     * `wait` and drops its timeout, which would make the deadline unreachable.
-     */
-    private receiptWaiter(hash: string) {
-        return {
-            hash,
-            wait: (confirmations?: number, timeout?: number) =>
-                this._provider.waitForTransaction(hash, confirmations, timeout),
-        };
-    }
-
     private async waitForDirectReceipt(
         tx: ethers.ContractTransaction
     ): Promise<string> {
-        const receipt = await waitForMintReceipt(
-            this.receiptWaiter(tx.hash),
+        const receipt = await waitForMintReceiptByHash(
+            this._provider,
+            tx.hash,
             this._receiptRetryOptions
         );
+        assertSafeMinted(receipt, this._safeAddress, this._wncgContractAddress);
         console.log("Transaction executed directly:", receipt.transactionHash);
 
         // 보류 중인 트랜잭션 초기화
@@ -533,10 +524,12 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
 
         // Only polls for the receipt of the already-broadcast transaction (by
         // its fixed hash); it never resubmits anything.
-        const receipt = await waitForMintReceipt(
-            this.receiptWaiter(transactionResponse.hash),
+        const receipt = await waitForMintReceiptByHash(
+            this._provider,
+            transactionResponse.hash,
             this._receiptRetryOptions
         );
+        assertSafeMinted(receipt, this._safeAddress, this._wncgContractAddress);
         // A diagnostic read must not turn a confirmed mint into a failure.
         try {
             const balanceAfter = await this._safeSdkOwner1.getBalance();
@@ -551,10 +544,6 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
                 "Mint confirmed; could not read the Safe balance",
                 error
             );
-        }
-
-        if (receipt === undefined) {
-            throw new Error("Transaction receipt is undefined");
         }
 
         return receipt;

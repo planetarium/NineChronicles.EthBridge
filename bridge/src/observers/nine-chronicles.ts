@@ -347,12 +347,21 @@ export class NCGTransferredEventObserver
         // Record the status before any notification I/O can fail. A broadcast
         // mint may still land: it stays UNCONFIRMED, never FAILED, so nobody
         // refunds or re-mints it without checking the hash on-chain.
-        await this._exchangeHistoryStore.updateStatus(
-            txId,
-            e instanceof MintOutcomeUnknownError
-                ? TransactionStatus.UNCONFIRMED
-                : TransactionStatus.FAILED
-        );
+        try {
+            await this._exchangeHistoryStore.updateStatus(
+                txId,
+                e instanceof MintOutcomeUnknownError
+                    ? TransactionStatus.UNCONFIRMED
+                    : TransactionStatus.FAILED
+            );
+        } catch (statusError) {
+            // Keep alerting and keep the monitor running; the row keeps its
+            // previous status (UNCONFIRMED once a mint was attempted).
+            console.error(
+                `Could not record the failure of ${txId}`,
+                statusError
+            );
+        }
 
         const slackMsgRes = await this._slackMessageSender.sendMessage(
             new WrappingFailureEvent(

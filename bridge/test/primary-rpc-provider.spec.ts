@@ -424,17 +424,52 @@ describe("sequential primary RPC provider", () => {
         await provider.getGasPrice();
         expect(primary.calls).toHaveLength(calls);
     });
-    it("never bounces a secondary read failure back to primary", async () => {
+    it("returns to the primary as soon as the fallback fails too", async () => {
         const primaryError = { code: "TIMEOUT" };
         const secondaryError = { code: "SERVER_ERROR", status: 503 };
         primary.failures.eth_gasPrice = primaryError;
         secondary.failures.eth_gasPrice = secondaryError;
         const provider = create();
         await expect(provider.getGasPrice()).rejects.toBe(secondaryError);
-        const calls = primary.calls.length;
+        delete primary.failures.eth_gasPrice;
         await tick();
-        await expect(provider.getGasPrice()).rejects.toBe(secondaryError);
-        expect(primary.calls).toHaveLength(calls);
+        // Within the 30s cooldown, a spent fallback must not pin every retry.
+        await expect(provider.getGasPrice()).resolves.toEqual(
+            ethers.BigNumber.from(42)
+        );
+        expect(
+            secondary.calls.filter((method) => method === "eth_gasPrice")
+        ).toHaveLength(1);
+    });
+    it("ends the cooldown when a pinned session's fallback fails", async () => {
+        const provider = create();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.getGasPrice();
+        delete primary.failures.eth_gasPrice;
+        const release = await provider.beginReadSession();
+        secondary.failures.eth_gasPrice = { code: "SERVER_ERROR", status: 429 };
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            status: 429,
+        });
+        release();
+        const next = await provider.beginReadSession();
+        await expect(provider.getGasPrice()).resolves.toEqual(
+            ethers.BigNumber.from(42)
+        );
+        next();
+    });
+    it("ends the cooldown when the fallback's chain probe fails", async () => {
+        const provider = create(undefined, 0);
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.getGasPrice();
+        delete primary.failures.eth_gasPrice;
+        secondary.down = true;
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            status: 503,
+        });
+        await expect(provider.getGasPrice()).resolves.toEqual(
+            ethers.BigNumber.from(42)
+        );
     });
     it("returns to recovered primary after cooldown, sharing its network probe across concurrent reads", async () => {
         primary.down = true;

@@ -30,6 +30,24 @@ import Safe from "@safe-global/safe-core-sdk";
 import SafeServiceClient from "@safe-global/safe-service-client";
 import { SafeWrappedNCGMinter } from "../src/safe-wrapped-ncg-minter";
 
+// A mined Safe execution whose inner call minted wNCG (Transfer from 0x0).
+function minted(transactionHash: string, token: string) {
+    return {
+        transactionHash,
+        status: 1,
+        logs: [
+            {
+                address: token,
+                topics: [
+                    ethers.utils.id("Transfer(address,address,uint256)"),
+                    ethers.utils.hexZeroPad("0x00", 32),
+                    ethers.utils.hexZeroPad("0x01", 32),
+                ],
+            },
+        ],
+    };
+}
+
 describe(SafeWrappedNCGMinter.name, () => {
     // The minter waits by hash through the provider (ethers' Contract drops
     // tx.wait's timeout); route it to the broadcast response's `wait` mock.
@@ -101,7 +119,12 @@ describe(SafeWrappedNCGMinter.name, () => {
             const wait = jest
                 .fn()
                 .mockRejectedValueOnce({ code: "TIMEOUT" })
-                .mockResolvedValueOnce({ transactionHash: "0xMINT_TX_HASH" });
+                .mockResolvedValueOnce(
+                    minted(
+                        "0xMINT_TX_HASH",
+                        "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157"
+                    )
+                );
 
             const executeTransaction = jest.fn().mockResolvedValue({
                 transactionResponse: {
@@ -149,7 +172,12 @@ describe(SafeWrappedNCGMinter.name, () => {
     it("returns the confirmed mint hash when the diagnostic balance read fails", async () => {
         const wait = jest
             .fn()
-            .mockResolvedValue({ transactionHash: "0xMINT_TX_HASH" });
+            .mockResolvedValue(
+                minted(
+                    "0xMINT_TX_HASH",
+                    "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157"
+                )
+            );
         const executeTransaction = jest.fn().mockResolvedValue({
             transactionResponse: {
                 hash: "0xMINT_TX_HASH",
@@ -273,7 +301,12 @@ describe(SafeWrappedNCGMinter.name, () => {
         // the constructor's own default value, not the caller's.
         const wait = jest
             .fn()
-            .mockResolvedValue({ transactionHash: "0xMINT_TX_HASH" });
+            .mockResolvedValue(
+                minted(
+                    "0xMINT_TX_HASH",
+                    "0x83Ca4618dFD2d6cD2D321e00968112c1BDC13157"
+                )
+            );
         const executeTransaction = jest.fn().mockResolvedValue({
             transactionResponse: {
                 hash: "0xMINT_TX_HASH",
