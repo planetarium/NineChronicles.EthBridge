@@ -21,12 +21,24 @@ export class PendingTransactionHandler {
             await this._exchangeHistoryStore.getPendingTransactions();
 
         if (pendingTransactions.length > 0) {
-            await this._slackMessageSender.sendMessage(
-                new PendingTransactionMessage(
-                    pendingTransactions,
-                    this._multiPlanetary
-                )
-            );
+            // Report, but never let Slack keep these rows from being failed.
+            try {
+                await this._slackMessageSender.sendMessage(
+                    new PendingTransactionMessage(
+                        pendingTransactions.slice(0, MAX_REMINDER_ROWS),
+                        this._multiPlanetary,
+                        undefined,
+                        undefined,
+                        "Pending",
+                        pendingTransactions.length
+                    )
+                );
+            } catch (error) {
+                console.error(
+                    `Could not report ${pendingTransactions.length} pending transaction(s)`,
+                    error
+                );
+            }
 
             for (const tx of pendingTransactions) {
                 await this._exchangeHistoryStore.updateStatus(

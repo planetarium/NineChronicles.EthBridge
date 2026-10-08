@@ -132,6 +132,30 @@ describe("PendingTransactionMessage", () => {
         );
     });
 
+    it("states the full count when only some pending rows are shown", () => {
+        const message = new PendingTransactionMessage(
+            [
+                {
+                    network: "nineChronicles",
+                    tx_id: "TX-1",
+                    sender: "0xSenderAddress",
+                    recipient: "0xRecipientAddress",
+                    timestamp: new Date().toISOString(),
+                    amount: 1,
+                    status: TransactionStatus.PENDING,
+                },
+            ],
+            mockMultiPlanetary,
+            undefined,
+            undefined,
+            "Pending",
+            150
+        );
+        expect((message.render() as { text: string }).text).toBe(
+            "150 Pending Transactions Found (showing 1)"
+        );
+    });
+
     it("states the full count when only some unconfirmed mints are shown", () => {
         const message = new PendingTransactionMessage(
             [

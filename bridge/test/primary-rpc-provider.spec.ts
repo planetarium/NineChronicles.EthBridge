@@ -458,6 +458,31 @@ describe("sequential primary RPC provider", () => {
         );
         next();
     });
+    it("ends the cooldown when a misconfigured fallback fails deterministically", async () => {
+        const provider = create();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.getGasPrice();
+        delete primary.failures.eth_gasPrice;
+        secondary.failures.eth_gasPrice = { status: 401 };
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            status: 401,
+        });
+        await expect(provider.getGasPrice()).resolves.toEqual(
+            ethers.BigNumber.from(42)
+        );
+    });
+    it("ends the cooldown when the fallback fails during primary discovery", async () => {
+        const provider = create();
+        primary.down = true;
+        secondary.chainId = "0x38";
+        await expect(provider.getNetwork()).rejects.toMatchObject({
+            event: "changed",
+        });
+        primary.down = false;
+        await expect(provider.getNetwork()).resolves.toMatchObject({
+            chainId: 1,
+        });
+    });
     it("ends the cooldown when the fallback's chain probe fails", async () => {
         const provider = create(undefined, 0);
         primary.failures.eth_gasPrice = { code: "TIMEOUT" };

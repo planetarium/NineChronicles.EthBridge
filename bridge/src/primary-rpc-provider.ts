@@ -330,23 +330,43 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             if (!this.secondary || !isPrimaryRpcTransientError(error))
                 throw error;
             this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
-            return this.validate(this.secondary);
+            try {
+                return await this.validate(this.secondary);
+            } catch (secondaryError) {
+                this.noteTransientFailure(this.secondary, secondaryError);
+                throw secondaryError;
+            }
         }
     }
 
     /**
-     * A failing primary cools down; a failing secondary ends that cooldown so
-     * the next attempt probes the primary again instead of retrying the same
-     * failing fallback (e.g. a spent Infura quota) for the whole window.
+     * A transiently failing primary cools down. Any failing secondary ends that
+     * cooldown so the next attempt probes the primary again instead of
+     * retrying a spent, misconfigured or wrong-chain fallback for the whole
+     * window.
      */
     private noteTransientFailure(
         provider: ethers.providers.JsonRpcProvider,
         error: unknown
     ): void {
-        if (!this.secondary || !isPrimaryRpcTransientError(error)) return;
-        if (provider === this.primary)
+        if (!this.secondary) return;
+        if (provider === this.secondary) this.primaryUnavailableUntil = 0;
+        else if (isPrimaryRpcTransientError(error))
             this.primaryUnavailableUntil = Date.now() + this.cooldownMs;
-        else this.primaryUnavailableUntil = 0;
+    }
+
+    /**
+     * Startup check of the fallback: a wrong chain is a configuration error
+     * and throws; an unreachable fallback only warns, since it is optional.
+     */
+    public async checkSecondary(): Promise<void> {
+        if (!this.secondary) return;
+        try {
+            await this.validate(this.secondary);
+        } catch (error) {
+            if (!isPrimaryRpcTransientError(error)) throw error;
+            console.warn("The secondary Ethereum RPC is unreachable", error);
+        }
     }
 
     private async selectProvider(): Promise<ethers.providers.JsonRpcProvider> {

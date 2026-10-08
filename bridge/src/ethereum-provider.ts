@@ -21,5 +21,6 @@ export async function createEthereumFallbackProvider(
         expectedChainId: options.expectedChainId ?? 1,
     });
     await provider.getNetwork();
+    await provider.checkSecondary();
     return provider;
 }

@@ -332,7 +332,7 @@ describe("Ethereum adaptive scan safety and RPC budgets", () => {
             "Chain or RPC endpoint changed"
         );
     });
-    it("shrinks explicit range limits, then probes a doubled size after each success", async () => {
+    it("shrinks explicit range limits and remembers the successful chunk size", async () => {
         const { provider, monitor } = fixture([], 110, 64);
         provider.getLogs.mockImplementation(async (f) => {
             if (f.toBlock - f.fromBlock + 1 > 16)
@@ -347,9 +347,27 @@ describe("Ethereum adaptive scan safety and RPC budgets", () => {
             [1, 64],
             [1, 32],
             [1, 16],
-            // A success probes double the working size, capped at the start.
-            [17, 48],
             [17, 32],
+        ]);
+    });
+    it("grows a shrunken chunk back only after a run of successes", async () => {
+        const { provider, monitor } = fixture([], 100000, 32);
+        provider.getLogs.mockImplementation(async (f) => {
+            if (f.toBlock - f.fromBlock + 1 > 16)
+                throw { code: -32005, message: "block range too wide" };
+            return [];
+        });
+        let start = 11;
+        for (let i = 0; i < 12; i++) {
+            const items = await collect(monitor.range(start, start + 100));
+            start = items[items.length - 1].scanIndex + 1;
+        }
+        const sizes = provider.getLogs.mock.calls.map(
+            ([f]) => f.toBlock - f.fromBlock + 1
+        );
+        // One failed 32, ten successful 16s, then a single doubled probe.
+        expect(sizes.slice(0, 13)).toEqual([
+            32, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 32, 16,
         ]);
     });
     it.each([

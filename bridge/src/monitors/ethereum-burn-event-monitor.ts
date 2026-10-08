@@ -34,6 +34,9 @@ function toBurnLogEvent(
 
 type BurnLogEvent = ReturnType<typeof toBurnLogEvent>;
 
+/** Successful chunks at the working size before trying a doubled one. */
+const CHUNK_GROWTH_SUCCESSES = 10;
+
 // Check structured errors before wrapper messages: ethers includes serialized
 // child errors in "failed to meet quorum" messages, including unrelated errors.
 export function isBlockRangeTooLargeError(error: unknown): boolean {
@@ -96,6 +99,7 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
     private readonly _confirmations: number;
     private _catchUpChunkSize: number;
     private readonly _maxCatchUpChunkSize: number;
+    private _chunkSuccessesSinceShrink = 0;
     private _requestedBlock: { index: number; hash: string } | undefined;
 
     constructor(
@@ -342,12 +346,24 @@ export class EthereumBurnEventMonitor extends TriggerableMonitor<EventData> {
                 throw error;
             }
             await this.assertAnchor(end, hash, epoch);
-            // Remember the working size, but grow back after each success so
-            // one dense range does not shrink scans for the process lifetime.
-            this._catchUpChunkSize = Math.min(
-                this._maxCatchUpChunkSize,
-                chunkSize * 2
-            );
+            // Remember the working size. Grow back only after a run of
+            // successes: one dense range should not shrink scans for good, but
+            // a fixed provider limit should not fail every chunk once either.
+            this._chunkSuccessesSinceShrink =
+                chunkSize === this._catchUpChunkSize
+                    ? this._chunkSuccessesSinceShrink + 1
+                    : 1;
+            this._catchUpChunkSize = chunkSize;
+            if (
+                this._chunkSuccessesSinceShrink >= CHUNK_GROWTH_SUCCESSES &&
+                chunkSize < this._maxCatchUpChunkSize
+            ) {
+                this._catchUpChunkSize = Math.min(
+                    this._maxCatchUpChunkSize,
+                    chunkSize * 2
+                );
+                this._chunkSuccessesSinceShrink = 0;
+            }
             const byBlock = new Map<number, BurnLogEvent[]>();
             for (const event of events) {
                 const group = byBlock.get(event.blockNumber) ?? [];

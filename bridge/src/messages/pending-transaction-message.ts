@@ -30,13 +30,15 @@ export class PendingTransactionMessage implements Message {
             console.log("Pending Transactions : ", this.transactions);
             return {
                 text:
-                    this.kind === "Pending"
-                        ? `${this.transactions.length} Pending Transactions Found`
-                        : `${this.total} Unconfirmed Mints Found${
-                              this.total > this.transactions.length
-                                  ? ` (showing ${this.transactions.length})`
-                                  : ""
-                          } - check each on-chain before any refund or re-mint`,
+                    (this.kind === "Pending"
+                        ? `${this.total} Pending Transactions Found`
+                        : `${this.total} Unconfirmed Mints Found`) +
+                    (this.total > this.transactions.length
+                        ? ` (showing ${this.transactions.length})`
+                        : "") +
+                    (this.kind === "Pending"
+                        ? ""
+                        : " - check each on-chain before any refund or re-mint"),
                 attachments: this.transactions.map((tx) => {
                     const titleUrl =
                         tx.network === "ethereum"
