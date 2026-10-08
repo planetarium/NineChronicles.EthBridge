@@ -9,6 +9,7 @@ export class Web3RpcProvider {
     constructor(
         private readonly rpc: {
             send(method: string, params: any[]): Promise<any>;
+            sendWithoutRetry?(method: string, params: any[]): Promise<any>;
         },
         private readonly signer: ethers.Signer
     ) {}
@@ -35,7 +36,12 @@ export class Web3RpcProvider {
             const response = await this.signer.sendTransaction(transaction);
             return response.hash;
         }
-        return this.rpc.send(payload.method, params);
+        // Web3 polls receipts every second without waiting for the previous
+        // poll, so backoff retries here would stack up during an outage. The
+        // minter waits by hash with its own budget if Web3 gives up.
+        return this.rpc.sendWithoutRetry
+            ? this.rpc.sendWithoutRetry(payload.method, params)
+            : this.rpc.send(payload.method, params);
     }
 
     send(

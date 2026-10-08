@@ -358,13 +358,15 @@ export class NCGTransferredEventObserver
             )
         );
 
-        // A broadcast mint may still land: keep it PENDING (never FAILED) so
-        // nobody refunds or re-mints it without checking the hash on-chain.
-        if (!(e instanceof MintOutcomeUnknownError))
-            this._exchangeHistoryStore.updateStatus(
-                txId,
-                TransactionStatus.FAILED
-            );
+        // A broadcast mint may still land: mark it UNCONFIRMED, never FAILED
+        // (startup turns leftover PENDING rows into FAILED), so nobody refunds
+        // or re-mints it without checking the hash on-chain.
+        this._exchangeHistoryStore.updateStatus(
+            txId,
+            e instanceof MintOutcomeUnknownError
+                ? TransactionStatus.UNCONFIRMED
+                : TransactionStatus.FAILED
+        );
 
         await this._spreadsheetClient.to_spreadsheet_mint({
             slackMessageId: `${
@@ -432,22 +434,39 @@ export class NCGTransferredEventObserver
         // (nothing signed onto the network yet), re-sends of the identical
         // signed bytes, and receipt reads for that fixed hash. A failure here
         // is either definitive (falls through to `_failedRequest` as FAILED)
-        // or a MintOutcomeUnknownError, which stays PENDING.
+        // or a MintOutcomeUnknownError, recorded as UNCONFIRMED.
         const transactionHash = await this._wrappedNcgTransfer.mint(
             recipient!,
             ethereumExchangeAmount
         );
         console.log("WNCG mint tx", transactionHash);
 
-        // Transfer fee to the fee collector address if any
+        // Transfer fee to the fee collector address if any. The mint already
+        // landed: a fee failure must not mark the exchange FAILED (inviting a
+        // refund of a delivered mint); it is reported for manual collection.
         let feeTransferTxId: string | null = null;
         if (fee.greaterThan(0)) {
-            feeTransferTxId = await this._ncgTransfer.transfer(
-                this._feeCollectorAddress,
-                fee.toString(),
-                "I'm bridge and the fee is sent to fee collector."
-            );
-            console.log("Fee transfer tx", feeTransferTxId);
+            try {
+                feeTransferTxId = await this._ncgTransfer.transfer(
+                    this._feeCollectorAddress,
+                    fee.toString(),
+                    "I'm bridge and the fee is sent to fee collector."
+                );
+                console.log("Fee transfer tx", feeTransferTxId);
+            } catch (feeError) {
+                console.error(
+                    `Minted ${transactionHash} but the fee transfer failed`,
+                    feeError
+                );
+                this._opensearchClient.to_opensearch("error", {
+                    content: "NCG -> wNCG fee transfer failure after mint",
+                    cause: String(feeError),
+                    libplanetTxId: txId,
+                    ethereumTxId: transactionHash,
+                    fee: fee.toNumber(),
+                    sender: sender,
+                });
+            }
         } else {
             console.log("No fee transfer");
         }

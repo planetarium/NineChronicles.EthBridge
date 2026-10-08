@@ -1,4 +1,8 @@
-import { isPrimaryRpcTransientError } from "./primary-rpc-provider";
+import { ethers } from "ethers";
+import {
+    isBroadcastRejection,
+    isPrimaryRpcTransientError,
+} from "./primary-rpc-provider";
 import { isRetryableEthereumError } from "./rpc-retry";
 
 /**
@@ -69,7 +73,9 @@ function isTransient(error: unknown): boolean {
  * differ between nodes and must agree with the node that receives the
  * transaction. A transient failure before anything was broadcast restarts the
  * attempt (possibly on the other endpoint); nothing was signed onto the
- * network yet, so re-signing is safe. Once a broadcast happened, never restart.
+ * network yet, so re-signing is safe. Once a broadcast happened, never restart:
+ * a definitive rejection propagates, anything else (e.g. ethers' hash check
+ * after sending) becomes {@link MintOutcomeUnknownError}.
  */
 export async function pinnedUntilBroadcast<T>(
     provider: unknown,
@@ -85,11 +91,17 @@ export async function pinnedUntilBroadcast<T>(
             release = await provider.beginReadSession();
             return await attempt();
         } catch (error) {
-            if (
-                provider.broadcastAttempts !== broadcastsBefore ||
-                attemptNumber >= options.attempts ||
-                !isTransient(error)
-            )
+            if (provider.broadcastAttempts !== broadcastsBefore) {
+                if (isBroadcastRejection(error)) throw error;
+                throw new MintOutcomeUnknownError(
+                    String(
+                        (error as { transactionHash?: unknown } | null)
+                            ?.transactionHash ?? "unknown"
+                    ),
+                    error
+                );
+            }
+            if (attemptNumber >= options.attempts || !isTransient(error))
                 throw error;
             console.error(
                 `Transient RPC error before broadcasting a mint (attempt ${attemptNumber}/${options.attempts}); restarting it`,
@@ -113,10 +125,20 @@ export interface ReceiptWaitOptions {
 
 export const DEFAULT_RECEIPT_TIMEOUT_MS = 30 * 60 * 1000;
 
+/** A mined revert or a replacement: the mint definitely did not happen. */
+function isDefinitiveReceiptOutcome(error: unknown): boolean {
+    const code = (error as { code?: unknown } | null)?.code;
+    return (
+        code === ethers.errors.CALL_EXCEPTION ||
+        code === ethers.errors.TRANSACTION_REPLACED
+    );
+}
+
 /**
- * Wait for an already-broadcast mint. Reverts and replacements are definitive
- * and propagate as-is; anything still unresolved when the retry budget or the
- * deadline runs out becomes {@link MintOutcomeUnknownError}.
+ * Wait for an already-broadcast mint. Only reverts and replacements are
+ * definitive and propagate as-is. Transient errors are retried; anything else,
+ * or anything unresolved when the budget or deadline runs out, becomes
+ * {@link MintOutcomeUnknownError}.
  */
 export async function waitForMintReceipt<R>(
     tx: {
@@ -133,8 +155,12 @@ export async function waitForMintReceipt<R>(
         try {
             return await tx.wait(1, Math.max(1, deadline - Date.now()));
         } catch (error) {
-            if (!isRetryableEthereumError(error)) throw error;
-            if (retriesLeft <= 0 || Date.now() >= deadline)
+            if (isDefinitiveReceiptOutcome(error)) throw error;
+            if (
+                !isRetryableEthereumError(error) ||
+                retriesLeft <= 0 ||
+                Date.now() >= deadline
+            )
                 throw new MintOutcomeUnknownError(tx.hash, error);
             retriesLeft -= 1;
             console.error(

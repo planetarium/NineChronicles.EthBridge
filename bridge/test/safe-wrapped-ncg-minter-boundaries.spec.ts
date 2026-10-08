@@ -17,7 +17,7 @@ type Mode = "api" | "direct";
 // Reload to exercise USE_SAFE_API's real module-load configuration. Only
 // external SDK/contract boundaries are mocked; both public mint paths and
 // the actual receipt retry helper execute unchanged.
-async function setup(mode: Mode) {
+async function setup(mode: Mode, tracking = false) {
     jest.resetModules();
     process.env.USE_SAFE_API = mode === "api" ? "true" : "false";
     const wait = jest.fn().mockResolvedValue({ transactionHash: TX_HASH });
@@ -88,6 +88,18 @@ async function setup(mode: Mode) {
                 getAddress: jest.fn().mockResolvedValue(address),
             } as unknown as ethers.Signer)
     );
+    const release = jest.fn();
+    const provider = {
+        getGasPrice: jest
+            .fn()
+            .mockResolvedValue(ethers.BigNumber.from(1_000_000_000)),
+        ...(tracking
+            ? {
+                  broadcastAttempts: 0,
+                  beginReadSession: jest.fn().mockResolvedValue(release),
+              }
+            : {}),
+    };
     const minter = await SafeWrappedNCGMinter.create(
         "https://safe-service.invalid",
         SAFE,
@@ -95,15 +107,21 @@ async function setup(mode: Mode) {
         signers[0],
         signers[1],
         signers[2],
-        {
-            getGasPrice: jest
-                .fn()
-                .mockResolvedValue(ethers.BigNumber.from(1_000_000_000)),
-        } as unknown as ethers.providers.Provider,
+        provider as unknown as ethers.providers.Provider,
         { calculateGasPrice: (price: Decimal) => price },
-        { maxRetry: 2, delayMs: 1 }
+        { maxRetry: 2, delayMs: 1 },
+        { attempts: 3, delayMs: 1 }
     );
-    return { minter, wait, broadcast, sdk, serviceConstructor, safeContract };
+    return {
+        minter,
+        wait,
+        broadcast,
+        sdk,
+        serviceConstructor,
+        safeContract,
+        provider,
+        release,
+    };
 }
 
 describe("Safe mint submission and receipt boundaries", () => {
@@ -135,12 +153,22 @@ describe("Safe mint submission and receipt boundaries", () => {
             expect(broadcast).toHaveBeenCalledTimes(1);
             expect(wait).toHaveBeenCalledTimes(3);
         });
+        it("reports an unknown outcome for a non-definitive receipt error without retrying", async () => {
+            const { minter, broadcast, wait } = await setup(mode);
+            const error = { code: "SERVER_ERROR", error: { code: -32602 } };
+            wait.mockRejectedValue(error);
+            await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toMatchObject({
+                name: "MintOutcomeUnknownError",
+                cause: error,
+            });
+            expect(broadcast).toHaveBeenCalledTimes(1);
+            expect(wait).toHaveBeenCalledTimes(1);
+        });
         it.each([
             { code: "CALL_EXCEPTION", transactionHash: TX_HASH },
-            { code: "SERVER_ERROR", error: { code: -32602 } },
             { code: "TRANSACTION_REPLACED", cancelled: true },
         ])(
-            "propagates a terminal receipt error without retrying: %j",
+            "propagates a definitive receipt outcome without retrying: %j",
             async (error) => {
                 const { minter, broadcast, wait } = await setup(mode);
                 wait.mockRejectedValue(error);
@@ -165,6 +193,45 @@ describe("Safe mint submission and receipt boundaries", () => {
             expect(broadcast).toHaveBeenCalledTimes(1);
             expect(wait).toHaveBeenCalledTimes(3);
         });
+    });
+
+    it("restarts a direct mint from its proposal after a transient pre-broadcast read failure", async () => {
+        const { minter, broadcast, sdk, safeContract, provider, release } =
+            await setup("direct", true);
+        safeContract.nonce.mockRejectedValueOnce({ code: "TIMEOUT" });
+        await expect(minter.mint(RECIPIENT, AMOUNT)).resolves.toBe(TX_HASH);
+        expect(safeContract.nonce).toHaveBeenCalledTimes(2);
+        expect(sdk.createTransaction).toHaveBeenCalledTimes(1);
+        expect(broadcast).toHaveBeenCalledTimes(1);
+        expect(provider.beginReadSession).toHaveBeenCalledTimes(2);
+        expect(release).toHaveBeenCalledTimes(2);
+    });
+
+    it("restarts only the Safe API execution, never the proposal, before broadcasting", async () => {
+        const { minter, broadcast, sdk, serviceConstructor, provider } =
+            await setup("api", true);
+        sdk.getBalance.mockRejectedValueOnce({ code: "TIMEOUT" });
+        await expect(minter.mint(RECIPIENT, AMOUNT)).resolves.toBe(TX_HASH);
+        const service = serviceConstructor.mock.results[0].value;
+        expect(service.proposeTransaction).toHaveBeenCalledTimes(1);
+        expect(service.confirmTransaction).toHaveBeenCalledTimes(1);
+        expect(service.getTransaction).toHaveBeenCalledTimes(1);
+        expect(broadcast).toHaveBeenCalledTimes(1);
+        expect(provider.beginReadSession).toHaveBeenCalledTimes(2);
+    });
+
+    it("never restarts a Safe execution after its broadcast", async () => {
+        const { minter, broadcast, provider } = await setup("direct", true);
+        const error = { code: "UNKNOWN_ERROR", transactionHash: TX_HASH };
+        broadcast.mockImplementationOnce(async () => {
+            provider.broadcastAttempts! += 1;
+            throw error;
+        });
+        await expect(minter.mint(RECIPIENT, AMOUNT)).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            transactionHash: TX_HASH,
+        });
+        expect(broadcast).toHaveBeenCalledTimes(1);
     });
 
     it("uses the direct contract path with the intended mint calldata and no Safe service", async () => {

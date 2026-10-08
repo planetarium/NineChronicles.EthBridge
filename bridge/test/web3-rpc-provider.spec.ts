@@ -30,6 +30,22 @@ describe("legacy Web3 RPC routing", () => {
         expect(rpc.send).not.toHaveBeenCalled();
     });
 
+    it("prefers a single failover round for Web3's own polling", async () => {
+        const polling = {
+            send: jest.fn(),
+            sendWithoutRetry: jest.fn().mockResolvedValue("0x2a"),
+        };
+        const web3 = new Web3(
+            new Web3RpcProvider(polling, signer as unknown as ethers.Signer)
+        );
+        expect(await web3.eth.getGasPrice()).toBe("42");
+        expect(polling.sendWithoutRetry).toHaveBeenCalledWith(
+            "eth_gasPrice",
+            []
+        );
+        expect(polling.send).not.toHaveBeenCalled();
+    });
+
     it("routes actual Web3 reads through the shared provider", async () => {
         rpc.send.mockResolvedValue("0x2a");
         expect(await new Web3(adapter).eth.getGasPrice()).toBe("42");

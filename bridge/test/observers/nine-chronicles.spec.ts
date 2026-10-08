@@ -1325,7 +1325,7 @@ describe(NCGTransferredEventObserver.name, () => {
             });
         }
 
-        it("keeps a broadcast mint with an unconfirmed outcome PENDING, never FAILED", async () => {
+        it("records a broadcast mint with an unconfirmed outcome as UNCONFIRMED, never FAILED", async () => {
             mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
                 0
             );
@@ -1361,6 +1361,48 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(
                 JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
             ).toContain("0xMINTED_MAYBE");
+        });
+
+        it("keeps a delivered mint COMPLETED when the fee transfer fails afterwards", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockNcgTransfer.transfer.mockRejectedValueOnce(
+                new Error("fee transfer down")
+            );
+            const toOpenSearch = jest.spyOn(
+                mockOpenSearchClient,
+                "to_opensearch"
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-FAIL",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-FEE-FAIL",
+                TransactionStatus.COMPLETED
+            );
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith("TX-FEE-FAIL", TransactionStatus.FAILED);
+            expect(toOpenSearch).toHaveBeenCalledWith(
+                "error",
+                expect.objectContaining({
+                    content: "NCG -> wNCG fee transfer failure after mint",
+                    libplanetTxId: "TX-FEE-FAIL",
+                })
+            );
         });
 
         // Try to catch cases when others, not object and error, were thrown.

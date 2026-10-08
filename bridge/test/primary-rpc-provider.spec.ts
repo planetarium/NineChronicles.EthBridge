@@ -1,7 +1,9 @@
 import { ethers } from "ethers";
 import {
     PrimaryRpcProvider,
-    isAlreadySubmittedError,
+    isAlreadyKnownError,
+    isDefinitiveRejection,
+    isBroadcastRejection,
     isPrimaryRpcTransientError,
 } from "../src/primary-rpc-provider";
 
@@ -577,25 +579,62 @@ describe("sequential primary RPC provider", () => {
             expect(secondary.calls).toEqual([]);
             expect(provider.broadcastAttempts).toBe(1);
         });
-        it("fails a clean first rejection without trying another endpoint", async () => {
+        it("fails a definitive first rejection, tagged, without trying another endpoint", async () => {
             primary.failures.eth_sendRawTransaction = {
                 code: -32000,
                 message: "insufficient funds for gas * price + value",
             };
-            await expect(broadcast(create())).rejects.toMatchObject({
+            const provider = create();
+            await expect(broadcast(provider)).rejects.toMatchObject({
                 code: "INSUFFICIENT_FUNDS",
+                broadcastRejected: true,
             });
             expect(secondary.calls).toEqual([]);
+            expect(provider.broadcastAttempts).toBe(1);
         });
-        it("treats a first 'nonce too low' as a clean rejection", async () => {
+        it("treats a first 'nonce too low' as a definitive rejection", async () => {
             primary.failures.eth_sendRawTransaction = {
                 code: -32000,
                 message: "nonce too low",
             };
             await expect(broadcast(create())).rejects.toMatchObject({
                 code: "NONCE_EXPIRED",
+                broadcastRejected: true,
             });
             expect(secondary.calls).toEqual([]);
+        });
+        it("returns the hash when the first endpoint already knows the bytes", async () => {
+            primary.failures.eth_sendRawTransaction = {
+                code: -32000,
+                message: "already known",
+            };
+            await expect(broadcast(create())).resolves.toBe(HASH);
+            expect(secondary.calls).toEqual([]);
+        });
+        it("treats an unrecognized gateway error as possibly accepted", async () => {
+            primary.failures.eth_sendRawTransaction = {
+                code: -32000,
+                message: "upstream error",
+            };
+            const provider = create();
+            await expect(broadcast(provider)).resolves.toBe("0x2a");
+            expect(sends(secondary)).toBe(1);
+            // A non-transient error does not start the primary cooldown.
+            await provider.getGasPrice();
+            expect(primary.calls).toContain("eth_gasPrice");
+        });
+        it("sends to the pinned session's endpoint first", async () => {
+            const provider = create();
+            primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+            await provider.getGasPrice();
+            delete primary.failures.eth_gasPrice;
+            const release = await provider.beginReadSession();
+            now += 30000;
+            await tick();
+            await expect(broadcast(provider)).resolves.toBe("0x2a");
+            expect(sends(primary)).toBe(0);
+            expect(sends(secondary)).toBe(1);
+            release();
         });
         it.each([
             { code: -32000, message: "already known" },
@@ -650,15 +689,18 @@ describe("sequential primary RPC provider", () => {
             await expect(broadcast(provider)).resolves.toBe("0x2a");
             expect(sends(primary)).toBe(2);
         });
-        it("throws when no endpoint could be reached before sending", async () => {
+        it("throws untagged, without counting a broadcast, when no endpoint was reachable", async () => {
             primary.down = true;
             secondary.down = true;
             const provider = create();
-            await expect(broadcast(provider)).rejects.toMatchObject({
+            const error = await broadcast(provider).catch((e: unknown) => e);
+            expect(error).toMatchObject({
                 code: "SERVER_ERROR",
                 transactionHash: HASH,
             });
+            expect(isBroadcastRejection(error)).toBe(false);
             expect(sends(primary) + sends(secondary)).toBe(0);
+            expect(provider.broadcastAttempts).toBe(0);
         });
         it("never sends to a wrong-chain endpoint before any ambiguity", async () => {
             primary.chainId = "0x38";
@@ -880,6 +922,42 @@ describe("sequential primary RPC provider", () => {
             });
         });
     });
+    it("retries network discovery outside a session", async () => {
+        const sleep = jest.fn(async () => {
+            primary.down = false;
+        });
+        primary.down = true;
+        const provider = new PrimaryRpcProvider(PRIMARY, undefined, {
+            expectedChainId: 1,
+            retryRounds: 2,
+            sleep,
+        });
+        await expect(provider.getNetwork()).resolves.toMatchObject({
+            chainId: 1,
+        });
+        expect(sleep).toHaveBeenCalledTimes(1);
+    });
+    it("offers a single failover round without backoff for self-polling callers", async () => {
+        const sleep = jest.fn().mockResolvedValue(undefined);
+        const provider = new PrimaryRpcProvider(PRIMARY, SECONDARY, {
+            expectedChainId: 1,
+            retryRounds: 5,
+            sleep,
+        });
+        primary.failures.eth_getTransactionReceipt = { code: "TIMEOUT" };
+        secondary.failures.eth_getTransactionReceipt = { code: "TIMEOUT" };
+        await expect(
+            provider.sendWithoutRetry("eth_getTransactionReceipt", ["0x1"])
+        ).rejects.toMatchObject({ code: "TIMEOUT" });
+        expect(sleep).not.toHaveBeenCalled();
+        await expect(
+            provider.sendWithoutRetry("eth_chainId", [])
+        ).resolves.toBe("0x1");
+        await expect(
+            provider.sendWithoutRetry("eth_sendRawTransaction", ["0x1234"])
+        ).resolves.toBe("0x2a");
+        expect(provider.broadcastAttempts).toBe(1);
+    });
     it("checks a healthy endpoint's chain once per interval, not per read", async () => {
         const provider = create(undefined, 1000);
         for (let i = 0; i < 5; i++) await provider.getGasPrice();
@@ -1003,22 +1081,40 @@ describe("primary RPC transient classification", () => {
     );
 });
 
-describe("already-submitted classification", () => {
+describe("broadcast error classification", () => {
     it.each([
-        [{ code: "NONCE_EXPIRED" }, true],
-        [{ code: "REPLACEMENT_UNDERPRICED" }, true],
         [{ message: "already known" }, true],
         [{ message: "Known transaction: 0xabc" }, true],
         [{ message: "transaction already imported" }, true],
-        [
-            { code: "SERVER_ERROR", error: { message: "nonce is too low" } },
-            true,
-        ],
-        [{ message: "insufficient funds" }, false],
-        [{ code: "SERVER_ERROR" }, false],
+        [{ code: "SERVER_ERROR", error: { message: "already exists" } }, true],
+        [{ code: "NONCE_EXPIRED" }, false],
         [null, false],
         ["already known", false],
-    ])("%j -> %s", (error, expected) => {
-        expect(isAlreadySubmittedError(error)).toBe(expected);
+    ])("already known: %j -> %s", (error, expected) => {
+        expect(isAlreadyKnownError(error)).toBe(expected);
+    });
+    it.each([
+        [{ code: "NONCE_EXPIRED" }, true],
+        [{ code: "REPLACEMENT_UNDERPRICED" }, true],
+        [{ code: "INSUFFICIENT_FUNDS" }, true],
+        [{ code: -32602 }, true],
+        [{ code: "-32602" }, true],
+        [{ code: "SERVER_ERROR", error: { code: -32601 } }, true],
+        [{ message: "intrinsic gas too low" }, true],
+        [{ message: "max fee per gas less than block base fee" }, true],
+        [{ code: -32000, message: "upstream error" }, false],
+        [{ code: "TIMEOUT" }, false],
+        [null, false],
+        ["nonce too low", false],
+    ])("definitive: %j -> %s", (error, expected) => {
+        expect(isDefinitiveRejection(error)).toBe(expected);
+    });
+    it.each([
+        [{ broadcastRejected: true }, true],
+        [{ broadcastRejected: "yes" }, false],
+        [{}, false],
+        [null, false],
+    ])("tagged rejection: %j -> %s", (error, expected) => {
+        expect(isBroadcastRejection(error)).toBe(expected);
     });
 });

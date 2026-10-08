@@ -80,9 +80,46 @@ describe(pinnedUntilBroadcast.name, () => {
         expect(attempt).toHaveBeenCalledTimes(1);
     });
 
-    it("never restarts once a broadcast happened", async () => {
+    it("never restarts once a broadcast happened; an unclear error is an unknown outcome", async () => {
         const { provider } = trackingProvider();
-        const error = { code: "TIMEOUT" };
+        const error = { code: "UNKNOWN_ERROR", transactionHash: HASH };
+        const attempt = jest.fn(async () => {
+            provider.broadcastAttempts += 1;
+            throw error;
+        });
+        await expect(
+            pinnedUntilBroadcast(provider, attempt, {
+                attempts: 5,
+                delayMs: 1,
+                sleep,
+            })
+        ).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            transactionHash: HASH,
+            cause: error,
+        });
+        expect(attempt).toHaveBeenCalledTimes(1);
+        expect(sleep).not.toHaveBeenCalled();
+    });
+
+    it("reports an unknown hash when the post-broadcast error carries none", async () => {
+        const { provider } = trackingProvider();
+        const attempt = jest.fn(async () => {
+            provider.broadcastAttempts += 1;
+            throw null;
+        });
+        await expect(
+            pinnedUntilBroadcast(provider, attempt, {
+                attempts: 5,
+                delayMs: 1,
+                sleep,
+            })
+        ).rejects.toMatchObject({ transactionHash: "unknown" });
+    });
+
+    it("propagates a definitive broadcast rejection without restarting", async () => {
+        const { provider } = trackingProvider();
+        const error = { code: "NONCE_EXPIRED", broadcastRejected: true };
         const attempt = jest.fn(async () => {
             provider.broadcastAttempts += 1;
             throw error;
@@ -95,7 +132,6 @@ describe(pinnedUntilBroadcast.name, () => {
             })
         ).rejects.toBe(error);
         expect(attempt).toHaveBeenCalledTimes(1);
-        expect(sleep).not.toHaveBeenCalled();
     });
 
     it("does not restart a deterministic failure", async () => {
@@ -164,6 +200,31 @@ describe(waitForMintReceipt.name, () => {
         );
         expect(wait).toHaveBeenCalledWith(1, DEFAULT_RECEIPT_TIMEOUT_MS);
     });
+
+    it("reports a non-definitive, non-transient error as unknown at once", async () => {
+        const error = { status: 403 };
+        const wait = jest.fn().mockRejectedValue(error);
+        await expect(
+            waitForMintReceipt(
+                { hash: HASH, wait },
+                { maxRetry: 5, delayMs: 1, sleep }
+            )
+        ).rejects.toMatchObject({ transactionHash: HASH, cause: error });
+        expect(wait).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([{ code: "CALL_EXCEPTION" }, { code: "TRANSACTION_REPLACED" }])(
+        "propagates the definitive outcome %j",
+        async (error) => {
+            const wait = jest.fn().mockRejectedValue(error);
+            await expect(
+                waitForMintReceipt(
+                    { hash: HASH, wait },
+                    { maxRetry: 5, delayMs: 1, sleep }
+                )
+            ).rejects.toBe(error);
+        }
+    );
 
     it("propagates definitive outcomes such as a revert", async () => {
         const error = { code: "CALL_EXCEPTION" };

@@ -21,7 +21,10 @@ export interface IExchangeHistoryStore {
 
     updateStatus(
         tx_id: string,
-        status: TransactionStatus.COMPLETED | TransactionStatus.FAILED
+        status:
+            | TransactionStatus.COMPLETED
+            | TransactionStatus.FAILED
+            | TransactionStatus.UNCONFIRMED
     ): Promise<void>;
 
     getPendingTransactions(): Promise<ExchangeHistory[]>;

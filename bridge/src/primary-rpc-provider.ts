@@ -115,27 +115,67 @@ export interface PrimaryRpcProviderOptions {
 const defaultSleep = (ms: number) =>
     new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * A node already holding (or having mined) this exact signed transaction.
- * ethers maps "nonce too low" to NONCE_EXPIRED and "replacement transaction
- * underpriced" to REPLACEMENT_UNDERPRICED; "already known" stays a raw message.
- */
-export function isAlreadySubmittedError(error: unknown): boolean {
+/** The node already holds these exact bytes, so they were accepted. */
+export function isAlreadyKnownError(error: unknown): boolean {
     if (error === null || typeof error !== "object") return false;
-    const err = error as { code?: unknown; message?: unknown; error?: unknown };
-    if (
-        err.code === ethers.errors.NONCE_EXPIRED ||
-        err.code === ethers.errors.REPLACEMENT_UNDERPRICED
-    )
-        return true;
+    const err = error as { message?: unknown; error?: unknown };
     if (
         typeof err.message === "string" &&
-        /already known|known transaction|already imported|already exists|nonce (is )?too low/i.test(
+        /already known|known transaction|already imported|already exists/i.test(
             err.message
         )
     )
         return true;
-    return err.error !== undefined && isAlreadySubmittedError(err.error);
+    return err.error !== undefined && isAlreadyKnownError(err.error);
+}
+
+const DEFINITIVE_REJECTION_CODES: ReadonlySet<unknown> = new Set([
+    ethers.errors.INSUFFICIENT_FUNDS,
+    ethers.errors.NONCE_EXPIRED,
+    ethers.errors.REPLACEMENT_UNDERPRICED,
+    ethers.errors.UNPREDICTABLE_GAS_LIMIT,
+    ethers.errors.UNSUPPORTED_OPERATION,
+    ethers.errors.INVALID_ARGUMENT,
+    -32700,
+    -32600,
+    -32601,
+    -32602,
+]);
+
+/**
+ * A node refused this transaction for a reason that holds for any node:
+ * nothing was accepted. Anything not recognized here is treated as possibly
+ * accepted, because a gateway can report failure for a forwarded request.
+ * ethers maps "nonce too low" to NONCE_EXPIRED and "replacement transaction
+ * underpriced" to REPLACEMENT_UNDERPRICED.
+ */
+export function isDefinitiveRejection(error: unknown): boolean {
+    if (error === null || typeof error !== "object") return false;
+    const err = error as { code?: unknown; message?: unknown; error?: unknown };
+    if (
+        DEFINITIVE_REJECTION_CODES.has(err.code) ||
+        DEFINITIVE_REJECTION_CODES.has(Number(err.code))
+    )
+        return true;
+    if (
+        typeof err.message === "string" &&
+        /nonce (is )?too low|intrinsic gas too low|exceeds block gas limit|invalid sender|transaction underpriced|max fee per gas less than block base fee|fee cap|insufficient funds|oversized data/i.test(
+            err.message
+        )
+    )
+        return true;
+    return err.error !== undefined && isDefinitiveRejection(err.error);
+}
+
+/** Marks a broadcast error after which nothing can be pending on-chain. */
+export const BROADCAST_REJECTED = "broadcastRejected";
+
+export function isBroadcastRejection(error: unknown): boolean {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        (error as Record<string, unknown>)[BROADCAST_REJECTED] === true
+    );
 }
 
 /** Sequential failover: a healthy primary never causes secondary RPC traffic. */
@@ -166,8 +206,8 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
           }>
         | undefined;
 
-    /** Signed transactions handed to the network; lets a caller tell "nothing
-     * was sent" (safe to re-sign) from "sent, outcome pending" (never re-sign). */
+    /** Signed transactions that reached an endpoint; lets a caller tell
+     * "nothing was sent" (safe to re-sign) from "sent" (never re-sign). */
     public get broadcastAttempts(): number {
         return this.broadcasts;
     }
@@ -351,7 +391,8 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     }
 
     async detectNetwork(): Promise<ethers.providers.Network> {
-        const provider = await this.selectProvider();
+        // Every ethers read starts here, so an outage must back off here too.
+        const provider = await this.retrying(() => this.selectProvider(), true);
         return provider.network;
     }
 
@@ -370,13 +411,23 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         return this.sleep(ceiling / 2 + (Math.random() * ceiling) / 2);
     }
 
-    private async dispatch<T>(
+    private dispatch<T>(
         operation: (provider: ethers.providers.JsonRpcProvider) => Promise<T>,
+        retryable: boolean
+    ): Promise<T> {
+        return this.retrying(
+            () => this.dispatchOnce(operation, retryable),
+            retryable
+        );
+    }
+
+    private async retrying<T>(
+        run: () => Promise<T>,
         retryable: boolean
     ): Promise<T> {
         for (let round = 1; ; round++) {
             try {
-                return await this.dispatchOnce(operation, retryable);
+                return await run();
             } catch (error) {
                 // A pinned session restarts from its own anchor instead.
                 if (
@@ -425,25 +476,30 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
 
     /**
      * Re-sending identical signed bytes cannot pay twice: they carry one hash
-     * and one nonce. A clean first rejection means nothing was accepted. After
-     * any ambiguous attempt, the hash is returned and the receipt wait decides
-     * between mined, replaced and unconfirmed. Ignores read-session pins.
+     * and one nonce. A definitive first rejection means nothing was accepted
+     * and is tagged {@link BROADCAST_REJECTED}. After any possibly-accepted
+     * attempt, the hash is returned and the receipt wait decides between
+     * mined, replaced and unconfirmed. The pinned session's endpoint, which
+     * produced the nonce, is tried first.
      */
     private async broadcast(signedTransaction: string): Promise<string> {
         const hash = ethers.utils.keccak256(signedTransaction);
-        this.broadcasts += 1;
+        let sent = false;
         let ambiguous = false;
         for (let round = 1; ; round++) {
+            const pinned = this.readSession?.provider;
             const coolingDown =
                 this.secondary !== undefined &&
                 Date.now() < this.primaryUnavailableUntil;
-            const targets = (
-                coolingDown
-                    ? [this.secondary, this.primary]
-                    : [this.primary, this.secondary]
-            ).filter(
-                (target): target is ethers.providers.JsonRpcProvider =>
-                    target !== undefined
+            const preferred =
+                pinned ?? (coolingDown ? this.secondary : this.primary);
+            const targets = [preferred, this.primary, this.secondary].filter(
+                (
+                    target,
+                    index,
+                    all
+                ): target is ethers.providers.JsonRpcProvider =>
+                    target !== undefined && all.indexOf(target) === index
             );
             for (const target of targets) {
                 try {
@@ -456,28 +512,34 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
                     continue;
                 }
                 this.recordDispatch(target);
+                if (!sent) {
+                    sent = true;
+                    this.broadcasts += 1;
+                }
                 try {
                     return await target.perform("sendTransaction", {
                         signedTransaction,
                     });
                 } catch (error) {
-                    if (isAlreadySubmittedError(error)) {
+                    if (isAlreadyKnownError(error)) return hash;
+                    if (isDefinitiveRejection(error)) {
                         if (ambiguous) return hash;
-                        throw error;
-                    }
-                    if (!isPrimaryRpcTransientError(error)) {
-                        if (ambiguous) return hash;
-                        throw error;
+                        throw Object.assign(error as object, {
+                            [BROADCAST_REJECTED]: true,
+                        });
                     }
                     ambiguous = true;
-                    this.chainCheckedUntil.delete(target);
-                    if (target === this.primary && this.secondary)
-                        this.primaryUnavailableUntil =
-                            Date.now() + this.cooldownMs;
+                    if (isPrimaryRpcTransientError(error)) {
+                        this.chainCheckedUntil.delete(target);
+                        if (target === this.primary && this.secondary)
+                            this.primaryUnavailableUntil =
+                                Date.now() + this.cooldownMs;
+                    }
                 }
             }
             if (round >= this.retryRounds) {
                 if (ambiguous) return hash;
+                // No endpoint was reachable: nothing was sent.
                 throw Object.assign(
                     new Error("No RPC endpoint accepted the transaction"),
                     { code: ethers.errors.SERVER_ERROR, transactionHash: hash }
@@ -499,12 +561,34 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     async send(method: string, params: any[]): Promise<any> {
         if (method === "eth_sendRawTransaction")
             return this.broadcast(params[0]);
-        return this.dispatch(async (provider) => {
-            const result = await provider.send(method, params);
-            if (method === "eth_chainId" || method === "net_version") {
-                this.assertChainId(result);
-            }
-            return result;
-        }, RAW_READ_METHODS.has(method));
+        return this.dispatch(
+            (provider) => this.sendTo(provider, method, params),
+            RAW_READ_METHODS.has(method)
+        );
+    }
+
+    /**
+     * One failover round without backoff, for callers that already poll on
+     * their own schedule (Web3 receipt polling would otherwise stack retries).
+     */
+    async sendWithoutRetry(method: string, params: any[]): Promise<any> {
+        if (method === "eth_sendRawTransaction")
+            return this.broadcast(params[0]);
+        return this.dispatchOnce(
+            (provider) => this.sendTo(provider, method, params),
+            RAW_READ_METHODS.has(method)
+        );
+    }
+
+    private async sendTo(
+        provider: ethers.providers.JsonRpcProvider,
+        method: string,
+        params: any[]
+    ): Promise<any> {
+        const result = await provider.send(method, params);
+        if (method === "eth_chainId" || method === "net_version") {
+            this.assertChainId(result);
+        }
+        return result;
     }
 }
