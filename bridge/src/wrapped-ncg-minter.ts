@@ -120,11 +120,6 @@ export class WrappedNCGMinter implements IWrappedNCGMinter {
                 },
                 this._safety!.receipt
             );
-            if (receipt.status === 0)
-                throw Object.assign(
-                    new Error(`Mint transaction ${hash} reverted`),
-                    { receipt }
-                );
             return hash;
         }
     }

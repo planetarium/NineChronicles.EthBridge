@@ -91,9 +91,16 @@ Reads use the primary only while healthy. Timeouts, connection failures, quota
 errors and server outages switch reads to the secondary. Requests time out after
 10 seconds; after a primary failure the secondary is used for 30 seconds before
 probing the primary again. Invalid requests, contract reverts and log range limits
-are passed to the caller instead of retried on another endpoint. Transaction
-broadcasts are sent once; an ambiguous timeout must be reconciled using the
-transaction hash/history, not by creating another payment.
+are passed to the caller instead of retried on another endpoint. Reads outside a
+pinned session back off across both endpoints for about a minute.
+
+A mint is signed exactly once. Its pre-broadcast reads (nonce, Safe nonce, gas)
+are pinned to one endpoint and restarted on a transient failure only while
+nothing was sent. The identical signed bytes may be re-sent to either endpoint
+after an ambiguous failure, so check both providers when reconciling. A mint
+whose receipt is not confirmed within 30 minutes is recorded `unconfirmed`
+(never `failed`) and reported at every startup: check its hash on-chain before
+any refund or re-mint.
 
 The Safe and legacy Web3 minters share this routing. The legacy minter uses the
 existing AWS KMS ethers signer, so address lookup no longer starts a separate
@@ -128,8 +135,9 @@ transaction cursor replays that block through the persistent exchange history.
 A missing non-null cursor fails closed. An orphan checkpoint is rewound only
 when archived parent headers prove a common ancestor (maximum depth: 1,000).
 
-Offline transport-level tests measure 74 RPC calls for 10,000 empty backlog
-blocks: 15 block headers, 5 log queries, 5 tip reads and 49 chain-ID checks.
+Offline transport-level tests measure 25 RPC calls for 10,000 empty backlog
+blocks: 15 block headers, 5 log queries and 5 tip reads. Each endpoint's chain ID
+is re-checked every 60 seconds and after any transient failure on it.
 Startup recovery is excluded. An event-bearing block requires additional header
 checks; these backlog numbers are not a steady-state billing reduction estimate.
 Tests also exercise real SQLite reopening, ambiguous payout replies, partial

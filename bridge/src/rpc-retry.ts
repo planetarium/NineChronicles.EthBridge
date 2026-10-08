@@ -1,13 +1,5 @@
 import { ethers } from "ethers";
 
-function delay(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve();
-        }, ms);
-    });
-}
-
 // ethers' own transient error codes. See
 // https://docs.ethers.org/v5/api/utils/logger/#errors
 const RETRYABLE_ETHERS_ERROR_CODES: ReadonlySet<string> = new Set([
@@ -83,40 +75,4 @@ export function isRetryableEthereumError(error: unknown): boolean {
         typeof err.code === "string" &&
         RETRYABLE_ETHERS_ERROR_CODES.has(err.code)
     );
-}
-
-export interface RetryEthereumRpcOptions {
-    // Maximum number of additional attempts after the first one fails.
-    maxRetry: number;
-    // Delay between attempts, in milliseconds.
-    delayMs: number;
-    // Called every time a retryable error is about to be retried (not on the
-    // final, non-retried failure). Useful for logging/metrics.
-    onRetryableError?: (error: unknown, attemptsLeft: number) => void;
-}
-
-/**
- * Retry an idempotent read with a bounded delay. Never wrap mint(), transaction
- * submission, or any operation whose side effects may already have happened.
- */
-export async function retryEthereumRpc<T>(
-    fn: () => Promise<T>,
-    options: RetryEthereumRpcOptions
-): Promise<T> {
-    const { maxRetry, delayMs, onRetryableError } = options;
-    let attemptsLeft = maxRetry;
-
-    while (true) {
-        try {
-            return await fn();
-        } catch (error) {
-            if (attemptsLeft <= 0 || !isRetryableEthereumError(error)) {
-                throw error;
-            }
-
-            attemptsLeft -= 1;
-            onRetryableError?.(error, attemptsLeft);
-            await delay(delayMs);
-        }
-    }
 }

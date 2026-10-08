@@ -989,6 +989,30 @@ describe("sequential primary RPC provider", () => {
         });
         expect(secondary.calls).toEqual([]);
     });
+    it("re-checks the fallback's chain after it also fails a read", async () => {
+        const provider = create(0);
+        await provider.getGasPrice();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        secondary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            code: "TIMEOUT",
+        });
+        const secondaryChecks = () =>
+            secondary.calls.filter((method) => method === "eth_chainId").length;
+        const before = secondaryChecks();
+        primary.down = true;
+        delete secondary.failures.eth_gasPrice;
+        await tick();
+        await provider.getGasPrice();
+        expect(secondaryChecks()).toBe(before + 1);
+    });
+    it("passes a fallback's deterministic error through without re-checking", async () => {
+        const provider = create(0);
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        const error = { code: -32602, message: "invalid params" };
+        secondary.failures.eth_gasPrice = error;
+        await expect(provider.getGasPrice()).rejects.toBe(error);
+    });
     it("re-checks an endpoint's chain after it fails a read", async () => {
         const provider = create(0);
         await provider.getGasPrice();

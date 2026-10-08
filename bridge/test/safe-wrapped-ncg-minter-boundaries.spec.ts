@@ -93,6 +93,11 @@ async function setup(mode: Mode, tracking = false) {
         getGasPrice: jest
             .fn()
             .mockResolvedValue(ethers.BigNumber.from(1_000_000_000)),
+        // The minter waits by hash through the provider.
+        waitForTransaction: jest.fn(
+            (_hash: string, confirmations?: number, timeout?: number) =>
+                wait(confirmations, timeout)
+        ),
         ...(tracking
             ? {
                   broadcastAttempts: 0,
@@ -194,6 +199,20 @@ describe("Safe mint submission and receipt boundaries", () => {
             expect(wait).toHaveBeenCalledTimes(3);
         });
     });
+
+    it.each<Mode>(["api", "direct"])(
+        "%s mode waits by hash through the provider with a finite deadline",
+        async (mode) => {
+            const { minter, provider } = await setup(mode);
+            await expect(minter.mint(RECIPIENT, AMOUNT)).resolves.toBe(TX_HASH);
+            const [hash, confirmations, timeout] =
+                provider.waitForTransaction.mock.calls[0];
+            expect(hash).toBe(TX_HASH);
+            expect(confirmations).toBe(1);
+            expect(timeout).toBeGreaterThan(0);
+            expect(Number.isFinite(timeout)).toBe(true);
+        }
+    );
 
     it("restarts a direct mint from its proposal after a transient pre-broadcast read failure", async () => {
         const { minter, broadcast, sdk, safeContract, provider, release } =

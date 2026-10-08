@@ -479,7 +479,13 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             if (this.readSession) throw error;
             const secondary = await this.validate(this.secondary);
             this.recordDispatch(secondary);
-            return operation(secondary);
+            try {
+                return await operation(secondary);
+            } catch (secondaryError) {
+                if (isPrimaryRpcTransientError(secondaryError))
+                    this.chainCheckedUntil.delete(secondary);
+                throw secondaryError;
+            }
         }
     }
 

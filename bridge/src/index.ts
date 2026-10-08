@@ -316,8 +316,8 @@ process.on("uncaughtException", console.error);
     // broadcast, reads are pinned to one endpoint and a transient failure
     // restarts the attempt (nothing was sent, so re-signing is safe). After
     // it, only the receipt of that fixed hash is awaited; reverts are
-    // definitive, while an unresolved wait ends as "outcome unknown" (left
-    // PENDING and alerted), never FAILED. Worst case per mint during an
+    // definitive, while an unresolved wait ends as "outcome unknown"
+    // (recorded UNCONFIRMED and alerted), never FAILED. Worst case per mint during an
     // outage: ~5 pre-broadcast attempts plus a 30-minute receipt deadline.
     const MINT_RECEIPT_WAIT = {
         maxRetry: 20,

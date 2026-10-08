@@ -249,18 +249,47 @@ describe(waitForMintReceipt.name, () => {
         expect(wait).toHaveBeenCalledTimes(1);
     });
 
-    it.each([{ code: "CALL_EXCEPTION" }, { code: "TRANSACTION_REPLACED" }])(
-        "propagates the definitive outcome %j",
-        async (error) => {
-            const wait = jest.fn().mockRejectedValue(error);
-            await expect(
-                waitForMintReceipt(
-                    { hash: HASH, wait },
-                    { maxRetry: 5, delayMs: 1, sleep }
-                )
-            ).rejects.toBe(error);
-        }
-    );
+    it.each([
+        { code: "CALL_EXCEPTION" },
+        { code: "TRANSACTION_REPLACED", cancelled: true, reason: "replaced" },
+    ])("propagates the definitive outcome %j", async (error) => {
+        const wait = jest.fn().mockRejectedValue(error);
+        await expect(
+            waitForMintReceipt(
+                { hash: HASH, wait },
+                { maxRetry: 5, delayMs: 1, sleep }
+            )
+        ).rejects.toBe(error);
+    });
+
+    it("does not treat a repriced replacement (same mint) as a failure", async () => {
+        const error = {
+            code: "TRANSACTION_REPLACED",
+            cancelled: false,
+            reason: "repriced",
+        };
+        const wait = jest.fn().mockRejectedValue(error);
+        await expect(
+            waitForMintReceipt(
+                { hash: HASH, wait },
+                { maxRetry: 5, delayMs: 1, sleep }
+            )
+        ).rejects.toMatchObject({
+            name: "MintOutcomeUnknownError",
+            cause: error,
+        });
+    });
+
+    it("fails definitively when the awaited receipt is a mined revert", async () => {
+        const receipt = { status: 0 };
+        const wait = jest.fn().mockResolvedValue(receipt);
+        await expect(
+            waitForMintReceipt(
+                { hash: HASH, wait },
+                { maxRetry: 5, delayMs: 1, sleep }
+            )
+        ).rejects.toMatchObject({ code: "CALL_EXCEPTION", receipt });
+    });
 
     it("propagates definitive outcomes such as a revert", async () => {
         const error = { code: "CALL_EXCEPTION" };

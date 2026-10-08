@@ -367,10 +367,25 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         );
     }
 
+    /**
+     * Wait by hash through the provider: ethers' Contract wraps the response's
+     * `wait` and drops its timeout, which would make the deadline unreachable.
+     */
+    private receiptWaiter(hash: string) {
+        return {
+            hash,
+            wait: (confirmations?: number, timeout?: number) =>
+                this._provider.waitForTransaction(hash, confirmations, timeout),
+        };
+    }
+
     private async waitForDirectReceipt(
         tx: ethers.ContractTransaction
     ): Promise<string> {
-        const receipt = await waitForMintReceipt(tx, this._receiptRetryOptions);
+        const receipt = await waitForMintReceipt(
+            this.receiptWaiter(tx.hash),
+            this._receiptRetryOptions
+        );
         console.log("Transaction executed directly:", receipt.transactionHash);
 
         // 보류 중인 트랜잭션 초기화
@@ -519,7 +534,7 @@ export class SafeWrappedNCGMinter implements IWrappedNCGMinter {
         // Only polls for the receipt of the already-broadcast transaction (by
         // its fixed hash); it never resubmits anything.
         const receipt = await waitForMintReceipt(
-            transactionResponse,
+            this.receiptWaiter(transactionResponse.hash),
             this._receiptRetryOptions
         );
         // A diagnostic read must not turn a confirmed mint into a failure.

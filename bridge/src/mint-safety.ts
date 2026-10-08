@@ -130,12 +130,17 @@ export interface ReceiptWaitOptions {
 
 export const DEFAULT_RECEIPT_TIMEOUT_MS = 30 * 60 * 1000;
 
-/** A mined revert or a replacement: the mint definitely did not happen. */
+/**
+ * A mined revert or a cancelling replacement: the mint definitely did not
+ * happen. A "repriced" replacement (same calldata, e.g. an operator speed-up)
+ * may have minted, so it is not definitive.
+ */
 function isDefinitiveReceiptOutcome(error: unknown): boolean {
-    const code = (error as { code?: unknown } | null)?.code;
+    const err = error as { code?: unknown; cancelled?: unknown } | null;
     return (
-        code === ethers.errors.CALL_EXCEPTION ||
-        code === ethers.errors.TRANSACTION_REPLACED
+        err?.code === ethers.errors.CALL_EXCEPTION ||
+        (err?.code === ethers.errors.TRANSACTION_REPLACED &&
+            err.cancelled === true)
     );
 }
 
@@ -145,9 +150,14 @@ function isDefinitiveReceiptOutcome(error: unknown): boolean {
  * or anything unresolved when the budget or deadline runs out, becomes
  * {@link MintOutcomeUnknownError}.
  */
-export async function waitForMintReceipt<R>(
+export async function waitForMintReceipt<R extends { status?: number }>(
     tx: {
         hash: string;
+        /**
+         * Must honour `timeout`. ethers' Contract replaces a response's
+         * `wait` with one that drops it, so pass a provider's
+         * `waitForTransaction` rather than such a `tx.wait`.
+         */
         wait(confirmations?: number, timeout?: number): Promise<R>;
     },
     options: ReceiptWaitOptions
@@ -157,8 +167,9 @@ export async function waitForMintReceipt<R>(
         Date.now() + (options.timeoutMs ?? DEFAULT_RECEIPT_TIMEOUT_MS);
     let retriesLeft = options.maxRetry;
     while (true) {
+        let receipt: R;
         try {
-            return await tx.wait(1, Math.max(1, deadline - Date.now()));
+            receipt = await tx.wait(1, Math.max(1, deadline - Date.now()));
         } catch (error) {
             if (isDefinitiveReceiptOutcome(error)) throw error;
             if (
@@ -172,7 +183,15 @@ export async function waitForMintReceipt<R>(
                 `Transient error while waiting for the receipt of mint tx ${tx.hash}, ${retriesLeft} attempt(s) left. Retrying...`,
                 error
             );
+            await sleep(options.delayMs);
+            continue;
         }
-        await sleep(options.delayMs);
+        // waitForTransaction resolves (not rejects) for a mined revert.
+        if (receipt?.status === 0)
+            throw Object.assign(
+                new Error(`Mint transaction ${tx.hash} reverted`),
+                { code: ethers.errors.CALL_EXCEPTION, receipt }
+            );
+        return receipt;
     }
 }

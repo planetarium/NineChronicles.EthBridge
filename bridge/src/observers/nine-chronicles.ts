@@ -521,10 +521,20 @@ export class NCGTransferredEventObserver
             )
         );
 
-        this._exchangeHistoryStore.updateStatus(
-            txId,
-            TransactionStatus.COMPLETED
-        );
+        // The mint landed: a failed status write must not reach
+        // `_failedRequest` (FAILED). The row then stays UNCONFIRMED and is
+        // reported at startup for a manual check instead.
+        try {
+            await this._exchangeHistoryStore.updateStatus(
+                txId,
+                TransactionStatus.COMPLETED
+            );
+        } catch (statusError) {
+            console.error(
+                `Minted ${transactionHash} but could not record ${txId} as completed`,
+                statusError
+            );
+        }
 
         this._opensearchClient.to_opensearch("info", {
             content: "NCG -> wNCG request success",

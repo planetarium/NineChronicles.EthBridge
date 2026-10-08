@@ -52,10 +52,17 @@ const OWNER2_ADDRESS = "0x0000000000000000000000000000000000000002";
 const OWNER3_ADDRESS = "0x0000000000000000000000000000000000000003";
 
 describe(`${SafeWrappedNCGMinter.name} (USE_SAFE_API=false, direct contract call path)`, () => {
+    // The minter waits by hash through the provider (ethers' Contract drops
+    // tx.wait's timeout); route it to the broadcast response's `wait` mock.
+    let currentWait: jest.Mock | undefined;
     const mockProvider = {
         getGasPrice: jest
             .fn()
             .mockResolvedValue(ethers.BigNumber.from(1_000_000_000)),
+        waitForTransaction: jest.fn(
+            (_hash: string, confirmations?: number, timeout?: number) =>
+                currentWait!(confirmations, timeout)
+        ),
     } as unknown as Provider;
 
     const mockGasPricePolicy: IGasPricePolicy = {
@@ -131,9 +138,10 @@ describe(`${SafeWrappedNCGMinter.name} (USE_SAFE_API=false, direct contract call
             .mockResolvedValueOnce({
                 transactionHash: "0xDIRECT_MINT_TX_HASH",
             });
-        const execTransaction = jest
-            .fn()
-            .mockResolvedValue({ hash: "0xDIRECT_MINT_TX_HASH", wait });
+        const execTransaction = jest.fn().mockResolvedValue({
+            hash: "0xDIRECT_MINT_TX_HASH",
+            wait: (currentWait = wait),
+        });
 
         const minter = await createMinter();
         (minter as unknown as { _safeContract: unknown })._safeContract =
