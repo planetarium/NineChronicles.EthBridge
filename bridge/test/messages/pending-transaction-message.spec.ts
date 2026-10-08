@@ -132,6 +132,30 @@ describe("PendingTransactionMessage", () => {
         );
     });
 
+    it("states the full count when only some unconfirmed mints are shown", () => {
+        const message = new PendingTransactionMessage(
+            [
+                {
+                    network: "nineChronicles",
+                    tx_id: "TX-1",
+                    sender: "0xSenderAddress",
+                    recipient: "0xRecipientAddress",
+                    timestamp: new Date().toISOString(),
+                    amount: 1,
+                    status: TransactionStatus.UNCONFIRMED,
+                },
+            ],
+            mockMultiPlanetary,
+            undefined,
+            undefined,
+            "Unconfirmed",
+            150
+        );
+        expect((message.render() as { text: string }).text).toBe(
+            "150 Unconfirmed Mints Found (showing 1) - check each on-chain before any refund or re-mint"
+        );
+    });
+
     it("should render no pending transactions message", () => {
         const message = new PendingTransactionMessage([], mockMultiPlanetary);
         const result = message.render() as {

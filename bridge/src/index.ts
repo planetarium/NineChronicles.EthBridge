@@ -358,7 +358,13 @@ process.on("uncaughtException", console.error);
         KMS_PROVIDER_URL,
         KMS_PROVIDER_SUB_URL,
         { expectedChainId: ETHEREUM_CHAIN_ID }
-    );
+    ).catch((error) => {
+        if (error?.code === "NETWORK_ERROR" && error?.event === "changed")
+            throw new Error(
+                `The Ethereum RPC is not on chain ${ETHEREUM_CHAIN_ID}. Set ETHEREUM_CHAIN_ID to the chain of KMS_PROVIDER_URL (1 for mainnet, 11155111 for Sepolia).`
+            );
+        throw error;
+    });
     const ethereumSigner = new AwsKmsSigner(
         {
             region: KMS_PROVIDER_REGION,

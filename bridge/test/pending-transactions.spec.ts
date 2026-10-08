@@ -101,6 +101,35 @@ describe("PendingTransactionHandler", () => {
         expect(exchangeHistoryStore.updateStatus).not.toHaveBeenCalled();
     });
 
+    it("never blocks startup on the reminder and caps its rows", async () => {
+        exchangeHistoryStore.getPendingTransactions.mockResolvedValue([]);
+        exchangeHistoryStore.getUnconfirmedTransactions.mockResolvedValue(
+            Array.from({ length: 150 }, (_, i) => ({
+                tx_id: `TX-${i}`,
+                network: "nineChronicles",
+                amount: 1,
+                sender: "sender",
+                recipient: "recipient",
+                timestamp: new Date().toISOString(),
+                status: TransactionStatus.UNCONFIRMED,
+            }))
+        );
+        slackMessageSender.sendMessage.mockRejectedValue(
+            new Error("too_many_attachments")
+        );
+
+        await expect(
+            handler.messagePendingTransactions()
+        ).resolves.toBeUndefined();
+        const message = slackMessageSender.sendMessage.mock
+            .calls[0][0] as unknown as {
+            transactions: unknown[];
+            total: number;
+        };
+        expect(message.transactions).toHaveLength(20);
+        expect(message.total).toBe(150);
+    });
+
     it("should not send a message if there are no pending transactions", async () => {
         exchangeHistoryStore.getPendingTransactions.mockResolvedValue([]);
 

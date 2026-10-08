@@ -16,7 +16,8 @@ export class PendingTransactionMessage implements Message {
         ethScanUrl: string = process.env.ETHERSCAN_ROOT_URL ||
             "https://etherscan.io/",
         ncScanUrl: string = process.env.NCSCAN_URL || "https://9cscan.com/",
-        private readonly kind: "Pending" | "Unconfirmed" = "Pending"
+        private readonly kind: "Pending" | "Unconfirmed" = "Pending",
+        private readonly total: number = transactions.length
     ) {
         this._ethScanUrl = ethScanUrl;
         this._ncScanUrl = ncScanUrl;
@@ -31,7 +32,11 @@ export class PendingTransactionMessage implements Message {
                 text:
                     this.kind === "Pending"
                         ? `${this.transactions.length} Pending Transactions Found`
-                        : `${this.transactions.length} Unconfirmed Mints Found - check each on-chain before any refund or re-mint`,
+                        : `${this.total} Unconfirmed Mints Found${
+                              this.total > this.transactions.length
+                                  ? ` (showing ${this.transactions.length})`
+                                  : ""
+                          } - check each on-chain before any refund or re-mint`,
                 attachments: this.transactions.map((tx) => {
                     const titleUrl =
                         tx.network === "ethereum"

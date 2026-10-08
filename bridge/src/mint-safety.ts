@@ -174,7 +174,7 @@ export async function waitForMintReceipt<R extends { status?: number }>(
         } catch (error) {
             if (isDefinitiveReceiptOutcome(error)) throw error;
             if (
-                !isRetryableEthereumError(error) ||
+                !isTransient(error) ||
                 retriesLeft <= 0 ||
                 Date.now() >= deadline
             )

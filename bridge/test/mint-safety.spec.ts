@@ -240,6 +240,19 @@ describe(waitForMintReceipt.name, () => {
         expect(wait).toHaveBeenCalledWith(1, DEFAULT_RECEIPT_TIMEOUT_MS);
     });
 
+    it("retries an error only the routing provider classifies as transient", async () => {
+        const wait = jest
+            .fn()
+            .mockRejectedValueOnce({ code: "ECONNRESET" })
+            .mockResolvedValueOnce({ status: 1 });
+        await expect(
+            waitForMintReceipt(
+                { hash: HASH, wait },
+                { maxRetry: 1, delayMs: 1, sleep }
+            )
+        ).resolves.toEqual({ status: 1 });
+    });
+
     it("reports a non-definitive, non-transient error as unknown at once", async () => {
         const error = { status: 403 };
         const wait = jest.fn().mockRejectedValue(error);
