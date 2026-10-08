@@ -16,6 +16,7 @@ describe("PendingTransactionHandler", () => {
     beforeEach(() => {
         exchangeHistoryStore = {
             getPendingTransactions: jest.fn(),
+            getUnconfirmedTransactions: jest.fn().mockResolvedValue([]),
             updateStatus: jest.fn(),
         } as unknown as jest.Mocked<IExchangeHistoryStore>;
 
@@ -73,6 +74,89 @@ describe("PendingTransactionHandler", () => {
             "TX-2",
             TransactionStatus.FAILED
         );
+    });
+
+    it("reminds about unconfirmed mints without ever failing them", async () => {
+        exchangeHistoryStore.getPendingTransactions.mockResolvedValue([]);
+        exchangeHistoryStore.getUnconfirmedTransactions.mockResolvedValue([
+            {
+                tx_id: "TX-3",
+                network: "nineChronicles",
+                amount: 300,
+                sender: "sender3",
+                recipient: "recipient3",
+                timestamp: new Date().toISOString(),
+                status: TransactionStatus.UNCONFIRMED,
+            },
+        ]);
+
+        await handler.messagePendingTransactions();
+
+        expect(slackMessageSender.sendMessage).toHaveBeenCalledTimes(1);
+        const message = slackMessageSender.sendMessage.mock.calls[0][0];
+        expect(message).toBeInstanceOf(PendingTransactionMessage);
+        expect((message as unknown as { kind: string }).kind).toBe(
+            "Unconfirmed"
+        );
+        expect(exchangeHistoryStore.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("still fails pending rows when their report cannot be sent", async () => {
+        exchangeHistoryStore.getPendingTransactions.mockResolvedValue(
+            Array.from({ length: 150 }, (_, i) => ({
+                tx_id: `TX-${i}`,
+                network: "nineChronicles",
+                amount: 1,
+                sender: "sender",
+                recipient: "recipient",
+                timestamp: new Date().toISOString(),
+                status: TransactionStatus.PENDING,
+            }))
+        );
+        slackMessageSender.sendMessage.mockRejectedValue(
+            new Error("too_many_attachments")
+        );
+
+        await expect(
+            handler.messagePendingTransactions()
+        ).resolves.toBeUndefined();
+        expect(exchangeHistoryStore.updateStatus).toHaveBeenCalledTimes(150);
+        const message = slackMessageSender.sendMessage.mock
+            .calls[0][0] as unknown as {
+            transactions: unknown[];
+            total: number;
+        };
+        expect(message.transactions).toHaveLength(20);
+        expect(message.total).toBe(150);
+    });
+
+    it("never blocks startup on the reminder and caps its rows", async () => {
+        exchangeHistoryStore.getPendingTransactions.mockResolvedValue([]);
+        exchangeHistoryStore.getUnconfirmedTransactions.mockResolvedValue(
+            Array.from({ length: 150 }, (_, i) => ({
+                tx_id: `TX-${i}`,
+                network: "nineChronicles",
+                amount: 1,
+                sender: "sender",
+                recipient: "recipient",
+                timestamp: new Date().toISOString(),
+                status: TransactionStatus.UNCONFIRMED,
+            }))
+        );
+        slackMessageSender.sendMessage.mockRejectedValue(
+            new Error("too_many_attachments")
+        );
+
+        await expect(
+            handler.messagePendingTransactions()
+        ).resolves.toBeUndefined();
+        const message = slackMessageSender.sendMessage.mock
+            .calls[0][0] as unknown as {
+            transactions: unknown[];
+            total: number;
+        };
+        expect(message.transactions).toHaveLength(20);
+        expect(message.total).toBe(150);
     });
 
     it("should not send a message if there are no pending transactions", async () => {

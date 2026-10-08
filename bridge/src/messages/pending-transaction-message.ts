@@ -15,7 +15,9 @@ export class PendingTransactionMessage implements Message {
         private readonly multiPlanetary: MultiPlanetary,
         ethScanUrl: string = process.env.ETHERSCAN_ROOT_URL ||
             "https://etherscan.io/",
-        ncScanUrl: string = process.env.NCSCAN_URL || "https://9cscan.com/"
+        ncScanUrl: string = process.env.NCSCAN_URL || "https://9cscan.com/",
+        private readonly kind: "Pending" | "Unconfirmed" = "Pending",
+        private readonly total: number = transactions.length
     ) {
         this._ethScanUrl = ethScanUrl;
         this._ncScanUrl = ncScanUrl;
@@ -27,7 +29,16 @@ export class PendingTransactionMessage implements Message {
         if (this.transactions.length !== 0) {
             console.log("Pending Transactions : ", this.transactions);
             return {
-                text: `${this.transactions.length} Pending Transactions Found`,
+                text:
+                    (this.kind === "Pending"
+                        ? `${this.total} Pending Transactions Found`
+                        : `${this.total} Unconfirmed Mints Found`) +
+                    (this.total > this.transactions.length
+                        ? ` (showing ${this.transactions.length})`
+                        : "") +
+                    (this.kind === "Pending"
+                        ? ""
+                        : " - check each on-chain before any refund or re-mint"),
                 attachments: this.transactions.map((tx) => {
                     const titleUrl =
                         tx.network === "ethereum"
@@ -40,7 +51,7 @@ export class PendingTransactionMessage implements Message {
                     const authorLabel =
                         tx.network === "ethereum" ? "wNCG → NCG" : "NCG → wNCG";
                     return {
-                        author_name: `[ETH] ${authorLabel} pending event`,
+                        author_name: `[ETH] ${authorLabel} ${this.kind.toLowerCase()} event`,
                         color: "#ff0033",
                         fields: [
                             {

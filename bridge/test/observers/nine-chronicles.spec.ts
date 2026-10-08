@@ -15,6 +15,7 @@ import { SlackMessageSender } from "../../src/slack-message-sender";
 import { ACCOUNT_TYPE } from "../../src/whitelist/account-type";
 import { SpreadsheetClient } from "../../src/spreadsheet-client";
 import { google } from "googleapis";
+import { MintOutcomeUnknownError } from "../../src/mint-safety";
 import { TransactionStatus } from "../../src/types/transaction-status";
 
 jest.mock("@slack/web-api", () => {
@@ -102,6 +103,7 @@ describe(NCGTransferredEventObserver.name, () => {
         exist: jest.fn(),
         updateStatus: jest.fn(),
         getPendingTransactions: jest.fn(),
+        getUnconfirmedTransactions: jest.fn().mockResolvedValue([]),
     };
 
     const limitationPolicy = {
@@ -1256,7 +1258,7 @@ describe(NCGTransferredEventObserver.name, () => {
             expect(mockSlackChannel.sendMessage.mock.calls).toMatchSnapshot();
         });
 
-        it("pagerduty ethereum transfer error message - snapshot", async () => {
+        it("keeps PagerDuty disabled on mint failure", async () => {
             mockWrappedNcgMinter.mint.mockImplementationOnce(
                 (address, amount) => {
                     throw new Error("mockWrappedNcgMinter.mint error");
@@ -1277,7 +1279,273 @@ describe(NCGTransferredEventObserver.name, () => {
                 ],
             });
 
-            expect(mockIntegration.error.mock.calls).toMatchSnapshot();
+            expect(mockIntegration.error).not.toHaveBeenCalled();
+        });
+
+        // `mint()` proposes, confirms AND broadcasts a transaction, so it
+        // must never be retried wholesale at this level: retrying it after
+        // a failure - even one that looks transient - could re-broadcast a
+        // second, separate transaction after the first already succeeded on
+        // chain (a duplicate mint). Any retry of the safe-to-repeat parts of
+        // minting happens inside the `IWrappedNCGMinter` implementation
+        // itself (see `SafeWrappedNCGMinter`), never here.
+        for (const transientLookingError of [
+            { code: "SERVER_ERROR" },
+            { code: "TIMEOUT" },
+            { code: -32603 },
+        ]) {
+            it(`never retries mint() at this level, even for a transient-looking error (${JSON.stringify(
+                transientLookingError
+            )})`, async () => {
+                mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                    0
+                );
+                mockWrappedNcgMinter.mint.mockRejectedValueOnce(
+                    transientLookingError
+                );
+
+                await observer.notify({
+                    blockHash: "BLOCK-HASH",
+                    events: [
+                        {
+                            amount: "100.23",
+                            memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                            blockHash: "BLOCK-HASH",
+                            txId: "TX-NO-RETRY",
+                            recipient:
+                                "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                            sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        },
+                    ],
+                });
+
+                expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(1);
+                expect(
+                    mockExchangeHistoryStore.updateStatus
+                ).toHaveBeenCalledWith("TX-NO-RETRY", TransactionStatus.FAILED);
+            });
+        }
+
+        it("records a broadcast mint with an unconfirmed outcome as UNCONFIRMED, never FAILED", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            const unknown = new MintOutcomeUnknownError("0xMINTED_MAYBE", {
+                code: "TIMEOUT",
+            });
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(unknown);
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-UNKNOWN",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockWrappedNcgMinter.mint).toHaveBeenCalledTimes(1);
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith("TX-UNKNOWN", TransactionStatus.FAILED);
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith(
+                "TX-UNKNOWN",
+                TransactionStatus.COMPLETED
+            );
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("0xMINTED_MAYBE");
+        });
+
+        it("keeps a delivered mint COMPLETED when the fee transfer fails afterwards", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockNcgTransfer.transfer.mockRejectedValueOnce(
+                new Error("fee transfer down")
+            );
+            const toOpenSearch = jest.spyOn(
+                mockOpenSearchClient,
+                "to_opensearch"
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-FAIL",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-FEE-FAIL",
+                TransactionStatus.COMPLETED
+            );
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith("TX-FEE-FAIL", TransactionStatus.FAILED);
+            expect(toOpenSearch).toHaveBeenCalledWith(
+                "error",
+                expect.objectContaining({
+                    content: "NCG -> wNCG fee transfer failure after mint",
+                    libplanetTxId: "TX-FEE-FAIL",
+                })
+            );
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("collect it manually");
+        });
+
+        it("still completes a delivered mint when the fee failure alert cannot be sent", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockNcgTransfer.transfer.mockRejectedValueOnce(
+                new Error("fee transfer down")
+            );
+            mockSlackChannel.sendMessage.mockRejectedValueOnce(
+                new Error("slack down")
+            );
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-FEE-SLACK",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(mockExchangeHistoryStore.updateStatus).toHaveBeenCalledWith(
+                "TX-FEE-SLACK",
+                TransactionStatus.COMPLETED
+            );
+        });
+
+        it("never fails a delivered mint when recording COMPLETED fails", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockExchangeHistoryStore.updateStatus.mockImplementation(
+                async (_txId, status) => {
+                    if (status === TransactionStatus.COMPLETED)
+                        throw new Error("SQLITE_BUSY");
+                }
+            );
+            try {
+                await observer.notify({
+                    blockHash: "BLOCK-HASH",
+                    events: [
+                        {
+                            amount: "100.23",
+                            memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                            blockHash: "BLOCK-HASH",
+                            txId: "TX-STATUS-FAIL",
+                            recipient:
+                                "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                            sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                        },
+                    ],
+                });
+            } finally {
+                mockExchangeHistoryStore.updateStatus.mockReset();
+            }
+
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).not.toHaveBeenCalledWith(
+                "TX-STATUS-FAIL",
+                TransactionStatus.FAILED
+            );
+        });
+
+        it("still alerts and keeps processing when recording a failure fails", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint.mockRejectedValueOnce(
+                new Error("definitive")
+            );
+            mockExchangeHistoryStore.updateStatus.mockImplementation(
+                async (_txId, status) => {
+                    if (status === TransactionStatus.FAILED)
+                        throw new Error("SQLITE_BUSY");
+                }
+            );
+            try {
+                await expect(
+                    observer.notify({
+                        blockHash: "BLOCK-HASH",
+                        events: [
+                            {
+                                amount: "100.23",
+                                memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                                blockHash: "BLOCK-HASH",
+                                txId: "TX-WRITE-FAIL",
+                                recipient:
+                                    "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                                sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                            },
+                        ],
+                    })
+                ).resolves.toBeUndefined();
+            } finally {
+                mockExchangeHistoryStore.updateStatus.mockReset();
+            }
+            expect(
+                JSON.stringify(mockSlackChannel.sendMessage.mock.calls)
+            ).toContain("TX-WRITE-FAIL");
+        });
+
+        it("marks a mint UNCONFIRMED before it can broadcast", async () => {
+            mockExchangeHistoryStore.transferredAmountInLast24Hours.mockResolvedValueOnce(
+                0
+            );
+            mockWrappedNcgMinter.mint.mockImplementationOnce(async () => {
+                expect(
+                    mockExchangeHistoryStore.updateStatus
+                ).toHaveBeenLastCalledWith(
+                    "TX-ORDER",
+                    TransactionStatus.UNCONFIRMED
+                );
+                return "MINT-HASH";
+            });
+
+            await observer.notify({
+                blockHash: "BLOCK-HASH",
+                events: [
+                    {
+                        amount: "100.23",
+                        memo: "0x4029bC50b4747A037d38CF2197bCD335e22Ca301",
+                        blockHash: "BLOCK-HASH",
+                        txId: "TX-ORDER",
+                        recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                        sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                    },
+                ],
+            });
+
+            expect(
+                mockExchangeHistoryStore.updateStatus
+            ).toHaveBeenLastCalledWith("TX-ORDER", TransactionStatus.COMPLETED);
         });
 
         // Try to catch cases when others, not object and error, were thrown.

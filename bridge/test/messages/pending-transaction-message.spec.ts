@@ -102,6 +102,84 @@ describe("PendingTransactionMessage", () => {
         );
     });
 
+    it("labels unconfirmed mints and asks for an on-chain check", () => {
+        const message = new PendingTransactionMessage(
+            [
+                {
+                    network: "nineChronicles",
+                    tx_id: "TX-789",
+                    sender: "0xSenderAddress",
+                    recipient: "0xRecipientAddress",
+                    timestamp: new Date().toISOString(),
+                    amount: 300,
+                    status: TransactionStatus.UNCONFIRMED,
+                },
+            ],
+            mockMultiPlanetary,
+            undefined,
+            undefined,
+            "Unconfirmed"
+        );
+        const result = message.render() as {
+            text: string;
+            attachments: { author_name: string }[];
+        };
+        expect(result.text).toBe(
+            "1 Unconfirmed Mints Found - check each on-chain before any refund or re-mint"
+        );
+        expect(result.attachments[0].author_name).toBe(
+            "[ETH] NCG → wNCG unconfirmed event"
+        );
+    });
+
+    it("states the full count when only some pending rows are shown", () => {
+        const message = new PendingTransactionMessage(
+            [
+                {
+                    network: "nineChronicles",
+                    tx_id: "TX-1",
+                    sender: "0xSenderAddress",
+                    recipient: "0xRecipientAddress",
+                    timestamp: new Date().toISOString(),
+                    amount: 1,
+                    status: TransactionStatus.PENDING,
+                },
+            ],
+            mockMultiPlanetary,
+            undefined,
+            undefined,
+            "Pending",
+            150
+        );
+        expect((message.render() as { text: string }).text).toBe(
+            "150 Pending Transactions Found (showing 1)"
+        );
+    });
+
+    it("states the full count when only some unconfirmed mints are shown", () => {
+        const message = new PendingTransactionMessage(
+            [
+                {
+                    network: "nineChronicles",
+                    tx_id: "TX-1",
+                    sender: "0xSenderAddress",
+                    recipient: "0xRecipientAddress",
+                    timestamp: new Date().toISOString(),
+                    amount: 1,
+                    status: TransactionStatus.UNCONFIRMED,
+                },
+            ],
+            mockMultiPlanetary,
+            undefined,
+            undefined,
+            "Unconfirmed",
+            150
+        );
+        expect((message.render() as { text: string }).text).toBe(
+            "150 Unconfirmed Mints Found (showing 1) - check each on-chain before any refund or re-mint"
+        );
+    });
+
     it("should render no pending transactions message", () => {
         const message = new PendingTransactionMessage([], mockMultiPlanetary);
         const result = message.render() as {

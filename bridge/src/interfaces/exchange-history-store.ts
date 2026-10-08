@@ -21,8 +21,14 @@ export interface IExchangeHistoryStore {
 
     updateStatus(
         tx_id: string,
-        status: TransactionStatus.COMPLETED | TransactionStatus.FAILED
+        status:
+            | TransactionStatus.COMPLETED
+            | TransactionStatus.FAILED
+            | TransactionStatus.UNCONFIRMED
     ): Promise<void>;
 
     getPendingTransactions(): Promise<ExchangeHistory[]>;
+
+    /** Mints that may have landed; reported until resolved by hand. */
+    getUnconfirmedTransactions(): Promise<ExchangeHistory[]>;
 }

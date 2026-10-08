@@ -157,6 +157,31 @@ describe("Sqlite3ExchangeHistoryStore", () => {
             console.log("After UPDATE:", checkAfterUpdate);
         });
 
+        it("lists UNCONFIRMED mints separately from PENDING ones", async () => {
+            const base = {
+                network: "nineChronicles",
+                sender: "0x2734048eC2892d111b4fbAB224400847544FC872",
+                recipient: "0x6d29f9923C86294363e59BAaA46FcBc37Ee5aE2e",
+                timestamp: new Date().toISOString(),
+                amount: 1.0,
+                status: TransactionStatus.PENDING,
+            };
+            await store.put({ ...base, tx_id: "TX-STILL-PENDING" });
+            await store.put({ ...base, tx_id: "TX-MAYBE-MINTED" });
+            await store.updateStatus(
+                "TX-MAYBE-MINTED",
+                TransactionStatus.UNCONFIRMED
+            );
+
+            expect(
+                (await store.getPendingTransactions()).map((tx) => tx.tx_id)
+            ).toEqual(["TX-STILL-PENDING"]);
+            expect(
+                (await store.getUnconfirmedTransactions()).map((tx) => tx.tx_id)
+            ).toEqual(["TX-MAYBE-MINTED"]);
+            expect(await store.exist("TX-MAYBE-MINTED")).toBe(true);
+        });
+
         it("should handle non-existent transaction", async () => {
             await store.updateStatus(
                 "NON-EXISTENT-TX",

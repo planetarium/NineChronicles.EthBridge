@@ -21,6 +21,7 @@ import { IExchangeFeeRatioPolicy } from "../policies/exchange-fee-ratio";
 import { ACCOUNT_TYPE } from "../whitelist/account-type";
 import { WhitelistAccount } from "../types/whitelist-account";
 import { SpreadsheetClient } from "../spreadsheet-client";
+import { MintOutcomeUnknownError } from "../mint-safety";
 import { TransactionStatus } from "../types/transaction-status";
 
 // See also https://ethereum.github.io/yellowpaper/paper.pdf 4.2 The Transaction section.
@@ -343,6 +344,25 @@ export class NCGTransferredEventObserver
             errorMessage = JSON.stringify(e);
         }
 
+        // Record the status before any notification I/O can fail. A broadcast
+        // mint may still land: it stays UNCONFIRMED, never FAILED, so nobody
+        // refunds or re-mints it without checking the hash on-chain.
+        try {
+            await this._exchangeHistoryStore.updateStatus(
+                txId,
+                e instanceof MintOutcomeUnknownError
+                    ? TransactionStatus.UNCONFIRMED
+                    : TransactionStatus.FAILED
+            );
+        } catch (statusError) {
+            // Keep alerting and keep the monitor running; the row keeps its
+            // previous status (UNCONFIRMED once a mint was attempted).
+            console.error(
+                `Could not record the failure of ${txId}`,
+                statusError
+            );
+        }
+
         const slackMsgRes = await this._slackMessageSender.sendMessage(
             new WrappingFailureEvent(
                 this._explorerUrl,
@@ -356,8 +376,6 @@ export class NCGTransferredEventObserver
                 this._failureSubscribers
             )
         );
-
-        this._exchangeHistoryStore.updateStatus(txId, TransactionStatus.FAILED);
 
         await this._spreadsheetClient.to_spreadsheet_mint({
             slackMessageId: `${
@@ -418,21 +436,75 @@ export class NCGTransferredEventObserver
         console.log("fee", fee);
         console.log("exchangeAmount", exchangeAmount);
 
+        // This is intentionally called exactly once, with no retry at this
+        // level: `mint()` signs a transaction, so retrying it wholesale could
+        // sign a second, separate mint after the first one already landed.
+        // The minter itself retries only what is safe: pre-broadcast reads
+        // (nothing signed onto the network yet), re-sends of the identical
+        // signed bytes, and receipt reads for that fixed hash. A failure here
+        // is either definitive (falls through to `_failedRequest` as FAILED)
+        // or a MintOutcomeUnknownError, recorded as UNCONFIRMED.
+        // From here a mint may land at any moment. Startup turns leftover
+        // PENDING rows into FAILED, so a crash during the (possibly long)
+        // receipt wait must leave UNCONFIRMED instead.
+        await this._exchangeHistoryStore.updateStatus(
+            txId,
+            TransactionStatus.UNCONFIRMED
+        );
         const transactionHash = await this._wrappedNcgTransfer.mint(
             recipient!,
             ethereumExchangeAmount
         );
         console.log("WNCG mint tx", transactionHash);
 
-        // Transfer fee to the fee collector address if any
+        // Transfer fee to the fee collector address if any. The mint already
+        // landed: a fee failure must not mark the exchange FAILED (inviting a
+        // refund of a delivered mint); it is reported for manual collection.
         let feeTransferTxId: string | null = null;
         if (fee.greaterThan(0)) {
-            feeTransferTxId = await this._ncgTransfer.transfer(
-                this._feeCollectorAddress,
-                fee.toString(),
-                "I'm bridge and the fee is sent to fee collector."
-            );
-            console.log("Fee transfer tx", feeTransferTxId);
+            try {
+                feeTransferTxId = await this._ncgTransfer.transfer(
+                    this._feeCollectorAddress,
+                    fee.toString(),
+                    "I'm bridge and the fee is sent to fee collector."
+                );
+                console.log("Fee transfer tx", feeTransferTxId);
+            } catch (feeError) {
+                console.error(
+                    `Minted ${transactionHash} but the fee transfer failed`,
+                    feeError
+                );
+                try {
+                    await this._slackMessageSender.sendMessage(
+                        new WrappingFailureEvent(
+                            this._explorerUrl,
+                            this._ncscanUrl,
+                            this._useNcscan,
+                            sender,
+                            String(recipient),
+                            fee.toString(),
+                            txId,
+                            `Mint ${transactionHash} was delivered, but transferring the ${fee.toString()} NCG fee to the fee collector failed; collect it manually. ${String(
+                                feeError
+                            )}`,
+                            this._failureSubscribers
+                        )
+                    );
+                } catch (slackError) {
+                    console.error(
+                        "Could not report the fee failure",
+                        slackError
+                    );
+                }
+                this._opensearchClient.to_opensearch("error", {
+                    content: "NCG -> wNCG fee transfer failure after mint",
+                    cause: String(feeError),
+                    libplanetTxId: txId,
+                    ethereumTxId: transactionHash,
+                    fee: fee.toNumber(),
+                    sender: sender,
+                });
+            }
         } else {
             console.log("No fee transfer");
         }
@@ -458,10 +530,20 @@ export class NCGTransferredEventObserver
             )
         );
 
-        this._exchangeHistoryStore.updateStatus(
-            txId,
-            TransactionStatus.COMPLETED
-        );
+        // The mint landed: a failed status write must not reach
+        // `_failedRequest` (FAILED). The row then stays UNCONFIRMED and is
+        // reported at startup for a manual check instead.
+        try {
+            await this._exchangeHistoryStore.updateStatus(
+                txId,
+                TransactionStatus.COMPLETED
+            );
+        } catch (statusError) {
+            console.error(
+                `Minted ${transactionHash} but could not record ${txId} as completed`,
+                statusError
+            );
+        }
 
         this._opensearchClient.to_opensearch("info", {
             content: "NCG -> wNCG request success",
