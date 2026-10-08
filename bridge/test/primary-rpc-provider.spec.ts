@@ -42,10 +42,11 @@ describe("sequential primary RPC provider", () => {
         });
     });
     afterEach(() => jest.restoreAllMocks());
-    const create = (cooldownMs?: number) =>
+    const create = (cooldownMs?: number, chainCheckIntervalMs?: number) =>
         new PrimaryRpcProvider(PRIMARY, SECONDARY, {
             expectedChainId: 1,
             cooldownMs,
+            chainCheckIntervalMs,
         });
 
     it("isolates monitor read leases from concurrent mint/receipt traffic", async () => {
@@ -96,12 +97,14 @@ describe("sequential primary RPC provider", () => {
     it.each(["secondary", "deterministic", "single"])(
         "preserves a pinned %s probe failure without switching endpoints",
         async (variant) => {
+            // Probe every read so the pinned session's probe itself fails.
             const provider =
                 variant === "single"
                     ? new PrimaryRpcProvider(PRIMARY, undefined, {
                           expectedChainId: 1,
+                          chainCheckIntervalMs: 0,
                       })
-                    : create();
+                    : create(undefined, 0);
             if (variant === "secondary") primary.down = true;
             const release = await provider.beginReadSession();
             const state = variant === "secondary" ? secondary : primary;
@@ -248,7 +251,7 @@ describe("sequential primary RPC provider", () => {
         releaseSecondary();
     });
     it("starts the next session on secondary when a pinned primary probe fails", async () => {
-        const provider = create();
+        const provider = create(undefined, 0);
         const release = await provider.beginReadSession();
         const error = { code: "SERVER_ERROR", status: 429 };
         primary.failures.eth_chainId = error;
@@ -689,12 +692,49 @@ describe("sequential primary RPC provider", () => {
         { expectedChainId: 1, requestTimeoutMs: Infinity },
         { expectedChainId: 1, cooldownMs: -1 },
         { expectedChainId: 1, cooldownMs: NaN },
+        { expectedChainId: 1, chainCheckIntervalMs: -1 },
+        { expectedChainId: 1, chainCheckIntervalMs: Infinity },
     ])("rejects invalid options before any RPC: %j", (options) => {
         expect(
             () => new PrimaryRpcProvider(PRIMARY, SECONDARY, options)
         ).toThrow();
         expect(primary.calls).toEqual([]);
         expect(secondary.calls).toEqual([]);
+    });
+    it("checks a healthy endpoint's chain once per interval, not per read", async () => {
+        const provider = create(undefined, 1000);
+        for (let i = 0; i < 5; i++) await provider.getGasPrice();
+        const chainChecks = () =>
+            primary.calls.filter((method) => method === "eth_chainId").length;
+        expect(chainChecks()).toBe(1);
+        expect(
+            primary.calls.filter((method) => method === "eth_gasPrice")
+        ).toHaveLength(5);
+        now += 999;
+        await tick();
+        await provider.getGasPrice();
+        expect(chainChecks()).toBe(1);
+        now += 1;
+        await tick();
+        primary.chainId = "0x38";
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            code: "NETWORK_ERROR",
+            event: "changed",
+        });
+        expect(secondary.calls).toEqual([]);
+    });
+    it("re-checks an endpoint's chain after it fails a read", async () => {
+        const provider = create(0);
+        await provider.getGasPrice();
+        primary.failures.eth_gasPrice = { code: "TIMEOUT" };
+        await provider.getGasPrice();
+        delete primary.failures.eth_gasPrice;
+        primary.chainId = "0x38";
+        await tick();
+        await expect(provider.getGasPrice()).rejects.toMatchObject({
+            code: "NETWORK_ERROR",
+            event: "changed",
+        });
     });
     it.each([
         ["", SECONDARY],

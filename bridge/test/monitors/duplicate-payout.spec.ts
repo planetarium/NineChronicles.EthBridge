@@ -441,8 +441,9 @@ describe("duplicate payout protection", () => {
         const counts: Record<string, number> = {};
         for (const call of calls.slice(startCall))
             counts[call.method] = (counts[call.method] ?? 0) + 1;
+        // The endpoint's chain was verified while resuming; it is not re-probed
+        // for every read within the chain-check interval.
         expect(counts).toEqual({
-            eth_chainId: 7,
             eth_blockNumber: 1,
             eth_getBlockByNumber: 2,
             eth_getLogs: 1,
@@ -450,7 +451,7 @@ describe("duplicate payout protection", () => {
         expectPaidOnce([1]);
     });
 
-    it("dual RPC: 10,000 empty blocks use range-sized RPC traffic including chain probes", async () => {
+    it("dual RPC: 10,000 empty blocks use range-sized RPC traffic without per-read chain probes", async () => {
         const { rpc, calls } = dualRpc(
             () => undefined,
             undefined,
@@ -488,15 +489,14 @@ describe("duplicate payout protection", () => {
             txId: null,
         });
         expectPaidOnce([]);
-        // Include chain probes and four new sessions (the first lease was acquired
-        // before scanStart while resuming the persisted checkpoint).
+        // The chain was verified while resuming the persisted checkpoint, so the
+        // scan itself sends no chain probes within the chain-check interval.
         expect(counts).toEqual({
-            eth_chainId: 49,
             eth_blockNumber: 5,
             eth_getLogs: 5,
             eth_getBlockByNumber: 15,
         });
-        expect(scanCalls).toHaveLength(74);
+        expect(scanCalls).toHaveLength(25);
     });
 
     it("dual RPC: an anchor failure after a payout rejects stale cached logs from the other branch", async () => {

@@ -86,6 +86,29 @@ describe(isRetryableEthereumError.name, () => {
         expect(isRetryableEthereumError({ status: 503 })).toBe(true);
     });
 
+    it("returns true for an HTTP 402 (quota exhausted) with no JSON-RPC code", () => {
+        expect(isRetryableEthereumError({ status: 402 })).toBe(true);
+    });
+
+    it.each([
+        { code: -32005, message: "limit exceeded" },
+        { code: "-32005", message: "daily request quota exceeded" },
+        {
+            code: "SERVER_ERROR",
+            error: { code: -32005, message: "rate limit reached" },
+        },
+    ])("returns true for a provider quota error: %j", (error) => {
+        expect(isRetryableEthereumError(error)).toBe(true);
+    });
+
+    it.each([
+        { code: -32005, message: "query returned more than 10000 results" },
+        { code: -32005, message: "block range is too large" },
+        { code: -32005, message: "something else" },
+    ])("returns false for a deterministic -32005 error: %j", (error) => {
+        expect(isRetryableEthereumError(error)).toBe(false);
+    });
+
     it("returns false for an HTTP 404 with no JSON-RPC code", () => {
         expect(isRetryableEthereumError({ status: 404 })).toBe(false);
     });

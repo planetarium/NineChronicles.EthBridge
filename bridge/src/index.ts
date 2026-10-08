@@ -318,9 +318,11 @@ process.on("uncaughtException", console.error);
     // `SafeWrappedNCGMinter`). This never retries the broadcast itself, only
     // the safe-to-repeat wait for its receipt, so it can't cause a duplicate
     // mint. Non-transient errors (e.g. reverts, invalid nonce) are never
-    // retried regardless of this setting.
-    const ETHEREUM_RPC_MAX_RETRY = 3;
-    const ETHEREUM_RPC_RETRY_DELAY_MS = 1000;
+    // retried regardless of this setting. Giving up records an already
+    // broadcast mint as FAILED, so the budget (~5 minutes) outlasts a quota
+    // burst and several primary cooldowns rather than failing fast.
+    const ETHEREUM_RPC_MAX_RETRY = 20;
+    const ETHEREUM_RPC_RETRY_DELAY_MS = 15000;
 
     const monitorStateStore: IMonitorStateStore =
         await Sqlite3MonitorStateStore.open(MONITOR_STATE_STORE_PATH);

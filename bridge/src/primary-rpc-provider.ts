@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { isRpcQuotaExceededError } from "./rpc-retry";
 
 const READ_METHODS = new Set([
     "getBlockNumber",
@@ -90,21 +91,15 @@ export function isPrimaryRpcTransientError(error: unknown): boolean {
     )
         return true;
     if (Number(err.code) === -32603) return true;
-    return (
-        Number(err.code) === -32005 &&
-        !/block.*range|range.*block|too many (results|logs)|query returned more than|response.*size/i.test(
-            err.message ?? ""
-        ) &&
-        /rate|quota|requests per|request limit|maximum API usage limit|^\s*limit exceeded[.!]?\s*$/i.test(
-            err.message ?? ""
-        )
-    );
+    return isRpcQuotaExceededError(err.code, err.message);
 }
 
 export interface PrimaryRpcProviderOptions {
     expectedChainId: number;
     requestTimeoutMs?: number;
     cooldownMs?: number;
+    /** How long a successful eth_chainId check vouches for an endpoint. */
+    chainCheckIntervalMs?: number;
 }
 
 /** Sequential failover: a healthy primary never causes secondary RPC traffic. */
@@ -112,6 +107,11 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     private readonly primary: ethers.providers.JsonRpcProvider;
     private readonly secondary: ethers.providers.JsonRpcProvider | undefined;
     private readonly cooldownMs: number;
+    private readonly chainCheckIntervalMs: number;
+    private readonly chainCheckedUntil = new Map<
+        ethers.providers.JsonRpcProvider,
+        number
+    >();
     private primaryUnavailableUntil = 0;
     private lastDispatchProvider: ethers.providers.JsonRpcProvider | undefined;
     private endpointEpoch = 0;
@@ -140,6 +140,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             expectedChainId,
             requestTimeoutMs = 10000,
             cooldownMs = 30000,
+            chainCheckIntervalMs = 60000,
         } = options;
         if (!Number.isSafeInteger(expectedChainId) || expectedChainId <= 0)
             throw new Error("expectedChainId must be a positive safe integer");
@@ -147,6 +148,10 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
             throw new Error("requestTimeoutMs must be positive and finite");
         if (!Number.isFinite(cooldownMs) || cooldownMs < 0)
             throw new Error("cooldownMs must be nonnegative and finite");
+        if (!Number.isFinite(chainCheckIntervalMs) || chainCheckIntervalMs < 0)
+            throw new Error(
+                "chainCheckIntervalMs must be nonnegative and finite"
+            );
         if (
             !primaryUrl.trim() ||
             (secondaryUrl !== undefined && !secondaryUrl.trim())
@@ -162,6 +167,7 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         this.secondary =
             secondaryUrl === undefined ? undefined : connect(secondaryUrl);
         this.cooldownMs = cooldownMs;
+        this.chainCheckIntervalMs = chainCheckIntervalMs;
     }
 
     /** Independent routing/session state for a monitor sharing a signer provider. */
@@ -176,9 +182,17 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
     private async validate(
         provider: ethers.providers.JsonRpcProvider
     ): Promise<ethers.providers.JsonRpcProvider> {
+        // getNetwork() and dispatch() both select an endpoint for every read, so
+        // re-check the chain only after an interval or an endpoint failure.
+        if (Date.now() < (this.chainCheckedUntil.get(provider) ?? 0))
+            return provider;
         // Preserve deterministic probe errors: JsonRpcProvider.getNetwork()
         // otherwise turns these into NETWORK_ERROR/noNetwork.
         this.assertChainId(await provider.send("eth_chainId", []));
+        this.chainCheckedUntil.set(
+            provider,
+            Date.now() + this.chainCheckIntervalMs
+        );
         return provider;
     }
 
@@ -294,6 +308,9 @@ export class PrimaryRpcProvider extends ethers.providers.BaseProvider {
         try {
             return await operation(provider);
         } catch (error) {
+            // A failing endpoint may come back on another chain or node.
+            if (isPrimaryRpcTransientError(error))
+                this.chainCheckedUntil.delete(provider);
             // Sending a signed transaction is never repeated: a timeout can
             // mean it was accepted. Unknown methods also fail closed.
             if (
