@@ -13,6 +13,7 @@ describe(WrappedNCGMinter.name, () => {
         getBlockIndex: jest.fn(),
         getNCGTransferredEvents: jest.fn(),
         getNextTxNonce: jest.fn((address) => Promise.resolve(0)),
+        getBlockTransactions: jest.fn(),
         getGenesisHash: jest.fn(),
         getTipIndex: jest.fn(),
         transfer: jest.fn(),

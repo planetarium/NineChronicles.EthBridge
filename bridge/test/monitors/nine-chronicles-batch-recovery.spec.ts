@@ -44,6 +44,7 @@ function makeClient(): jest.Mocked<IHeadlessGraphQLClient> {
             ]
         ),
         getNextTxNonce: jest.fn(),
+        getBlockTransactions: jest.fn(),
         getGenesisHash: jest.fn(),
         transfer: jest.fn(),
         attachSignature: jest.fn(),
