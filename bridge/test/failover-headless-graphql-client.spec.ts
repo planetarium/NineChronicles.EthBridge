@@ -1,25 +1,27 @@
 import {
     FailoverHeadlessGraphQLClient,
+    assertSecureFallbackEndpoint,
     createFailoverClient,
     isMissingTxExecutionError,
 } from "../src/failover-headless-graphql-client";
 import { IHeadlessGraphQLClient } from "../src/interfaces/headless-graphql-client";
-
-const missingTxExecution = [
-    {
-        message: "Error trying to resolve field 'transferNCGHistories'.",
-        path: ["transferNCGHistories"],
-        extensions: { code: "INVALID_OPERATION" },
-    },
-];
+import {
+    BLOCK_HASH,
+    RECIPIENT,
+    blockTransactions,
+    goodEvent,
+    missingTxExecution,
+} from "./fixtures-failover";
 
 function fakeClient(
     endpoint: string,
-    events: jest.Mock = jest.fn().mockResolvedValue([])
+    events: jest.Mock = jest.fn().mockResolvedValue([]),
+    transactions: jest.Mock = jest.fn().mockResolvedValue(blockTransactions)
 ): IHeadlessGraphQLClient {
     return {
         endpoint,
         getNCGTransferredEvents: events,
+        getBlockTransactions: transactions,
         getTipIndex: jest.fn().mockResolvedValue(1),
         getBlockHash: jest.fn().mockResolvedValue("hash"),
         getBlockIndex: jest.fn().mockResolvedValue(1),
@@ -32,20 +34,40 @@ function fakeClient(
     } as unknown as IHeadlessGraphQLClient;
 }
 
+const failing = (e: unknown) => jest.fn().mockRejectedValue(e);
+const serving = (events: unknown[]) => jest.fn().mockResolvedValue(events);
+
 describe("isMissingTxExecutionError", () => {
-    it("matches INVALID_OPERATION on transferNCGHistories", () => {
+    it("matches the real TxExecution-not-found error", () => {
         expect(isMissingTxExecutionError(missingTxExecution)).toBe(true);
     });
+
+    const withData = (data: unknown, code = "INVALID_OPERATION") => [
+        {
+            path: ["transferNCGHistories"],
+            extensions: { code, data },
+        },
+    ];
 
     it.each([
         [new Error("timeout")],
         [undefined],
-        [[{ path: ["other"], extensions: { code: "INVALID_OPERATION" } }]],
+        [withData({ message: "something else entirely" })],
+        [withData(undefined)],
+        [
+            withData(
+                { message: "TxExecution ea91 not found." },
+                "UNAUTHENTICATED"
+            ),
+        ],
         [
             [
                 {
-                    path: ["transferNCGHistories"],
-                    extensions: { code: "UNAUTHENTICATED" },
+                    path: ["other"],
+                    extensions: {
+                        code: "INVALID_OPERATION",
+                        data: { message: "TxExecution ea91 not found." },
+                    },
                 },
             ],
         ],
@@ -55,63 +77,139 @@ describe("isMissingTxExecutionError", () => {
 });
 
 describe("FailoverHeadlessGraphQLClient", () => {
-    let warn: jest.SpyInstance;
     let error: jest.SpyInstance;
     beforeEach(() => {
-        warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        jest.spyOn(console, "warn").mockImplementation(() => {});
         error = jest.spyOn(console, "error").mockImplementation(() => {});
     });
     afterEach(() => jest.restoreAllMocks());
 
-    it("does not touch fallbacks when the primary succeeds", async () => {
-        const events = [{ txId: "a" }];
-        const primary = fakeClient(
-            "primary",
-            jest.fn().mockResolvedValue(events)
-        );
-        const fallback = fakeClient("fallback");
-        const client = new FailoverHeadlessGraphQLClient(primary, [fallback]);
+    const ask = (c: IHeadlessGraphQLClient, hash = BLOCK_HASH) =>
+        c.getNCGTransferredEvents(hash, RECIPIENT);
 
-        await expect(client.getNCGTransferredEvents("h", "r")).resolves.toBe(
-            events
+    it("does not touch fallbacks when the primary succeeds", async () => {
+        const events = [goodEvent];
+        const fallback = fakeClient("fallback");
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", serving(events)),
+            [fallback]
         );
+
+        await expect(ask(client)).resolves.toBe(events);
         expect(fallback.getNCGTransferredEvents).not.toHaveBeenCalled();
+        expect(client.failoverCount).toBe(0);
     });
 
-    it("serves the block from the next node when TxExecution is missing", async () => {
-        const events = [{ txId: "a" }];
-        const primary = fakeClient(
-            "primary",
-            jest.fn().mockRejectedValue(missingTxExecution)
+    it("serves the block from a verified fallback when TxExecution is missing", async () => {
+        const bad = fakeClient("https://bad", failing(missingTxExecution));
+        const good = fakeClient("https://good", serving([goodEvent]));
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [bad, good]
         );
-        const bad = fakeClient(
-            "bad",
-            jest.fn().mockRejectedValue(missingTxExecution)
-        );
-        const good = fakeClient("good", jest.fn().mockResolvedValue(events));
-        const client = new FailoverHeadlessGraphQLClient(primary, [bad, good]);
 
-        await expect(client.getNCGTransferredEvents("h", "r")).resolves.toBe(
-            events
+        await expect(ask(client)).resolves.toEqual([goodEvent]);
+        expect(client.failoverCount).toBe(1);
+    });
+
+    it("rejects a fallback whose events do not match the primary's transactions", async () => {
+        const alert = jest.fn();
+        const forged = { ...goodEvent, amount: "500000" };
+        const liar = fakeClient("https://liar", serving([forged]));
+        const honest = fakeClient("https://honest", serving([goodEvent]));
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [liar, honest],
+            { alert }
         );
-        expect(good.getNCGTransferredEvents).toHaveBeenCalledWith("h", "r");
+
+        await expect(ask(client)).resolves.toEqual([goodEvent]);
+        expect(client.failoverCount).toBe(1);
+    });
+
+    it("never returns forged events when every fallback lies", async () => {
+        const alert = jest.fn();
+        const forged = { ...goodEvent, amount: "500000" };
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [fakeClient("https://liar", serving([forged]))],
+            { alert }
+        );
+
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
+        const [, details] = alert.mock.calls[0];
+        expect(details.failures["https://liar"]).toContain("rejected");
+        expect(client.failoverCount).toBe(0);
+    });
+
+    it("treats a fallback as failed when the primary's block cannot be read", async () => {
+        const alert = jest.fn();
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient(
+                "primary",
+                failing(missingTxExecution),
+                failing(new Error("block unavailable"))
+            ),
+            [fakeClient("https://good", serving([goodEvent]))],
+            { alert }
+        );
+
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
+        expect(alert.mock.calls[0][1].failures["https://good"]).toContain(
+            "cannot verify"
+        );
+    });
+
+    it("alerts when the fallback did not report a transfer to the bridge", async () => {
+        const alert = jest.fn();
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [fakeClient("https://good", serving([]))],
+            { alert }
+        );
+
+        await expect(ask(client)).resolves.toEqual([]);
+        const summaries = alert.mock.calls.map(([s]) => s as string);
+        expect(summaries.some((s) => s.includes("did not report"))).toBe(true);
+    });
+
+    it("reports failover usage at most once per cooldown with a running count", async () => {
+        const alert = jest.fn();
+        let now = 0;
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [fakeClient("https://good", serving([goodEvent]))],
+            { alert, successAlertCooldownMs: 1000, now: () => now }
+        );
+        const usage = () =>
+            alert.mock.calls.filter(([s]) =>
+                s.includes("fallback https://good")
+            );
+
+        await ask(client);
+        now = 500;
+        await ask(client);
+        expect(usage()).toHaveLength(1);
+        expect(usage()[0][1].blocksSinceLastReport).toBe(1);
+
+        now = 1500;
+        await ask(client);
+        expect(usage()).toHaveLength(2);
+        expect(usage()[1][1].blocksSinceLastReport).toBe(2);
+        expect(client.failoverCount).toBe(3);
     });
 
     it("does not fail over (but alerts) for other primary errors", async () => {
         const boom = new Error("ECONNREFUSED");
-        const primary = fakeClient(
-            "primary",
-            jest.fn().mockRejectedValue(boom)
-        );
         const fallback = fakeClient("fallback");
         const alert = jest.fn();
-        const client = new FailoverHeadlessGraphQLClient(primary, [fallback], {
-            alert,
-        });
-
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            boom
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(boom)),
+            [fallback],
+            { alert }
         );
+
+        await expect(ask(client)).rejects.toBe(boom);
         expect(fallback.getNCGTransferredEvents).not.toHaveBeenCalled();
         expect(alert).toHaveBeenCalledTimes(1);
     });
@@ -119,44 +217,26 @@ describe("FailoverHeadlessGraphQLClient", () => {
     it("rethrows (never skips) and alerts once per block when every node fails", async () => {
         const alert = jest.fn();
         let now = 0;
-        const primary = fakeClient(
-            "primary",
-            jest.fn().mockRejectedValue(missingTxExecution)
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [fakeClient("fallback", failing(new Error("down")))],
+            { alert, alertCooldownMs: 1000, now: () => now }
         );
-        const fallback = fakeClient(
-            "fallback",
-            jest.fn().mockRejectedValue(new Error("down"))
-        );
-        const client = new FailoverHeadlessGraphQLClient(primary, [fallback], {
-            alert,
-            alertCooldownMs: 1000,
-            now: () => now,
-        });
 
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            missingTxExecution
-        );
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
         now = 500;
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            missingTxExecution
-        );
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
         expect(alert).toHaveBeenCalledTimes(1);
         const [summary, details] = alert.mock.calls[0];
-        expect(summary).toContain("h");
-        expect(details.blockHash).toBe("h");
-        expect(details.failures.primary).toContain("INVALID_OPERATION");
-        expect(details.failures.primary).toContain("transferNCGHistories");
+        expect(summary).toContain(BLOCK_HASH);
+        expect(details.failures.primary).toContain("TxExecution");
         expect(details.failures.fallback).toContain("down");
 
         now = 1500;
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            missingTxExecution
-        );
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
         expect(alert).toHaveBeenCalledTimes(2);
 
-        await expect(client.getNCGTransferredEvents("other", "r")).rejects.toBe(
-            missingTxExecution
-        );
+        await expect(ask(client, "other")).rejects.toBe(missingTxExecution);
         expect(alert).toHaveBeenCalledTimes(3);
     });
 
@@ -168,6 +248,7 @@ describe("FailoverHeadlessGraphQLClient", () => {
         await client.getBlockIndex("h");
         await client.getTipIndex();
         await client.getBlockHash(1);
+        await client.getBlockTransactions("h");
         await client.getNextTxNonce("a");
         await client.getGenesisHash();
         await client.transfer("r", "1", 1, null);
@@ -179,6 +260,7 @@ describe("FailoverHeadlessGraphQLClient", () => {
             "getBlockIndex",
             "getTipIndex",
             "getBlockHash",
+            "getBlockTransactions",
             "getNextTxNonce",
             "getGenesisHash",
             "transfer",
@@ -193,19 +275,17 @@ describe("FailoverHeadlessGraphQLClient", () => {
     });
 
     it("still throws the original error when the alert callback throws", async () => {
-        const primary = fakeClient(
-            "primary",
-            jest.fn().mockRejectedValue(missingTxExecution)
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", failing(missingTxExecution)),
+            [],
+            {
+                alert: () => {
+                    throw new Error("pagerduty down");
+                },
+            }
         );
-        const client = new FailoverHeadlessGraphQLClient(primary, [], {
-            alert: () => {
-                throw new Error("pagerduty down");
-            },
-        });
 
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            missingTxExecution
-        );
+        await expect(ask(client)).rejects.toBe(missingTxExecution);
         expect(error).toHaveBeenCalledWith(
             "[FailoverHeadlessGraphQLClient] alert failed:",
             expect.any(Error)
@@ -215,11 +295,34 @@ describe("FailoverHeadlessGraphQLClient", () => {
     it("works without an alert callback", async () => {
         const boom = new Error("x");
         const client = new FailoverHeadlessGraphQLClient(
-            fakeClient("primary", jest.fn().mockRejectedValue(boom)),
+            fakeClient("primary", failing(boom)),
             []
         );
-        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
-            boom
+        await expect(ask(client)).rejects.toBe(boom);
+    });
+});
+
+describe("assertSecureFallbackEndpoint", () => {
+    it.each([
+        ["https://odin6.9capi.com/graphql"],
+        ["http://localhost:23061/graphql"],
+        ["http://127.0.0.1:5000/graphql"],
+    ])("accepts %s", (endpoint) => {
+        expect(() => assertSecureFallbackEndpoint(endpoint)).not.toThrow();
+    });
+
+    it.each([["http://odin6.9capi.com/graphql"], ["ws://example.com/graphql"]])(
+        "rejects %s",
+        (endpoint) => {
+            expect(() => assertSecureFallbackEndpoint(endpoint)).toThrow(
+                /https/
+            );
+        }
+    );
+
+    it("rejects unparsable endpoints", () => {
+        expect(() => assertSecureFallbackEndpoint("not a url")).toThrow(
+            /Invalid/
         );
     });
 });
@@ -228,19 +331,16 @@ describe("createFailoverClient", () => {
     it.each([[undefined], [""], [" , "]])(
         "wraps with no fallbacks (alerts still work) for %p",
         async (fallbackEndpoints) => {
+            jest.spyOn(console, "error").mockImplementation(() => {});
             const alert = jest.fn();
             const boom = new Error("ECONNREFUSED");
-            const primary = fakeClient(
-                "primary",
-                jest.fn().mockRejectedValue(boom)
-            );
-            jest.spyOn(console, "error").mockImplementation(() => {});
             const client = createFailoverClient({
-                primary,
+                primary: fakeClient("primary", failing(boom)),
                 fallbackEndpoints,
                 createFallback: fakeClient,
                 alert,
             });
+
             expect(client).toBeInstanceOf(FailoverHeadlessGraphQLClient);
             await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
                 boom
@@ -260,5 +360,15 @@ describe("createFailoverClient", () => {
             },
         });
         expect(created).toEqual(["https://a/graphql", "https://b/graphql"]);
+    });
+
+    it("refuses to start with an insecure fallback endpoint", () => {
+        expect(() =>
+            createFailoverClient({
+                primary: fakeClient("primary"),
+                fallbackEndpoints: "https://ok/graphql,http://evil/graphql",
+                createFallback: fakeClient,
+            })
+        ).toThrow(/https/);
     });
 });

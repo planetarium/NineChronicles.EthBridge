@@ -3,6 +3,7 @@ import { IHeadlessGraphQLClient } from "./interfaces/headless-graphql-client";
 import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
+import { BlockTransaction } from "./types/block-transaction";
 import jwt from "jsonwebtoken";
 import util from "util";
 
@@ -108,6 +109,30 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
         });
 
         return data.data.transferNCGHistories;
+    }
+
+    async getBlockTransactions(
+        blockHash: BlockHash
+    ): Promise<BlockTransaction[]> {
+        const query = `query GetBlockTransactions($hash: ID!)
+        { chainQuery { blockQuery { block(hash: $hash) { transactions { id signer actions { json } } } } } }`;
+        const { data } = await this.graphqlRequest({
+            operationName: "GetBlockTransactions",
+            query,
+            variables: { hash: blockHash },
+        });
+
+        return data.data.chainQuery.blockQuery.block.transactions.map(
+            (tx: {
+                id: string;
+                signer: string;
+                actions: { json: string }[];
+            }) => ({
+                id: tx.id,
+                signer: tx.signer,
+                actionJsons: tx.actions.map((a) => a.json),
+            })
+        );
     }
 
     async transfer(

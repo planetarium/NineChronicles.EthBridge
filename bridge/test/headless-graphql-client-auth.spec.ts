@@ -98,6 +98,33 @@ describe("HeadlessGraphQLClient", () => {
             expect(post.mock.calls[0][1].variables.recipient).toBeNull();
         });
 
+        it("getBlockTransactions flattens action json", async () => {
+            post.mockResolvedValue(
+                respond({
+                    chainQuery: {
+                        blockQuery: {
+                            block: {
+                                transactions: [
+                                    {
+                                        id: "t1",
+                                        signer: "s1",
+                                        actions: [
+                                            { json: "{}" },
+                                            { json: "[]" },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                })
+            );
+            await expect(client().getBlockTransactions("h")).resolves.toEqual([
+                { id: "t1", signer: "s1", actionJsons: ["{}", "[]"] },
+            ]);
+            expect(post.mock.calls[0][1].variables).toEqual({ hash: "h" });
+        });
+
         it("transfer", async () => {
             post.mockResolvedValue(respond({ transfer: "txid" }));
             await expect(client().transfer("r", "1", 2, "m")).resolves.toBe(

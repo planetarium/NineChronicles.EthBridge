@@ -150,6 +150,7 @@ describe("monitor restart checkpoints", () => {
                         : [event(hash, "a")]
             ),
             getNextTxNonce: jest.fn(),
+            getBlockTransactions: jest.fn(),
             getGenesisHash: jest.fn(),
             transfer: jest.fn(),
             attachSignature: jest.fn(),

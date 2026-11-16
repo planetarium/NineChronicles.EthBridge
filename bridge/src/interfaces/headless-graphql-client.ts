@@ -1,6 +1,7 @@
 import { BlockHash } from "../types/block-hash";
 import { TxId } from "../types/txid";
 import { NCGTransferredEvent } from "../types/ncg-transferred-event";
+import { BlockTransaction } from "../types/block-transaction";
 
 export interface IHeadlessGraphQLClient {
     readonly endpoint: string;
@@ -12,6 +13,7 @@ export interface IHeadlessGraphQLClient {
         blockHash: BlockHash,
         recipient: string
     ): Promise<NCGTransferredEvent[]>;
+    getBlockTransactions(blockHash: BlockHash): Promise<BlockTransaction[]>;
     getNextTxNonce(address: string): Promise<number>;
     getGenesisHash(): Promise<string>;
     transfer(
