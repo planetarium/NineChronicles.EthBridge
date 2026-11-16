@@ -160,23 +160,67 @@ describe("FailoverHeadlessGraphQLClient", () => {
         expect(alert).toHaveBeenCalledTimes(3);
     });
 
-    it("keeps signing/staging calls on the primary", async () => {
+    it("keeps every other call on the primary", async () => {
         const primary = fakeClient("primary");
         const fallback = fakeClient("fallback");
         const client = new FailoverHeadlessGraphQLClient(primary, [fallback]);
 
-        await client.getNextTxNonce("a");
-        await client.stageTx("p");
-        await client.transfer("r", "1", 1, null);
+        await client.getBlockIndex("h");
         await client.getTipIndex();
+        await client.getBlockHash(1);
+        await client.getNextTxNonce("a");
+        await client.getGenesisHash();
+        await client.transfer("r", "1", 1, null);
+        await client.createUnsignedTx("p", "k");
+        await client.attachSignature("u", "s");
+        await client.stageTx("p");
 
-        expect(primary.getNextTxNonce).toHaveBeenCalled();
-        expect(primary.stageTx).toHaveBeenCalled();
-        expect(primary.transfer).toHaveBeenCalled();
-        expect(fallback.getNextTxNonce).not.toHaveBeenCalled();
-        expect(fallback.stageTx).not.toHaveBeenCalled();
-        expect(fallback.transfer).not.toHaveBeenCalled();
+        for (const method of [
+            "getBlockIndex",
+            "getTipIndex",
+            "getBlockHash",
+            "getNextTxNonce",
+            "getGenesisHash",
+            "transfer",
+            "createUnsignedTx",
+            "attachSignature",
+            "stageTx",
+        ] as const) {
+            expect(primary[method]).toHaveBeenCalledTimes(1);
+            expect(fallback[method]).not.toHaveBeenCalled();
+        }
         expect(client.endpoint).toBe("primary");
+    });
+
+    it("still throws the original error when the alert callback throws", async () => {
+        const primary = fakeClient(
+            "primary",
+            jest.fn().mockRejectedValue(missingTxExecution)
+        );
+        const client = new FailoverHeadlessGraphQLClient(primary, [], {
+            alert: () => {
+                throw new Error("pagerduty down");
+            },
+        });
+
+        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
+            missingTxExecution
+        );
+        expect(error).toHaveBeenCalledWith(
+            "[FailoverHeadlessGraphQLClient] alert failed:",
+            expect.any(Error)
+        );
+    });
+
+    it("works without an alert callback", async () => {
+        const boom = new Error("x");
+        const client = new FailoverHeadlessGraphQLClient(
+            fakeClient("primary", jest.fn().mockRejectedValue(boom)),
+            []
+        );
+        await expect(client.getNCGTransferredEvents("h", "r")).rejects.toBe(
+            boom
+        );
     });
 });
 
