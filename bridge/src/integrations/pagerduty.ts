@@ -1,6 +1,6 @@
 import os from "os";
 import { event } from "@pagerduty/pdjs";
-import { Integration } from ".";
+import { Integration, Severity } from ".";
 
 export class PagerDutyIntegration implements Integration {
     private readonly _routingKey: string;
@@ -9,13 +9,17 @@ export class PagerDutyIntegration implements Integration {
         this._routingKey = routingKey;
     }
 
-    error(summary: string, error: Record<string, any>) {
+    error(
+        summary: string,
+        error: Record<string, any>,
+        severity: Severity = "warning"
+    ) {
         event({
             data: {
                 routing_key: this._routingKey,
                 event_action: "trigger",
                 payload: {
-                    severity: "warning",
+                    severity,
                     source: os.hostname(),
                     summary: summary,
                     custom_details: error,
