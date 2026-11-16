@@ -4,6 +4,7 @@ import { NCGTransferredEvent } from "./types/ncg-transferred-event";
 import { BlockHash } from "./types/block-hash";
 import { TxId } from "./types/txid";
 import jwt from "jsonwebtoken";
+import util from "util";
 
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => {
@@ -22,12 +23,23 @@ interface GraphQLRequestBody {
 export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
     private readonly _apiEndpoint: string;
     private readonly _maxRetry: number;
-    private readonly _jwtToken: string;
+    private readonly _jwtToken: string | null;
 
-    constructor(apiEndpoint: string, maxRetry: number, secretKey: string) {
+    /**
+     * @param sendAuthorization set false for nodes we do not operate: the JWT
+     * is valid against our own nodes and must not be handed to third parties.
+     */
+    constructor(
+        apiEndpoint: string,
+        maxRetry: number,
+        secretKey: string,
+        sendAuthorization: boolean = true
+    ) {
         this._apiEndpoint = apiEndpoint;
         this._maxRetry = maxRetry;
-        this._jwtToken = this.createJwtToken(secretKey);
+        this._jwtToken = sendAuthorization
+            ? this.createJwtToken(secretKey)
+            : null;
     }
 
     private createJwtToken(secretKey: string) {
@@ -201,7 +213,9 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
             const response = await axios.post(this._apiEndpoint, body, {
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${this._jwtToken}`,
+                    ...(this._jwtToken !== null
+                        ? { Authorization: `Bearer ${this._jwtToken}` }
+                        : {}),
                 },
                 timeout: 10 * 1000,
             });
@@ -210,7 +224,12 @@ export class HeadlessGraphQLClient implements IHeadlessGraphQLClient {
 
             return response;
         } catch (error) {
-            console.error(`Retrying left ${retry - 1}... error:`, error);
+            console.error(
+                `Retrying left ${retry - 1}... error:`,
+                Array.isArray(error)
+                    ? util.inspect(error, { depth: null })
+                    : error
+            );
             if (retry > 0) {
                 await delay(500);
                 const response = await this.graphqlRequest(body, retry - 1);
